@@ -63,6 +63,10 @@ function scanMods(modPathOverride = null) {
   return mods;
 }
 
+app.get('/api/get-mod-path', (req, res) => {
+  res.json({ path: userModPath });
+});
+
 app.post('/api/set-mod-path', (req, res) => {
   const newPath = req.body.path;
   if (fs.existsSync(newPath)) {

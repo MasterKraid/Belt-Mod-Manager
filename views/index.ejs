@@ -26,7 +26,11 @@
       <div class="profile-name">
         <input v-if="editingProfile === p" v-model="renameInput" @keyup.enter="submitRename(p)" @blur="cancelRename" />
         <strong v-else>{{ p }}</strong>
-        <span class="pencil" @click="startRename(p)">✏️</span>
+        <span class="pencil" @click="startRename(p)">
+          <svg width="16" height="16" fill="#f4d35e" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path d="M4 21v-3.586l11.293-11.293 3.586 3.586L7.586 21H4zm14.707-14.707l-1.414-1.414a1 1 0 00-1.414 0l-1.293 1.293 3.586 3.586 1.293-1.293a1 1 0 000-1.414z"/>
+          </svg>
+        </span>
       </div>
       <label class="switch">
         <input type="checkbox" :checked="p === selectedProfile" @change="activateProfile(p)">
@@ -40,6 +44,11 @@
   <!-- Mod Manager Tab -->
   <div v-show="currentTab==='manager'">
     <h3>Active Profile: {{ selectedProfile }}</h3>
+    <div class="mod-path">
+        <label>Mods Folder: <strong>{{ currentModPath || '(default)' }}</strong></label>
+        <button @click="triggerPathPicker">Set Path</button>
+        <input type="file" id="dir-picker" style="display:none" webkitdirectory @change="setModPath" />
+      </div>
     <button @click="toggleAll(true)">Enable All</button>
     <button @click="toggleAll(false)">Disable All</button>
     <button @click="saveMods">Save</button>

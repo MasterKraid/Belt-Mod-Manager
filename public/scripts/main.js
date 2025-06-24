@@ -8,7 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
       selectedProfile: 'default',
       currentTab: 'manager',
       editingProfile: null,
-      renameInput: ''
+      renameInput: '',
+      currentModPath: ''
     },
     methods: {
       fetchMods() {
@@ -83,10 +84,31 @@ document.addEventListener('DOMContentLoaded', () => {
           this.renameInput = '';
           this.loadProfiles();
         });
+      },
+      triggerPathPicker() {
+        document.getElementById('dir-picker').click();
+      },
+      setModPath(evt) {
+        const folder = evt.target.files?.[0];
+        if (!folder || !folder.path) return;
+        const path = folder.path.replace(/\\/g, '/').split('/').slice(0, -1).join('/');
+        fetch('/api/set-mod-path', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path })
+        }).then(() => {
+          this.currentModPath = path;
+          this.status = 'Mod path updated';
+          this.fetchMods();
+        });
       }
     },
     mounted() {
       this.loadProfiles();
+      fetch('/api/get-mod-path')
+        .then(res => res.json())
+        .then(data => this.currentModPath = data.path);
+
     }
   });
 });
