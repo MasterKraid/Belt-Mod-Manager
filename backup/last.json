@@ -1,0 +1,276 @@
+{
+  "mods": [
+    {
+      "name": "base",
+      "enabled": true
+    },
+    {
+      "name": "space-age",
+      "enabled": true
+    },
+    {
+      "name": "quality",
+      "enabled": true
+    },
+    {
+      "name": "aai-loaders",
+      "enabled": true
+    },
+    {
+      "name": "aai-vehicles-miner",
+      "enabled": false
+    },
+    {
+      "name": "advanced_spaceship_repair",
+      "enabled": true
+    },
+    {
+      "name": "Aircraft-space-age",
+      "enabled": true
+    },
+    {
+      "name": "AircraftRealism",
+      "enabled": true
+    },
+    {
+      "name": "alien-biomes-graphics",
+      "enabled": true
+    },
+    {
+      "name": "alien-biomes",
+      "enabled": true
+    },
+    {
+      "name": "AutoDeconstruct",
+      "enabled": true
+    },
+    {
+      "name": "BeltThreadUpgrades",
+      "enabled": true
+    },
+    {
+      "name": "better-victory-screen",
+      "enabled": true
+    },
+    {
+      "name": "bigger-artillery",
+      "enabled": true
+    },
+    {
+      "name": "biter-factions-ng",
+      "enabled": true
+    },
+    {
+      "name": "bobgreenhouse",
+      "enabled": true
+    },
+    {
+      "name": "bobinserters",
+      "enabled": true
+    },
+    {
+      "name": "boblibrary",
+      "enabled": true
+    },
+    {
+      "name": "BottleneckLite",
+      "enabled": true
+    },
+    {
+      "name": "Brighter-Lamps",
+      "enabled": true
+    },
+    {
+      "name": "bullet-trails",
+      "enabled": true
+    },
+    {
+      "name": "cargo-ships-graphics",
+      "enabled": true
+    },
+    {
+      "name": "cargo-ships",
+      "enabled": true
+    },
+    {
+      "name": "ChangeInserterDropLane",
+      "enabled": true
+    },
+    {
+      "name": "combat-mechanics-overhaul",
+      "enabled": true
+    },
+    {
+      "name": "Dectorio",
+      "enabled": true
+    },
+    {
+      "name": "DiscoScience",
+      "enabled": true
+    },
+    {
+      "name": "EditorExtensions",
+      "enabled": true
+    },
+    {
+      "name": "elevated-pipes",
+      "enabled": true
+    },
+    {
+      "name": "EpicArtillerySounds",
+      "enabled": true
+    },
+    {
+      "name": "even-distribution",
+      "enabled": true
+    },
+    {
+      "name": "factorio-world",
+      "enabled": true
+    },
+    {
+      "name": "factorioplus",
+      "enabled": true
+    },
+    {
+      "name": "factorissimo-2-notnotmelon",
+      "enabled": true
+    },
+    {
+      "name": "factoryplanner",
+      "enabled": true
+    },
+    {
+      "name": "Fill4Me",
+      "enabled": true
+    },
+    {
+      "name": "flib",
+      "enabled": true
+    },
+    {
+      "name": "Furnitorio",
+      "enabled": true
+    },
+    {
+      "name": "holographic_signs",
+      "enabled": true
+    },
+    {
+      "name": "Honk",
+      "enabled": true
+    },
+    {
+      "name": "jetpack",
+      "enabled": true
+    },
+    {
+      "name": "Kux-CoreLib",
+      "enabled": true
+    },
+    {
+      "name": "Kux-GuiLib",
+      "enabled": true
+    },
+    {
+      "name": "Kux-OrbitalIonCannon",
+      "enabled": true
+    },
+    {
+      "name": "large-storage-tank",
+      "enabled": true
+    },
+    {
+      "name": "lex-aircraft-grayscale",
+      "enabled": true
+    },
+    {
+      "name": "lex-aircraft",
+      "enabled": true
+    },
+    {
+      "name": "lightArtillery",
+      "enabled": true
+    },
+    {
+      "name": "Long_Range_Delivery_Drones",
+      "enabled": true
+    },
+    {
+      "name": "mferrari_lib",
+      "enabled": true
+    },
+    {
+      "name": "Milestones",
+      "enabled": true
+    },
+    {
+      "name": "numeric_quality_icons",
+      "enabled": true
+    },
+    {
+      "name": "RPGsystem",
+      "enabled": true
+    },
+    {
+      "name": "show-max-underground-distance",
+      "enabled": true
+    },
+    {
+      "name": "snouz-big-accumulator",
+      "enabled": true
+    },
+    {
+      "name": "snouz-useful-icons",
+      "enabled": true
+    },
+    {
+      "name": "spaceship_expanded_cargo",
+      "enabled": true
+    },
+    {
+      "name": "squeak-through-2",
+      "enabled": true
+    },
+    {
+      "name": "StatsGui",
+      "enabled": true
+    },
+    {
+      "name": "textplates",
+      "enabled": true
+    },
+    {
+      "name": "Todo-List",
+      "enabled": true
+    },
+    {
+      "name": "tree_collision",
+      "enabled": true
+    },
+    {
+      "name": "vehicle-finder",
+      "enabled": true
+    },
+    {
+      "name": "VehicleSnap",
+      "enabled": true
+    },
+    {
+      "name": "vehicle_physics",
+      "enabled": true
+    },
+    {
+      "name": "Vibrant_paint",
+      "enabled": true
+    },
+    {
+      "name": "visible-planets",
+      "enabled": true
+    },
+    {
+      "name": "Warehousing",
+      "enabled": true
+    }
+  ]
+}

@@ -5,71 +5,104 @@
   <title>Factorio Mod Manager</title>
   <link rel="stylesheet" href="/styles/main.css">
   <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+  <style>[v-cloak] { display: none; }</style>
 </head>
 <body>
-<div id="app" class="glass-container">
-  <h1>🛠 Factorio Mod Manager</h1>
-
-  <nav class="tabs">
-    <button :class="{active: currentTab==='profiles'}" @click="currentTab='profiles'">Profiles</button>
-    <button :class="{active: currentTab==='manager'}" @click="currentTab='manager'">Manager</button>
-    <button :class="{active: currentTab==='settings'}" @click="currentTab='settings'">Settings</button>
-    <button :class="{active: currentTab==='downloader'}" @click="currentTab='downloader'">Downloader</button>
-  </nav>
-
-  <p class="status">{{ status }}</p>
-
-  <!-- Profiles Tab -->
-<div v-show="currentTab==='profiles'">
-  <div class="profile-list">
-    <div class="mod-item" v-for="p in profiles" :key="p">
-      <div class="profile-name">
-        <input v-if="editingProfile === p" v-model="renameInput" @keyup.enter="submitRename(p)" @blur="cancelRename" />
-        <strong v-else>{{ p }}</strong>
-        <span class="pencil" @click="startRename(p)">
-          <svg width="16" height="16" fill="#f4d35e" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-          <path d="M4 21v-3.586l11.293-11.293 3.586 3.586L7.586 21H4zm14.707-14.707l-1.414-1.414a1 1 0 00-1.414 0l-1.293 1.293 3.586 3.586 1.293-1.293a1 1 0 000-1.414z"/>
-          </svg>
-        </span>
-      </div>
-      <label class="switch">
-        <input type="checkbox" :checked="p === selectedProfile" @change="activateProfile(p)">
-        <span class="slider"></span>
-      </label>
+  <div id="notifications" class="notifications" v-cloak>
+    <div class="notif" v-for="note in notifications" :key="note.id">
+      {{ note.message }}
+      <div class="bar" :style="{ animationDuration: note.duration + 's' }"></div>
     </div>
   </div>
-  <button @click="createProfile">New Profile</button>
-</div>
 
-  <!-- Mod Manager Tab -->
-  <div v-show="currentTab==='manager'">
-    <h3>Active Profile: {{ selectedProfile }}</h3>
-    <div class="mod-path">
-        <label>Mods Folder: <strong>{{ currentModPath || '(default)' }}</strong></label>
-        <button @click="setModPath">Set Path</button>
-      </div>
-    <button @click="toggleAll(true)">Enable All</button>
-    <button @click="toggleAll(false)">Disable All</button>
-    <button @click="saveMods">Save</button>
 
-    <div class="mod-list">
-      <div class="mod-item" v-for="mod in mods" :key="mod.name">
-        <div class="mod-meta">
-          <strong>{{ mod.title }}</strong> <small>({{ mod.name }})</small>
-          <div class="version">v{{ mod.version }}</div>
+  <div id="app" class="glass-container">
+    <h1>Factorio Mod Manager</h1>
+
+    <nav class="tabs">
+      <button :class="{active: currentTab==='profiles'}" @click="currentTab='profiles'">Profiles</button>
+      <button :class="{active: currentTab==='manager'}" @click="currentTab='manager'">Manager</button>
+      <button :class="{active: currentTab==='installed'}" @click="currentTab='installed'">Installed Mods</button>
+      <button :class="{active: currentTab==='settings'}" @click="currentTab='settings'">Settings</button>
+      <button :class="{active: currentTab==='downloader'}" @click="currentTab='downloader'">Downloader</button>
+    </nav>
+
+    <p class="status">{{ status }}</p>
+
+    <div v-show="currentTab==='profiles'">
+      <h3>Paths</h3>
+        <div class="path-setting">
+          <label>Mods Folder:</label>
+          <span>{{ currentModPath || '(default)' }}</span>
+          <button @click="setModPath">Set Path</button>
         </div>
-        <label class="switch">
-          <input type="checkbox" v-model="mod.enabled">
-          <span class="slider"></span>
-        </label>
+        <div class="path-setting">
+          <label>Game Folder:</label>
+          <span>{{ gamePath || '(not set)' }}</span>
+          <button @click="setGamePath">Set Game Path</button>
+        </div>
+      <div class="profile-list">
+        <div class="mod-item profile-item" v-for="p in profiles" :key="p">
+          <div class="profile-name">
+            <input
+                v-if="editingProfile === p"
+                v-model="renameInput"
+                @keyup.enter="submitRename(p)"
+                @keyup.esc="cancelRename"
+                @blur="cancelRename"
+              />
+            <strong v-else>{{ p }}</strong>
+          </div>
+          <span class="pencil" @click="startRename(p)">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+              <path d="M4 21v-3.586l11.293-11.293 3.586 3.586L7.586 21H4zm14.707-14.707l-1.414-1.414a1 1 0 00-1.414 0l-1.293 1.293 3.586 3.586 1.293-1.293a1 1 0 000-1.414z"/>
+            </svg>
+          </span>
+          <label class="switch">
+            <input type="checkbox" :checked="p === selectedProfile" @change="activateProfile(p)">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+      <button @click="createProfile">New Profile</button>
+    </div>
+
+    <div v-show="currentTab==='manager'">
+      <h3>Active Profile: {{ selectedProfile }}</h3>
+      <button @click="toggleAll(true)">Enable All</button>
+      <button @click="toggleAll(false)">Disable All</button>
+      <button @click="saveMods">Save</button>
+
+      <div class="mod-list">
+        <div class="mod-item" v-for="mod in mods" :key="mod.name">
+          <div class="mod-meta">
+            <strong>{{ mod.title }}</strong> <small>({{ mod.name }})</small>
+            <div class="version">v{{ mod.version }}</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" v-model="mod.enabled">
+            <span class="slider"></span>
+          </label>
+        </div>
       </div>
     </div>
-  </div>
+
+    <div v-show="currentTab==='installed'">
+      <h3>Installed Mods</h3>
+      <div class="mod-item" v-for="mod in installedMods" :key="mod.name">
+        <img v-if="mod.thumbnail" :src="mod.thumbnail" class="thumbnail" />
+        <div class="mod-meta">
+          <strong>{{ mod.title }}</strong> ({{ mod.name }}) — v{{ mod.version }}
+          <div class="author">By: {{ mod.author }}</div>
+          <p class="desc">{{ mod.description }}</p>
+        </div>
+      </div>
+    </div>
 
   <!-- Placeholder Tabs -->
-  <div v-show="currentTab==='settings'"><p>Coming soon...</p></div>
-  <div v-show="currentTab==='downloader'"><p>Coming soon...</p></div>
-</div>
+    <div v-show="currentTab==='settings'"><p>Coming soon...</p></div>
+    <div v-show="currentTab==='downloader'"><p>Coming soon...</p></div>
+  </div>
 
 
   <script src="/scripts/main.js"></script>
