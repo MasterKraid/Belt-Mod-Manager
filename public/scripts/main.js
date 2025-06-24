@@ -105,4 +105,4 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(data => this.currentModPath = data.path);
     }
   });
-});
+});

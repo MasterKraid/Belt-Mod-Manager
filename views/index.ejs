@@ -46,8 +46,7 @@
     <h3>Active Profile: {{ selectedProfile }}</h3>
     <div class="mod-path">
         <label>Mods Folder: <strong>{{ currentModPath || '(default)' }}</strong></label>
-        <button @click="triggerPathPicker">Set Path</button>
-        <input type="file" id="dir-picker" style="display:none" webkitdirectory @change="setModPath" />
+        <button @click="setModPath">Set Path</button>
       </div>
     <button @click="toggleAll(true)">Enable All</button>
     <button @click="toggleAll(false)">Disable All</button>
