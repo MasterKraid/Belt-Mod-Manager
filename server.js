@@ -2,6 +2,8 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const AdmZip = require('adm-zip');
+const fse = require('fs-extra');
+
 
 const app = express();
 const PORT = 3000;
@@ -110,5 +112,16 @@ app.post('/api/switch/:name', (req, res) => {
   fs.writeFileSync(MOD_LIST_PATH, JSON.stringify({ mods: mods.map(m => ({ name: m.name, enabled: m.enabled })) }, null, 2));
   res.sendStatus(200);
 });
+
+app.post('/api/rename-profile', (req, res) => {
+  const { oldName, newName } = req.body;
+  const oldPath = path.join(PROFILES_DIR, `${oldName}.json`);
+  const newPath = path.join(PROFILES_DIR, `${newName}.json`);
+  if (!fs.existsSync(oldPath)) return res.status(404).send('Old profile not found');
+  if (fs.existsSync(newPath)) return res.status(409).send('New profile name already exists');
+  fs.renameSync(oldPath, newPath);
+  res.sendStatus(200);
+});
+
 
 app.listen(PORT, () => console.log(`🛠 Running on http://localhost:${PORT}`));

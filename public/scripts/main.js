@@ -6,7 +6,9 @@ document.addEventListener('DOMContentLoaded', () => {
       status: '',
       profiles: [],
       selectedProfile: 'default',
-      currentTab: 'manager'
+      currentTab: 'manager',
+      editingProfile: null,
+      renameInput: ''
     },
     methods: {
       fetchMods() {
@@ -55,6 +57,32 @@ document.addEventListener('DOMContentLoaded', () => {
             this.status = `Switched to ${profileName}`;
             this.fetchMods();
           });
+      },
+      // --- Renaming profiles ---
+      startRename(profileName) {
+        this.editingProfile = profileName;
+        this.renameInput = profileName;
+      },
+      cancelRename() {
+        this.editingProfile = null;
+        this.renameInput = '';
+      },
+      submitRename(oldName) {
+        const newName = this.renameInput.trim();
+        if (!newName || newName === oldName) {
+          this.cancelRename();
+          return;
+        }
+        fetch(`/api/rename-profile`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ oldName, newName })
+        }).then(() => {
+          this.selectedProfile = newName;
+          this.editingProfile = null;
+          this.renameInput = '';
+          this.loadProfiles();
+        });
       }
     },
     mounted() {

@@ -20,21 +20,26 @@
   <p class="status">{{ status }}</p>
 
   <!-- Profiles Tab -->
-  <div v-show="currentTab==='profiles'">
-    <div class="profile-list">
-      <div class="mod-item" v-for="p in profiles" :key="p">
-        <strong>{{ p }}</strong>
-        <label class="switch">
-          <input type="checkbox" :checked="p === selectedProfile" @change="activateProfile(p)">
-          <span class="slider"></span>
-        </label>
+<div v-show="currentTab==='profiles'">
+  <div class="profile-list">
+    <div class="mod-item" v-for="p in profiles" :key="p">
+      <div class="profile-name">
+        <input v-if="editingProfile === p" v-model="renameInput" @keyup.enter="submitRename(p)" @blur="cancelRename" />
+        <strong v-else>{{ p }}</strong>
+        <span class="pencil" @click="startRename(p)">✏️</span>
       </div>
+      <label class="switch">
+        <input type="checkbox" :checked="p === selectedProfile" @change="activateProfile(p)">
+        <span class="slider"></span>
+      </label>
     </div>
-    <button @click="createProfile">New Profile</button>
   </div>
+  <button @click="createProfile">New Profile</button>
+</div>
 
   <!-- Mod Manager Tab -->
   <div v-show="currentTab==='manager'">
+    <h3>Active Profile: {{ selectedProfile }}</h3>
     <button @click="toggleAll(true)">Enable All</button>
     <button @click="toggleAll(false)">Disable All</button>
     <button @click="saveMods">Save</button>

@@ -137,13 +137,44 @@ input:checked + .slider:before {
   border-radius: 10px;
   max-width: 900px;
   box-shadow: 0 0 20px rgba(0,0,0,0.5);
-  backdrop-filter: blur(8px);
 }
 
 .profile-list {
   margin-top: 1rem;
 }
 
-.slider:before {
-  bottom: 1px !important;  /* fix switch knob height */
+.glass-container {
+  backdrop-filter: blur(4px); /* reduced blur */
 }
+
+.slider:before {
+  bottom: 1px !important;  /* perfect knob alignment */
+}
+
+/* Profile name + pencil icon */
+.profile-name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.profile-name input {
+  background: transparent;
+  border: none;
+  color: #f4d35e;
+  font-size: 1rem;
+  width: 100%;
+}
+
+.profile-name input:focus {
+  outline: none;
+  border-bottom: 1px solid #f4d35e;
+}
+
+.pencil {
+  cursor: pointer;
+  color: #f4d35e;
+  font-size: 1rem;
+}
+
