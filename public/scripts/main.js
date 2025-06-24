@@ -39,16 +39,10 @@ document.addEventListener('DOMContentLoaded', () => {
           });
       },
       createProfile() {
-        const name = prompt("New profile name:");
-        if (!name) return;
-        fetch(`/api/profiles/${name}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(this.mods)
-        }).then(() => {
-          this.selectedProfile = name;
-          this.loadProfiles();
-        });
+        const temp = '___new_profile_temp___' + Date.now();
+        this.profiles.push(temp);
+        this.editingProfile = temp;
+        this.renameInput = '';
       },
       activateProfile(profileName) {
         if (profileName === this.selectedProfile) return;
@@ -59,7 +53,6 @@ document.addEventListener('DOMContentLoaded', () => {
             this.fetchMods();
           });
       },
-      // --- Renaming profiles ---
       startRename(profileName) {
         this.editingProfile = profileName;
         this.renameInput = profileName;
@@ -70,6 +63,11 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       submitRename(oldName) {
         const newName = this.renameInput.trim();
+        if (oldName.startsWith('___new_profile_temp___') && !newName) {
+          this.profiles = this.profiles.filter(p => p !== oldName);
+          this.cancelRename();
+          return;
+        }
         if (!newName || newName === oldName) {
           this.cancelRename();
           return;
@@ -85,21 +83,18 @@ document.addEventListener('DOMContentLoaded', () => {
           this.loadProfiles();
         });
       },
-      triggerPathPicker() {
-        document.getElementById('dir-picker').click();
-      },
-      setModPath(evt) {
-        const folder = evt.target.files?.[0];
-        if (!folder || !folder.path) return;
-        const path = folder.path.replace(/\\/g, '/').split('/').slice(0, -1).join('/');
-        fetch('/api/set-mod-path', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path })
-        }).then(() => {
-          this.currentModPath = path;
-          this.status = 'Mod path updated';
-          this.fetchMods();
+      setModPath() {
+        window.electronAPI.selectFolder().then(folder => {
+          if (!folder) return;
+          fetch('/api/set-mod-path', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: folder })
+          }).then(() => {
+            this.currentModPath = folder;
+            this.status = 'Mod path updated';
+            this.fetchMods();
+          });
         });
       }
     },
@@ -108,7 +103,6 @@ document.addEventListener('DOMContentLoaded', () => {
       fetch('/api/get-mod-path')
         .then(res => res.json())
         .then(data => this.currentModPath = data.path);
-
     }
   });
-});
+});
