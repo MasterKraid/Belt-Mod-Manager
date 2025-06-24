@@ -9,6 +9,6 @@
   },
   {
     "name": "quality",
-    "enabled": false
+    "enabled": true
   }
 ]

@@ -4,43 +4,61 @@ document.addEventListener('DOMContentLoaded', () => {
     data: {
       mods: [],
       status: '',
-      modPathInput: '',
+      profiles: [],
+      selectedProfile: 'default',
+      currentTab: 'manager'
     },
     methods: {
       fetchMods() {
-        fetch('/api/mods')
+        fetch(`/api/profiles/${this.selectedProfile}`)
           .then(res => res.json())
-          .then(data => {
-            this.mods = data;
-          });
+          .then(data => this.mods = data);
       },
       saveMods() {
-        fetch('/api/mods', {
+        fetch(`/api/profiles/${this.selectedProfile}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(this.mods)
         }).then(() => this.status = 'Saved!');
       },
-      toggleAll(enable) {
-        this.mods.forEach(m => m.enabled = enable);
+      toggleAll(state) {
+        this.mods.forEach(m => m.enabled = state);
       },
-      setModPath() {
-        fetch('/api/set-mod-path', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: this.modPathInput })
-        }).then(res => {
-          if (res.ok) {
-            this.status = 'Mod path set!';
+      loadProfiles() {
+        fetch('/api/profiles')
+          .then(res => res.json())
+          .then(p => {
+            this.profiles = p;
+            if (!p.includes(this.selectedProfile)) {
+              this.selectedProfile = p[0] || 'default';
+            }
             this.fetchMods();
-          } else {
-            this.status = 'Invalid path';
-          }
+          });
+      },
+      createProfile() {
+        const name = prompt("New profile name:");
+        if (!name) return;
+        fetch(`/api/profiles/${name}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.mods)
+        }).then(() => {
+          this.selectedProfile = name;
+          this.loadProfiles();
         });
+      },
+      activateProfile(profileName) {
+        if (profileName === this.selectedProfile) return;
+        this.selectedProfile = profileName;
+        fetch(`/api/switch/${profileName}`, { method: 'POST' })
+          .then(() => {
+            this.status = `Switched to ${profileName}`;
+            this.fetchMods();
+          });
       }
     },
     mounted() {
-      this.fetchMods();
+      this.loadProfiles();
     }
   });
 });

@@ -1,3 +1,8 @@
+@keyframes slideBackground {
+  0% { background-position: 0 0; }
+  100% { background-position: 400px 400px; }
+}
+
 body {
   background-color: #1a1a1a;
   color: #f4d35e;
@@ -6,15 +11,31 @@ body {
   padding: 0;
   background-image: linear-gradient(45deg, #2b2b2b 25%, #1a1a1a 25%, #1a1a1a 50%, #2b2b2b 50%);
   background-size: 60px 60px;
+  animation: slideBackground 30s linear infinite;
 }
 
 .container {
   padding: 2rem;
 }
 
-h1 {
+nav.tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+nav.tabs button {
+  background-color: transparent;
   color: #f4d35e;
-  border-bottom: 2px solid #444;
+  font-weight: bold;
+  border: 1px solid #f4d35e;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+nav.tabs button.active {
+  background-color: #f4d35e;
+  color: #1a1a1a;
 }
 
 .status {
@@ -30,10 +51,6 @@ button {
   margin: 0.5rem;
   cursor: pointer;
   font-weight: bold;
-}
-
-button:hover {
-  background-color: #ffe66d;
 }
 
 input {
@@ -69,7 +86,6 @@ input {
   color: #999;
 }
 
-/* Toggle switch */
 .switch {
   position: relative;
   display: inline-block;
@@ -88,17 +104,20 @@ input {
   cursor: pointer;
   background-color: #888;
   border: 2px solid #f4d35e;
-  top: 0; left: 0;
-  right: 0; bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   transition: 0.4s;
 }
 
 .slider:before {
   position: absolute;
   content: "";
-  height: 18px; width: 18px;
+  height: 18px;
+  width: 18px;
   left: 4px;
-  bottom: 3px;
+  bottom: 1px;
   background-color: #1a1a1a;
   transition: 0.4s;
   border: 1px solid #f4d35e;
@@ -110,4 +129,21 @@ input:checked + .slider {
 
 input:checked + .slider:before {
   transform: translateX(22px);
+}
+.glass-container {
+  background: rgba(25, 25, 25, 0.75);
+  padding: 2rem;
+  margin: 2rem auto;
+  border-radius: 10px;
+  max-width: 900px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.5);
+  backdrop-filter: blur(8px);
+}
+
+.profile-list {
+  margin-top: 1rem;
+}
+
+.slider:before {
+  bottom: 1px !important;  /* fix switch knob height */
 }
