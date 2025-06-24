@@ -1,16 +1,3 @@
 {
-  "mods": [
-    {
-      "name": "base",
-      "enabled": true
-    },
-    {
-      "name": "space-age",
-      "enabled": true
-    },
-    {
-      "name": "quality",
-      "enabled": true
-    }
-  ]
+  "mods": []
 }
