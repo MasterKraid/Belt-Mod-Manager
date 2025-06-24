@@ -36,7 +36,7 @@ function readModList() {
 // Scan zip files and return mod list
 function findInfoJson(zip) {
   const entries = zip.getEntries();
-  return entries.find(entry => entry.entryName.endsWith('info.json'));
+  return entries.find(e => e.entryName.endsWith('/info.json') || e.entryName === 'info.json');
 }
 
 function scanMods(modPathOverride = null) {

@@ -2,11 +2,11 @@
   "mods": [
     {
       "name": "base",
-      "enabled": true
+      "enabled": false
     },
     {
       "name": "space-age",
-      "enabled": true
+      "enabled": false
     },
     {
       "name": "quality",
