@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Factorio Mod Manager</title>
+  <link rel="stylesheet" href="/styles/main.scss">
+  <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+</head>
+<body>
+  <div id="app" class="container">
+    <h1>Factorio Mod Manager</h1>
+    <p>{{ status }}</p>
+
+    <label>Active Profile:
+      <select v-model="selectedProfile" @change="loadProfile">
+        <option v-for="p in profiles" :value="p">{{ p }}</option>
+      </select>
+    </label>
+    <button @click="switchProfile">Switch</button>
+    <button @click="createProfile">New Profile</button>
+    <button @click="toggleAll(true)">Enable All</button>
+    <button @click="toggleAll(false)">Disable All</button>
+    <button @click="saveProfile">Save</button>
+
+    <div class="mod-list">
+      <div class="mod-item" v-for="mod in mods">
+        <span>{{ mod.name }}</span>
+        <input type="checkbox" v-model="mod.enabled" />
+      </div>
+    </div>
+
+    <hr>
+    <h2>📦 Mod Downloads (Coming Soon)</h2>
+  </div>
+
+  <script src="/scripts/main.js"></script>
+</body>
+</html>
