@@ -3,8 +3,10 @@ const fs = require('fs');
 const path = require('path');
 const AdmZip = require('adm-zip');
 
+
 const app = express();
 const PORT = 3000;
+
 
 const MOD_LIST_PATH = path.join(__dirname, 'mod-list.json');
 const MODS_DIR = path.join(process.env.APPDATA, 'Factorio', 'mods');
@@ -14,6 +16,7 @@ app.use(express.static('public'));
 app.use(express.json());
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+let userModPath = MODS_DIR;
 
 // Serve index
 app.get('/', (req, res) => res.render('index'));
@@ -34,21 +37,33 @@ function readModList() {
 }
 
 // Scan zip files and return mod list
-function scanMods() {
+function findInfoJson(zip) {
+  const entries = zip.getEntries();
+  for (const entry of entries) {
+    if (entry.entryName.endsWith('info.json')) {
+      return entry;
+    }
+  }
+  return null;
+}
+
+function scanMods(modPathOverride = null) {
   const modStatus = readModList();
   const mods = [];
 
-  const files = fs.readdirSync(MODS_DIR);
+  const baseDir = modPathOverride || MODS_DIR;
+  const files = fs.readdirSync(baseDir);
+
   files.forEach(file => {
     const ext = path.extname(file);
     if (ext !== '.zip') return;
 
-    const zipPath = path.join(MODS_DIR, file);
-    const zip = new AdmZip(zipPath);
-    const infoEntry = zip.getEntry('info.json');
+    const zipPath = path.join(baseDir, file);
+    try {
+      const zip = new AdmZip(zipPath);
+      const infoEntry = findInfoJson(zip);
 
-    if (infoEntry) {
-      try {
+      if (infoEntry) {
         const infoContent = zip.readAsText(infoEntry);
         const info = JSON.parse(infoContent);
         mods.push({
@@ -57,27 +72,34 @@ function scanMods() {
           version: info.version,
           enabled: modStatus[info.name] ?? false
         });
-      } catch (e) {
-        console.warn(`Failed to read info.json from ${file}:`, e);
+      } else {
+        console.warn(`No info.json in ${file}`);
       }
+    } catch (e) {
+      console.warn(`Error in zip ${file}:`, e);
     }
   });
 
   return mods;
 }
 
+
 // === API ROUTES ===
 
+app.post('/api/set-mod-path', (req, res) => {
+  const { path: newPath } = req.body;
+  if (fs.existsSync(newPath)) {
+    userModPath = newPath;
+    res.sendStatus(200);
+  } else {
+    res.status(404).send('Invalid path');
+  }
+});
+
 app.get('/api/mods', (req, res) => {
-  const mods = scanMods();
+  const mods = scanMods(userModPath);
   res.json(mods);
 });
 
-app.post('/api/mods', (req, res) => {
-  const mods = req.body;
-  const formatted = { mods: mods.map(m => ({ name: m.name, enabled: m.enabled })) };
-  fs.writeFileSync(MOD_LIST_PATH, JSON.stringify(formatted, null, 2));
-  res.sendStatus(200);
-});
 
 app.listen(PORT, () => console.log(`Mod Manager running at http://localhost:${PORT}`));

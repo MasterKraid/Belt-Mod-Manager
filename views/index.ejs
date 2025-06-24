@@ -8,25 +8,35 @@
 </head>
 <body>
   <div id="app" class="container">
-    <h1>Factorio Mod Manager</h1>
-    <p>{{ status }}</p>
+  <h1>🛠 Factorio Mod Manager</h1>
+  <p class="status">{{ status }}</p>
 
-    <div class="controls">
-      <button @click="toggleAll(true)">Enable All</button>
-      <button @click="toggleAll(false)">Disable All</button>
-      <button @click="saveMods">Save</button>
-    </div>
+  <div class="input-path">
+    <label>Custom Mods Folder:</label>
+    <input v-model="modPathInput" placeholder="C:\\Users\\Name\\AppData\\Roaming\\Factorio\\mods" />
+    <button @click="setModPath">Set</button>
+  </div>
 
-    <div class="mod-list">
-      <div class="mod-item" v-for="mod in mods" :key="mod.name">
-        <div>
-          <strong>{{ mod.title }}</strong> <small>({{ mod.name }})</small>
-          <div class="version">v{{ mod.version }}</div>
-        </div>
-        <input type="checkbox" v-model="mod.enabled">
+  <div class="controls">
+    <button @click="toggleAll(true)">Enable All</button>
+    <button @click="toggleAll(false)">Disable All</button>
+    <button @click="saveMods">Save</button>
+  </div>
+
+  <div class="mod-list">
+    <div class="mod-item" v-for="mod in mods" :key="mod.name">
+      <div class="mod-meta">
+        <strong>{{ mod.title }}</strong> <small>({{ mod.name }})</small>
+        <div class="version">v{{ mod.version }}</div>
       </div>
+      <label class="switch">
+        <input type="checkbox" v-model="mod.enabled">
+        <span class="slider"></span>
+      </label>
     </div>
   </div>
+</div>
+
 
   <script src="/scripts/main.js"></script>
 </body>

@@ -3,7 +3,8 @@ document.addEventListener('DOMContentLoaded', () => {
     el: '#app',
     data: {
       mods: [],
-      status: ''
+      status: '',
+      modPathInput: '',
     },
     methods: {
       fetchMods() {
@@ -22,6 +23,20 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       toggleAll(enable) {
         this.mods.forEach(m => m.enabled = enable);
+      },
+      setModPath() {
+        fetch('/api/set-mod-path', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: this.modPathInput })
+        }).then(res => {
+          if (res.ok) {
+            this.status = 'Mod path set!';
+            this.fetchMods();
+          } else {
+            this.status = 'Invalid path';
+          }
+        });
       }
     },
     mounted() {
