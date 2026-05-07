@@ -10,7 +10,39 @@ const PORT = 3000;
 const MODS_DIR_DEFAULT = path.join(process.env.APPDATA || '', 'Factorio', 'mods');
 let userModPath = MODS_DIR_DEFAULT;
 let userGamePath = ''; // global
+let activeProfile = 'default';
 
+const CONFIG_FILE = path.join(__dirname, 'config.json');
+
+function loadConfig() {
+  try {
+    if (fs.existsSync(CONFIG_FILE)) {
+      const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+      if (config.userModPath) {
+        userModPath = config.userModPath;
+      }
+      if (config.userGamePath) {
+        userGamePath = config.userGamePath;
+      }
+      if (config.activeProfile) {
+        activeProfile = config.activeProfile;
+      }
+    }
+  } catch (err) {
+    console.warn('Could not load config.json:', err.message);
+  }
+}
+
+function saveConfig() {
+  try {
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify({ userModPath, userGamePath, activeProfile }, null, 2));
+  } catch (err) {
+    console.warn('Could not save config.json:', err.message);
+  }
+}
+
+// Load config immediately
+loadConfig();
 
 const BACKUP_DIR = path.join(__dirname, 'backup');
 const PROFILES_DIR = path.join(__dirname, 'profiles');
@@ -28,6 +60,17 @@ app.set('views', path.join(__dirname, 'views'));
 
 // === Serve index ===
 app.get('/', (req, res) => res.render('index'));
+
+app.get('/game-thumbs/*', (req, res) => {
+  if (!userGamePath) return res.status(404).send('Game path not set');
+  const relativePath = req.params[0];
+  const fullPath = path.join(userGamePath, 'data', relativePath);
+  if (fs.existsSync(fullPath)) {
+    res.sendFile(fullPath);
+  } else {
+    res.status(404).send('Not found');
+  }
+});
 
 // === Helpers ===
 function getModListPath() {
@@ -56,10 +99,20 @@ function backupModList() {
 
 function saveToModList(mods) {
   const required = ['base', 'elevated-rails', 'quality', 'space-age'];
-  const clean = mods.map(m => ({ name: m.name, enabled: m.enabled }));
+  
+  // Clean mods list, ensuring 'base' is forced to true
+  const clean = mods.map(m => ({
+    name: m.name,
+    enabled: m.name === 'base' ? true : !!m.enabled
+  }));
+
+  // Ensure required mods are present and force base to true
   required.forEach(name => {
-    if (!clean.some(m => m.name === name)) {
+    const existing = clean.find(m => m.name === name);
+    if (!existing) {
       clean.unshift({ name, enabled: true });
+    } else if (name === 'base') {
+      existing.enabled = true;
     }
   });
 
@@ -71,10 +124,33 @@ function findInfoJson(zip) {
   return zip.getEntries().find(e => e.entryName.endsWith('/info.json') || e.entryName === 'info.json');
 }
 
+let modZipCache = {}; // maps modName to zipPath on disk
+let cachedScannedMods = null; // in-memory cache of scanned mod metadata results
+
+function invalidateModCache() {
+  cachedScannedMods = null;
+}
+
 function scanMods() {
-  const files = fs.readdirSync(userModPath);
   const statusMap = readModList();
-  const results = [];
+
+  if (cachedScannedMods) {
+    return cachedScannedMods.map(m => ({
+      ...m,
+      enabled: m.type === 'core' ? true : (statusMap[m.name] ?? false)
+    }));
+  }
+
+  if (!fs.existsSync(userModPath)) return [];
+  const files = fs.readdirSync(userModPath);
+  let results = [];
+
+  modZipCache = {};
+
+  if (userGamePath) {
+    const baseAndDLC = parseGameInfoMods(userGamePath);
+    results.push(...baseAndDLC);
+  }
 
   for (const file of files) {
     if (!file.endsWith('.zip')) continue;
@@ -86,40 +162,64 @@ function scanMods() {
 
       const infoContent = zip.readAsText(infoEntry);
       const info = JSON.parse(infoContent);
+      
+      // Store in cache
+      modZipCache[info.name] = zipPath;
+
+      // Check for thumbnail.png inside the zip
+      const hasThumbnail = zip.getEntries().some(e => 
+        e.entryName.toLowerCase().endsWith('/thumbnail.png') || 
+        e.entryName.toLowerCase() === 'thumbnail.png'
+      );
+
       results.push({
         name: info.name,
         title: info.title || info.name,
         version: info.version || '0.0.0',
-        enabled: statusMap[info.name] ?? false
+        author: info.author || info.contact || 'Unknown',
+        description: info.description || '(no description)',
+        dependencies: info.dependencies || [],
+        homepage: info.homepage || '',
+        thumbnail: hasThumbnail ? `/api/mods/thumbnail/${info.name}` : null
       });
     } catch (err) {
       console.warn('Bad zip:', zipPath);
     }
   }
 
-  if (userGamePath) {
-    const dlcs = ['base', 'elevated-rails', 'quality', 'space-age'];
-    for (const dlc of dlcs) {
-      const infoPath = path.join(userGamePath, 'data', dlc, 'info.json');
-      const thumbPath = path.join(userGamePath, 'data', dlc, 'thumbnail.png');
-      if (!fs.existsSync(infoPath)) continue;
-    
-      const info = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
-      results.push({
-        name: info.name,
-        title: info.title || info.name,
-        version: info.version || '0.0.0',
-        author: info.author || '',
-        description: info.description || '',
-        source: 'dlc',
-        thumbnail: fs.existsSync(thumbPath) ? thumbPath : null,
-        enabled: true
-      });
+  function parseGameInfoMods(gamePath) {
+    const names = ['base', 'elevated-rails', 'quality', 'space-age'];
+    const parsed = [];
+
+    for (const name of names) {
+      const infoPath = path.join(gamePath, 'data', name, 'info.json');
+      const thumbPath = path.join(gamePath, 'data', name, 'thumbnail.png');
+
+      if (fs.existsSync(infoPath)) {
+        const info = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
+        parsed.push({
+          name: info.name,
+          title: info.title || info.name,
+          version: info.version || '0.0.0',
+          author: info.author || info.contact || 'Unknown',
+          description: info.description || '(no description)',
+          dependencies: info.dependencies || [],
+          homepage: info.homepage || '',
+          type: 'core',
+          thumbnail: fs.existsSync(thumbPath) ? `/game-thumbs/${name}/thumbnail.png` : null
+        });
+      }
     }
+
+    return parsed;
   }
 
+  cachedScannedMods = results;
 
-  return results;
+  return results.map(m => ({
+    ...m,
+    enabled: m.type === 'core' ? true : (statusMap[m.name] ?? false)
+  }));
 }
 
 function linkOrWarn() {
@@ -135,14 +235,55 @@ function linkOrWarn() {
 }
 
 function mergeNewMods(scanned, current) {
-  const known = new Set(current.map(m => m.name));
+  const scannedMap = {};
+  scanned.forEach(mod => {
+    scannedMap[mod.name] = mod;
+  });
+
+  const known = new Set();
   const added = [];
 
+  // Merge metadata from disk into existing profile items
+  current.forEach(mod => {
+    known.add(mod.name);
+    const scannedMod = scannedMap[mod.name];
+    if (scannedMod) {
+      mod.title = scannedMod.title || mod.title || mod.name;
+      mod.version = scannedMod.version || mod.version || '0.0.0';
+      mod.author = scannedMod.author || mod.author || 'Unknown';
+      mod.description = scannedMod.description || mod.description || '(no description)';
+      mod.dependencies = scannedMod.dependencies || mod.dependencies || [];
+      mod.thumbnail = scannedMod.thumbnail || mod.thumbnail || null;
+    } else {
+      if (!mod.title) mod.title = mod.name;
+      if (!mod.version) mod.version = '0.0.0';
+    }
+
+    // Force base mod to always be true
+    if (mod.name === 'base') {
+      mod.enabled = true;
+    }
+  });
+
+  // Add brand new scanned mods
   scanned.forEach(mod => {
     if (!known.has(mod.name)) {
-      current.push({ ...mod, enabled: false });
+      // Keep the scanned enabled state (e.g. true for core/DLCs), but force base to true
+      const state = mod.name === 'base' ? true : !!mod.enabled;
+      current.push({ ...mod, enabled: state });
       added.push(mod.title || mod.name);
     }
+  });
+
+  // Sort: core DLCs first, then all other mods alphabetically
+  const coreNames = ['base', 'elevated-rails', 'quality', 'space-age'];
+  current.sort((a, b) => {
+    const aIndex = coreNames.indexOf(a.name);
+    const bIndex = coreNames.indexOf(b.name);
+    if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+    if (aIndex !== -1) return -1;
+    if (bIndex !== -1) return 1;
+    return (a.title || a.name).localeCompare(b.title || b.name);
   });
 
   return added;
@@ -154,6 +295,8 @@ app.post('/api/set-mod-path', (req, res) => {
   const { path: newPath } = req.body;
   if (fs.existsSync(newPath)) {
     userModPath = newPath;
+    invalidateModCache();
+    saveConfig();
     const result = linkOrWarn();
     if (result.status === 'linked') {
       res.json({ message: 'Symlink created' });
@@ -207,14 +350,24 @@ app.post('/api/profiles/:name', (req, res) => {
   const mods = req.body;
   const file = path.join(PROFILES_DIR, `${req.params.name}.json`);
   fs.writeFileSync(file, JSON.stringify(mods, null, 2));
+  activeProfile = req.params.name;
+  saveConfig();
   saveToModList(mods);
   res.sendStatus(200);
+});
+
+app.put('/api/profiles/:name', (req, res) => {
+  const file = path.join(PROFILES_DIR, `${req.params.name}.json`);
+  fs.writeFileSync(file, JSON.stringify(req.body || [], null, 2));
+  res.sendStatus(201);
 });
 
 app.post('/api/switch/:name', (req, res) => {
   const file = path.join(PROFILES_DIR, `${req.params.name}.json`);
   if (!fs.existsSync(file)) return res.status(404).send('Not found');
   const mods = JSON.parse(fs.readFileSync(file));
+  activeProfile = req.params.name;
+  saveConfig();
   saveToModList(mods);
   res.sendStatus(200);
 });
@@ -223,15 +376,177 @@ app.post('/api/rename-profile', (req, res) => {
   const { oldName, newName } = req.body;
   const oldPath = path.join(PROFILES_DIR, `${oldName}.json`);
   const newPath = path.join(PROFILES_DIR, `${newName}.json`);
-  if (!fs.existsSync(oldPath)) return res.status(404).send('Old profile missing');
   if (fs.existsSync(newPath)) return res.status(409).send('New name taken');
+  
+  if (!fs.existsSync(oldPath)) {
+    const scanned = scanMods();
+    const mods = scanned.map(m => ({ name: m.name, enabled: false }));
+    fs.writeFileSync(newPath, JSON.stringify(mods, null, 2));
+    return res.sendStatus(200);
+  }
+
   fs.renameSync(oldPath, newPath);
+  if (activeProfile === oldName) {
+    activeProfile = newName;
+    saveConfig();
+  }
   res.sendStatus(200);
+});
+
+app.post('/api/delete-profile', (req, res) => {
+  const { name } = req.body;
+  if (!name || name === 'default') {
+    return res.status(400).send('Cannot delete default profile');
+  }
+  const file = path.join(PROFILES_DIR, `${name}.json`);
+  if (fs.existsSync(file)) {
+    fs.unlinkSync(file);
+    if (activeProfile === name) {
+      activeProfile = 'default';
+      saveConfig();
+      const defaultFile = path.join(PROFILES_DIR, 'default.json');
+      if (fs.existsSync(defaultFile)) {
+        const mods = JSON.parse(fs.readFileSync(defaultFile));
+        saveToModList(mods);
+      }
+    }
+    res.sendStatus(200);
+  } else {
+    res.status(404).send('Profile not found');
+  }
+});
+
+app.post('/api/open-mod-folder', (req, res) => {
+  if (fs.existsSync(userModPath)) {
+    const { exec } = require('child_process');
+    exec(`start "" "${userModPath}"`, (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.sendStatus(200);
+    });
+  } else {
+    res.status(404).json({ error: 'Folder does not exist' });
+  }
+});
+
+app.get('/api/active-profile', (req, res) => {
+  res.json({ activeProfile });
 });
 
 app.post('/api/set-game-path', (req, res) => {
   userGamePath = req.body.path;
+  invalidateModCache();
+  saveConfig();
   res.sendStatus(200);
+});
+
+app.get('/api/get-game-path', (req, res) => {
+  res.json({ path: userGamePath });
+});
+
+app.get('/api/mods/thumbnail/:modName', (req, res) => {
+  const { modName } = req.params;
+  let zipPath = modZipCache[modName];
+  if (!zipPath) {
+    scanMods(); // Populate cache if not loaded
+    zipPath = modZipCache[modName];
+  }
+  
+  if (!zipPath || !fs.existsSync(zipPath)) {
+    return res.status(404).send('Mod zip file not found');
+  }
+
+  try {
+    const zip = new AdmZip(zipPath);
+    const thumbEntry = zip.getEntries().find(e => 
+      e.entryName.toLowerCase().endsWith('/thumbnail.png') || 
+      e.entryName.toLowerCase() === 'thumbnail.png'
+    );
+    if (thumbEntry) {
+      const buffer = zip.readFile(thumbEntry);
+      res.set('Content-Type', 'image/png');
+      return res.send(buffer);
+    }
+  } catch (err) {
+    console.error('Error reading thumbnail from zip:', err);
+  }
+  res.status(404).send('Thumbnail not found');
+});
+
+
+const { spawn } = require('child_process');
+let gameProcess = null;
+
+function syncProfileWithActualModList() {
+  if (!activeProfile) return;
+  const profileFile = path.join(PROFILES_DIR, `${activeProfile}.json`);
+  if (!fs.existsSync(profileFile)) return;
+
+  const actualPath = getModListPath();
+  if (!fs.existsSync(actualPath)) return;
+
+  try {
+    const actualData = JSON.parse(fs.readFileSync(actualPath, 'utf-8'));
+    if (!actualData || !Array.isArray(actualData.mods)) return;
+
+    let profileMods = JSON.parse(fs.readFileSync(profileFile, 'utf-8'));
+    if (!Array.isArray(profileMods)) profileMods = [];
+
+    // Map through actual mods list and apply enabled states to profile
+    actualData.mods.forEach(actualMod => {
+      const profileMod = profileMods.find(m => m.name === actualMod.name);
+      if (profileMod) {
+        profileMod.enabled = !!actualMod.enabled;
+      } else {
+        profileMods.push({
+          name: actualMod.name,
+          enabled: !!actualMod.enabled
+        });
+      }
+    });
+
+    // Write back to profile JSON
+    fs.writeFileSync(profileFile, JSON.stringify(profileMods, null, 2));
+    console.log(`[√] Synchronized profile "${activeProfile}" with real mod-list.json changes after game exit.`);
+  } catch (err) {
+    console.warn('Failed to sync profile on game exit:', err.message);
+  }
+}
+
+app.post('/api/launch-game', (req, res) => {
+  if (!userGamePath) {
+    return res.status(400).json({ error: 'Game path not set' });
+  }
+  if (gameProcess) {
+    return res.status(400).json({ error: 'Game is already running' });
+  }
+
+  const exePath = path.join(userGamePath, 'bin', 'x64', 'factorio.exe');
+  if (!fs.existsSync(exePath)) {
+    return res.status(404).json({ error: 'factorio.exe not found' });
+  }
+
+  try {
+    gameProcess = spawn(exePath, [], {
+      detached: true,
+      stdio: 'ignore'
+    });
+
+    gameProcess.unref();
+
+    gameProcess.on('exit', () => {
+      gameProcess = null;
+      syncProfileWithActualModList();
+    });
+
+    res.json({ status: 'launched' });
+  } catch (err) {
+    gameProcess = null;
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/game-status', (req, res) => {
+  res.json({ running: !!gameProcess });
 });
 
 
@@ -244,5 +559,11 @@ app.listen(PORT, () => {
   } else if (result.status === 'missing') {
     console.warn('[x] mod-list.json not found in selected path');
   }
+  
+  // Warm up the in-memory scanned mods cache on startup
+  console.log('Pre-scanning mods to warm up metadata cache...');
+  scanMods();
+  console.log('Mod metadata cache warmed successfully!');
+  
   console.log(`Mod Manager running at http://localhost:${PORT}`);
 });

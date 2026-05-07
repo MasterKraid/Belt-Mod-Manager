@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     data: {
       mods: [],
       installedMods: [],
+      expandedMods: [],
       profiles: [],
       selectedProfile: 'default',
       currentTab: 'profiles',
@@ -11,8 +12,67 @@ document.addEventListener('DOMContentLoaded', () => {
       renameInput: '',
       currentModPath: '',
       gamePath: '',
+      status: '',
       notifications: [],
-      notifId: 0
+      notifId: 0,
+      isGameRunning: false,
+      searchQueryManager: '',
+      searchQueryInstalled: '',
+      dropdownOpen: false,
+      profileSearchQuery: '',
+      profileSearchQueryPage: '',
+      deletingProfileName: null
+    },
+    computed: {
+      filteredMods() {
+        const query = this.searchQueryManager.toLowerCase().trim();
+        let list = [...this.mods];
+        if (query) {
+          list = list.filter(m => 
+            (m.title && m.title.toLowerCase().includes(query)) || 
+            (m.name && m.name.toLowerCase().includes(query))
+          );
+        }
+
+        // Sort dynamically: Core mods first, then enabled mods, then disabled mods
+        const coreNames = ['base', 'elevated-rails', 'quality', 'space-age'];
+        list.sort((a, b) => {
+          const aCore = coreNames.indexOf(a.name);
+          const bCore = coreNames.indexOf(b.name);
+          if (aCore !== -1 && bCore !== -1) return aCore - bCore;
+          if (aCore !== -1) return -1;
+          if (bCore !== -1) return 1;
+
+          // Enabled mods first
+          if (a.enabled && !b.enabled) return -1;
+          if (!a.enabled && b.enabled) return 1;
+
+          // Stable alphabetical secondary sort
+          return (a.title || a.name).localeCompare(b.title || b.name);
+        });
+
+        return list;
+      },
+      filteredInstalledMods() {
+        const query = this.searchQueryInstalled.toLowerCase().trim();
+        if (!query) return this.installedMods;
+        return this.installedMods.filter(m => 
+          (m.title && m.title.toLowerCase().includes(query)) || 
+          (m.name && m.name.toLowerCase().includes(query)) ||
+          (m.author && m.author.toLowerCase().includes(query)) ||
+          (m.description && m.description.toLowerCase().includes(query))
+        );
+      },
+      filteredDropdownProfiles() {
+        const query = this.profileSearchQuery.toLowerCase().trim();
+        if (!query) return this.profiles;
+        return this.profiles.filter(p => p.toLowerCase().includes(query));
+      },
+      filteredProfilesList() {
+        const query = this.profileSearchQueryPage.toLowerCase().trim();
+        if (!query) return this.profiles;
+        return this.profiles.filter(p => p.toLowerCase().includes(query));
+      }
     },
     methods: {
       notify(message, duration = 5) {
@@ -30,7 +90,14 @@ document.addEventListener('DOMContentLoaded', () => {
       fetchInstalledMods() {
         fetch('/api/installed-mods')
           .then(res => res.json())
-          .then(data => this.installedMods = data);
+          .then(data => {
+            this.installedMods = data.map(mod => ({
+              ...mod,
+              dependencies: Array.isArray(mod.dependencies) ? mod.dependencies : [],
+              author: mod.author || 'Unknown',
+              description: mod.description || 'No description.'
+            }));
+          });
       },
 
       saveMods() {
@@ -42,28 +109,45 @@ document.addEventListener('DOMContentLoaded', () => {
           this.notify('Mods saved!');
         });
       },
+      autoSaveMods() {
+        // Silently auto-save mod toggle updates to the active profile on change
+        fetch(`/api/profiles/${this.selectedProfile}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.mods)
+        });
+      },
       toggleAll(state) {
         this.mods.forEach(m => m.enabled = state);
       },
       loadProfiles() {
-        fetch('/api/profiles')
-          .then(res => res.json())
-          .then(p => {
-            this.profiles = p;
-            if (!p.includes(this.selectedProfile)) {
-              this.selectedProfile = p[0] || 'default';
-            }
-            this.fetchMods();
-          });
+        Promise.all([
+          fetch('/api/active-profile').then(res => res.json()),
+          fetch('/api/profiles').then(res => res.json())
+        ]).then(([activeData, profilesData]) => {
+          this.selectedProfile = activeData.activeProfile || 'default';
+          this.profiles = profilesData;
+          if (!profilesData.includes(this.selectedProfile)) {
+            this.selectedProfile = profilesData[0] || 'default';
+          }
+          this.fetchMods();
+        });
       },
       createProfile() {
         const temp = '___new_profile_' + Date.now();
         this.profiles.push(temp);
         this.editingProfile = temp;
         this.renameInput = '';
+        this.$nextTick(() => {
+          const refs = this.$refs.renameInputRef;
+          if (refs) {
+            const el = Array.isArray(refs) ? refs[0] : refs;
+            if (el) el.focus();
+          }
+        });
       },
       activateProfile(profileName) {
-        if (profileName === this.selectedProfile) return;
+        if (profileName.startsWith('___new_profile_')) return;
         this.selectedProfile = profileName;
         fetch(`/api/switch/${profileName}`, { method: 'POST' })
           .then(() => {
@@ -74,8 +158,21 @@ document.addEventListener('DOMContentLoaded', () => {
       startRename(profileName) {
         this.editingProfile = profileName;
         this.renameInput = profileName;
+        this.$nextTick(() => {
+          const refs = this.$refs.renameInputRef;
+          if (refs) {
+            const el = Array.isArray(refs) ? refs[0] : refs;
+            if (el) {
+              el.focus();
+              el.select();
+            }
+          }
+        });
       },
       cancelRename() {
+        if (this.editingProfile && this.editingProfile.startsWith('___new_profile_')) {
+          this.profiles = this.profiles.filter(p => p !== this.editingProfile);
+        }
         this.editingProfile = null;
         this.renameInput = '';
       },
@@ -128,6 +225,91 @@ document.addEventListener('DOMContentLoaded', () => {
             this.notify('Mod path updated!');
           });
         });
+      },
+      toggleExpand(name) {
+        const i = this.expandedMods.indexOf(name);
+        if (i >= 0) this.expandedMods.splice(i, 1);
+        else this.expandedMods.push(name);
+      },
+      launchGame() {
+        if (this.isGameRunning || !this.gamePath) return;
+        this.notify('Starting Factorio...');
+        fetch('/api/launch-game', { method: 'POST' })
+          .then(res => res.json())
+          .then(data => {
+            if (data.error) {
+              this.notify('Error launching: ' + data.error);
+            } else {
+              this.isGameRunning = true;
+              this.notify('Factorio launched successfully!');
+            }
+          })
+          .catch(err => {
+            this.notify('Launch failed: ' + err.message);
+          });
+      },
+      toggleDropdown() {
+        if (this.isGameRunning) return;
+        this.dropdownOpen = !this.dropdownOpen;
+        if (this.dropdownOpen) {
+          this.profileSearchQuery = '';
+          this.$nextTick(() => {
+            if (this.$refs.profileSearch) {
+              this.$refs.profileSearch.focus();
+            }
+          });
+        }
+      },
+      activateProfileFromDropdown(p) {
+        if (this.isGameRunning) return;
+        this.activateProfile(p);
+        this.dropdownOpen = false;
+        this.profileSearchQuery = '';
+      },
+      confirmDeleteProfile(p) {
+        if (this.isGameRunning || p === 'default') return;
+
+        // If it's a temporary unsaved profile, cancel it on the frontend directly
+        if (p.startsWith('___new_profile_')) {
+          this.profiles = this.profiles.filter(prof => prof !== p);
+          this.deletingProfileName = null;
+          this.cancelRename();
+          this.notify('Temporary profile cancelled.');
+          return;
+        }
+
+        fetch('/api/delete-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: p })
+        }).then(res => {
+          if (res.ok) {
+            this.notify(`Profile "${p}" deleted successfully.`);
+            this.deletingProfileName = null;
+            this.loadProfiles();
+            if (this.selectedProfile === p) {
+              this.selectedProfile = 'default';
+              this.fetchMods();
+            }
+          } else {
+            this.notify('Error deleting profile.');
+          }
+        }).catch(err => {
+          this.notify('Error: ' + err.message);
+        });
+      },
+      openModFolder() {
+        fetch('/api/open-mod-folder', { method: 'POST' })
+          .then(res => {
+            if (res.ok) {
+              this.notify('Opened mod storage directory.');
+            } else {
+              this.notify('Could not open folder.');
+            }
+          })
+          .catch(err => {
+            this.notify('Error: ' + err.message);
+          });
       }
     },
     mounted() {
@@ -135,7 +317,50 @@ document.addEventListener('DOMContentLoaded', () => {
       fetch('/api/get-mod-path')
         .then(res => res.json())
         .then(data => this.currentModPath = data.path);
+      fetch('/api/get-game-path')
+        .then(res => res.json())
+        .then(data => this.gamePath = data.path);
       this.fetchInstalledMods();
+
+      // Dismiss the custom dropdown on click-away
+      document.addEventListener('click', () => {
+        this.dropdownOpen = false;
+      });
+
+      // Disable default browser right-click context menu
+      document.addEventListener('contextmenu', e => e.preventDefault());
+
+      // Disable middle click actions and auto-scroll pasting
+      document.addEventListener('mousedown', e => {
+        if (e.button === 1) e.preventDefault();
+      });
+      document.addEventListener('auxclick', e => {
+        if (e.button === 1) e.preventDefault();
+      });
+
+      // Disable text/asset dragging on anything other than inputs
+      document.addEventListener('dragstart', e => {
+        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+          e.preventDefault();
+        }
+      });
+
+      // Poll game running status every 2 seconds
+      setInterval(() => {
+        fetch('/api/game-status')
+          .then(res => res.json())
+          .then(data => {
+            const wasRunning = this.isGameRunning;
+            this.isGameRunning = data.running;
+            
+            // If the game has just exited, automatically re-fetch mods to catch any in-game changes!
+            if (wasRunning && !data.running) {
+              this.notify('Factorio closed. Synchronizing mod profile states...');
+              this.fetchMods();
+            }
+          })
+          .catch(() => {});
+      }, 2000);
     }
   });
 });

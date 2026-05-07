@@ -2,3 +2,5 @@ node_modules
 project.md
 tree.txt
 profiles/
+backup/
+config.json

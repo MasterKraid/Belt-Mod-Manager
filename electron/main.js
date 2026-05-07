@@ -1,6 +1,9 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 
+// Automatically spawn and run the Express backend server internally!
+require('../server.js');
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,

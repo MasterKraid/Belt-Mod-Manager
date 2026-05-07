@@ -3,8 +3,8 @@
   "version": "1.4.0",
   "main": "electron/main.js",
   "scripts": {
-    "start": "node server.js",
-    "electron": "electron .",
+    "start": "npm run build-css && electron .",
+    "electron": "npm run build-css && electron .",
     "build-css": "sass public/styles/main.scss public/styles/main.css",
     "watch-css": "sass --watch public/styles/main.scss public/styles/main.css"
   },
