@@ -6,7 +6,8 @@
     "start": "npm run build-css && electron .",
     "electron": "npm run build-css && electron .",
     "build-css": "sass public/styles/main.scss public/styles/main.css",
-    "watch-css": "sass --watch public/styles/main.scss public/styles/main.css"
+    "watch-css": "sass --watch public/styles/main.scss public/styles/main.css",
+    "test": "jest"
   },
   "dependencies": {
     "adm-zip": "^0.5.10",
@@ -16,6 +17,8 @@
   },
   "devDependencies": {
     "electron": "^29.0.0",
-    "sass": "^1.89.2"
+    "jest": "^30.4.0",
+    "sass": "^1.89.2",
+    "supertest": "^7.2.2"
   }
 }

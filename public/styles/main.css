@@ -1,9 +1,9 @@
 @keyframes slideBackground {
   from {
-    background-position: 0 0;
+    transform: translate(0, 0);
   }
   to {
-    background-position: 60px 60px;
+    transform: translate(60px, 60px);
   }
 }
 * {
@@ -82,9 +82,6 @@ body {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   background-color: rgba(18, 18, 18, 0.985);
-  background-image: linear-gradient(45deg, rgba(43, 43, 43, 0.3) 25%, rgba(26, 26, 26, 0.3) 25%, rgba(26, 26, 26, 0.3) 50%, rgba(43, 43, 43, 0.3) 50%);
-  background-size: 60px 60px;
-  animation: slideBackground 6s linear infinite;
   padding: 1.5rem;
   border-radius: 12px;
   border: 1px solid rgba(244, 211, 94, 0.25);
@@ -92,6 +89,20 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transform: translateZ(0);
+}
+.glass-container::before {
+  content: "";
+  position: absolute;
+  top: -60px;
+  left: -60px;
+  width: calc(100% + 120px);
+  height: calc(100% + 120px);
+  background-image: linear-gradient(45deg, rgba(43, 43, 43, 0.3) 25%, rgba(26, 26, 26, 0.3) 25%, rgba(26, 26, 26, 0.3) 50%, rgba(43, 43, 43, 0.3) 50%);
+  background-size: 60px 60px;
+  animation: slideBackground 6s linear infinite;
+  z-index: -1;
+  pointer-events: none;
 }
 
 .app-content-scrollable {
@@ -175,6 +186,31 @@ button {
   margin: 0.5rem;
   cursor: pointer;
   font-weight: bold;
+  font-family: "Consolas", monospace;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+}
+button:hover:not(:disabled) {
+  background-color: #ffe66d;
+  border-color: #ffe66d;
+  box-shadow: 0 4px 12px rgba(244, 211, 94, 0.35);
+  transform: translateY(-1px);
+}
+button:active:not(:disabled) {
+  transform: scale(0.94) translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  filter: brightness(0.9);
+}
+button:disabled {
+  opacity: 0.4;
+  background-color: #555 !important;
+  border-color: #555 !important;
+  color: #888 !important;
+  cursor: not-allowed;
+  box-shadow: none !important;
+  transform: none !important;
 }
 
 .mod-list {
@@ -200,6 +236,9 @@ button {
   gap: 1rem;
   position: relative;
   z-index: 0;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 80px;
+  contain: layout style paint;
 }
 
 .profile-item {
@@ -326,6 +365,7 @@ input:checked + .slider:before {
   position: absolute;
   bottom: 0;
   left: 0;
+  transform-origin: left;
   animation: shrinkBar linear forwards;
 }
 
@@ -348,6 +388,8 @@ input:checked + .slider:before {
   overflow: hidden;
   border-left: 5px solid #f4d35e;
   background-color: #2e2e2e;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 64px;
 }
 
 .installed-header {
@@ -429,7 +471,7 @@ input:checked + .slider:before {
 }
 
 .switch.disabled {
-  opacity: 0.4;
+  opacity: 0.45;
   cursor: not-allowed;
   pointer-events: none;
 }
@@ -442,13 +484,21 @@ input:checked + .slider:before {
   background-color: #333 !important;
   border-color: #555 !important;
 }
+.switch.disabled input:checked + .slider {
+  background-color: rgba(244, 211, 94, 0.35) !important;
+  border-color: rgba(244, 211, 94, 0.5) !important;
+}
+.switch.disabled input:checked + .slider:before {
+  background-color: #f4d35e !important;
+  border-color: #f4d35e !important;
+}
 
 @keyframes shrinkBar {
   from {
-    width: 100%;
+    transform: scaleX(1);
   }
   to {
-    width: 0%;
+    transform: scaleX(0);
   }
 }
 .header-area {

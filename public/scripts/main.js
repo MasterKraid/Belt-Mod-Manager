@@ -47,21 +47,38 @@ document.addEventListener('DOMContentLoaded', () => {
           if (a.enabled && !b.enabled) return -1;
           if (!a.enabled && b.enabled) return 1;
 
-          // Stable alphabetical secondary sort
-          return (a.title || a.name).localeCompare(b.title || b.name);
+          // Stable alphabetical secondary sort (optimized)
+          const aTitle = a.title || a.name;
+          const bTitle = b.title || b.name;
+          return aTitle < bTitle ? -1 : (aTitle > bTitle ? 1 : 0);
         });
 
         return list;
       },
       filteredInstalledMods() {
         const query = this.searchQueryInstalled.toLowerCase().trim();
-        if (!query) return this.installedMods;
-        return this.installedMods.filter(m => 
-          (m.title && m.title.toLowerCase().includes(query)) || 
-          (m.name && m.name.toLowerCase().includes(query)) ||
-          (m.author && m.author.toLowerCase().includes(query)) ||
-          (m.description && m.description.toLowerCase().includes(query))
-        );
+        let list = this.installedMods;
+        if (query) {
+          list = list.filter(m => 
+            (m.title && m.title.toLowerCase().includes(query)) || 
+            (m.name && m.name.toLowerCase().includes(query)) ||
+            (m.author && m.author.toLowerCase().includes(query)) ||
+            (m.description && m.description.toLowerCase().includes(query))
+          );
+        }
+        
+        const coreNames = ['base', 'elevated-rails', 'quality', 'space-age'];
+        return list.slice().sort((a, b) => {
+          const aCore = coreNames.indexOf(a.name);
+          const bCore = coreNames.indexOf(b.name);
+          if (aCore !== -1 && bCore !== -1) return aCore - bCore;
+          if (aCore !== -1) return -1;
+          if (bCore !== -1) return 1;
+
+          const aTitle = a.title || a.name;
+          const bTitle = b.title || b.name;
+          return aTitle < bTitle ? -1 : (aTitle > bTitle ? 1 : 0);
+        });
       },
       filteredDropdownProfiles() {
         const query = this.profileSearchQuery.toLowerCase().trim();
@@ -133,7 +150,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       },
       toggleAll(state) {
-        this.mods.forEach(m => m.enabled = state);
+        this.mods.forEach(m => {
+          if (m.name === 'base') {
+            m.enabled = true;
+          } else {
+            m.enabled = state;
+          }
+        });
+        this.autoSaveMods();
       },
       loadProfiles() {
         Promise.all([

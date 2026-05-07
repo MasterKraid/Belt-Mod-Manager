@@ -44,9 +44,9 @@ function saveConfig() {
 // Load config immediately
 loadConfig();
 
-const BACKUP_DIR = path.join(__dirname, 'backup');
-const PROFILES_DIR = path.join(__dirname, 'profiles');
-const LOCAL_MOD_LIST = path.join(__dirname, 'mod-list', 'mod-list.json');
+const BACKUP_DIR = process.env.NODE_ENV === 'test' ? path.join(__dirname, 'test-backup') : path.join(__dirname, 'backup');
+const PROFILES_DIR = process.env.NODE_ENV === 'test' ? path.join(__dirname, 'test-profiles') : path.join(__dirname, 'profiles');
+const LOCAL_MOD_LIST = process.env.NODE_ENV === 'test' ? path.join(__dirname, 'test-mod-list', 'mod-list.json') : path.join(__dirname, 'mod-list', 'mod-list.json');
 
 // === Ensure folders ===
 fse.ensureDirSync(PROFILES_DIR);
@@ -99,23 +99,19 @@ function backupModList() {
 }
 
 function saveToModList(mods) {
-  const required = ['base', 'elevated-rails', 'quality', 'space-age'];
-  
   // Clean mods list, ensuring 'base' is forced to true
   const clean = mods.map(m => ({
     name: m.name,
     enabled: m.name === 'base' ? true : !!m.enabled
   }));
 
-  // Ensure required mods are present and force base to true
-  required.forEach(name => {
-    const existing = clean.find(m => m.name === name);
-    if (!existing) {
-      clean.unshift({ name, enabled: true });
-    } else if (name === 'base') {
-      existing.enabled = true;
-    }
-  });
+  // Only ensure 'base' is present and enabled
+  const baseExisting = clean.find(m => m.name === 'base');
+  if (!baseExisting) {
+    clean.unshift({ name: 'base', enabled: true });
+  } else {
+    baseExisting.enabled = true;
+  }
 
   fs.writeFileSync(getModListPath(), JSON.stringify({ mods: clean }, null, 2));
   fs.writeFileSync(path.join(BACKUP_DIR, 'current.json'), JSON.stringify(clean, null, 2));
@@ -127,6 +123,7 @@ function findInfoJson(zip) {
 
 let modZipCache = {}; // maps modName to zipPath on disk
 let cachedScannedMods = null; // in-memory cache of scanned mod metadata results
+let lastModDirMtime = 0; // Tracks directory modified time to auto-invalidate cache
 
 function detectSteamFactorioPath() {
   const { execSync } = require('child_process');
@@ -134,7 +131,7 @@ function detectSteamFactorioPath() {
   
   try {
     const out = execSync('reg query "HKCU\\Software\\Valve\\Steam" /v SteamPath', { encoding: 'utf-8' });
-    const match = out.match(/SteamPath\s+REG_SZ\s+(.*)/);
+    const match = out.match(/SteamPath\\s+REG_SZ\\s+(.*)/);
     if (match) {
       steamPath = match[1].trim();
     }
@@ -160,10 +157,10 @@ function detectSteamFactorioPath() {
   if (fs.existsSync(vdfPath)) {
     try {
       const content = fs.readFileSync(vdfPath, 'utf-8');
-      const regex = /"path"\s+"([^"]+)"/g;
+      const regex = /"path"\\s+"([^"]+)"/g;
       let m;
       while ((m = regex.exec(content)) !== null) {
-        const libPath = m[1].replace(/\\\\/g, '\\');
+        const libPath = m[1].replace(/\\\\\\\\/g, '\\\\');
         if (fs.existsSync(libPath) && !libraries.includes(libPath)) {
           libraries.push(libPath);
         }
@@ -186,19 +183,27 @@ function detectSteamFactorioPath() {
 
 function invalidateModCache() {
   cachedScannedMods = null;
+  lastModDirMtime = 0;
 }
 
 function scanMods() {
   const statusMap = readModList();
 
-  if (cachedScannedMods) {
+  if (!fs.existsSync(userModPath)) return [];
+
+  let currentMtime = 0;
+  try {
+    currentMtime = fs.statSync(userModPath).mtimeMs;
+  } catch(e) {}
+
+  if (cachedScannedMods && lastModDirMtime === currentMtime) {
     return cachedScannedMods.map(m => ({
       ...m,
       enabled: m.type === 'core' ? true : (statusMap[m.name] ?? false)
     }));
   }
 
-  if (!fs.existsSync(userModPath)) return [];
+  lastModDirMtime = currentMtime;
   const files = fs.readdirSync(userModPath);
   let results = [];
 
@@ -340,7 +345,9 @@ function mergeNewMods(scanned, current) {
     if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
     if (aIndex !== -1) return -1;
     if (bIndex !== -1) return 1;
-    return (a.title || a.name).localeCompare(b.title || b.name);
+    const aTitle = a.title || a.name;
+    const bTitle = b.title || b.name;
+    return aTitle < bTitle ? -1 : (aTitle > bTitle ? 1 : 0);
   });
 
   return added;
@@ -397,7 +404,7 @@ app.get('/api/profiles/:name', (req, res) => {
     res.json(data);
   } else {
     const scanned = scanMods();
-    const mods = scanned.map(m => ({ ...m, enabled: false }));
+    const mods = scanned.map(m => ({ ...m, enabled: m.type === 'core' ? true : false }));
     fs.writeFileSync(file, JSON.stringify(mods, null, 2));
     res.json(mods);
   }
@@ -437,7 +444,7 @@ app.post('/api/rename-profile', (req, res) => {
   
   if (!fs.existsSync(oldPath)) {
     const scanned = scanMods();
-    const mods = scanned.map(m => ({ name: m.name, enabled: false }));
+    const mods = scanned.map(m => ({ name: m.name, enabled: m.type === 'core' ? true : false }));
     fs.writeFileSync(newPath, JSON.stringify(mods, null, 2));
     return res.sendStatus(200);
   }
@@ -624,19 +631,23 @@ app.get('/api/game-status', (req, res) => {
 
 
 // === Start ===
-app.listen(PORT, () => {
-  backupModList();
-  const result = linkOrWarn();
-  if (result.status === 'linked') {
-    console.log('[OK] Symlink created from /mod-list/mod-list.json -> user mod path');
-  } else if (result.status === 'missing') {
-    console.warn('[x] mod-list.json not found in selected path');
-  }
-  
-  // Warm up the in-memory scanned mods cache on startup
-  console.log('Pre-scanning mods to warm up metadata cache...');
-  scanMods();
-  console.log('Mod metadata cache warmed successfully!');
-  
-  console.log(`Mod Manager running at http://localhost:${PORT}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    backupModList();
+    const result = linkOrWarn();
+    if (result.status === 'linked') {
+      console.log('[OK] Symlink created from /mod-list/mod-list.json -> user mod path');
+    } else if (result.status === 'missing') {
+      console.warn('[x] mod-list.json not found in selected path');
+    }
+    
+    // Warm up the in-memory scanned mods cache on startup
+    console.log('Pre-scanning mods to warm up metadata cache...');
+    scanMods();
+    console.log('Mod metadata cache warmed successfully!');
+    
+    console.log(`Mod Manager running at http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
