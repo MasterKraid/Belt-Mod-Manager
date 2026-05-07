@@ -506,7 +506,7 @@ function syncProfileWithActualModList() {
 
     // Write back to profile JSON
     fs.writeFileSync(profileFile, JSON.stringify(profileMods, null, 2));
-    console.log(`[√] Synchronized profile "${activeProfile}" with real mod-list.json changes after game exit.`);
+    console.log(`[OK] Synchronized profile "${activeProfile}" with real mod-list.json changes after game exit.`);
   } catch (err) {
     console.warn('Failed to sync profile on game exit:', err.message);
   }
@@ -555,7 +555,7 @@ app.listen(PORT, () => {
   backupModList();
   const result = linkOrWarn();
   if (result.status === 'linked') {
-    console.log('[√] Symlink created from /mod-list/mod-list.json → user mod path');
+    console.log('[OK] Symlink created from /mod-list/mod-list.json -> user mod path');
   } else if (result.status === 'missing') {
     console.warn('[x] mod-list.json not found in selected path');
   }
