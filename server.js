@@ -54,6 +54,7 @@ fse.ensureDirSync(BACKUP_DIR);
 fse.ensureDirSync(path.dirname(LOCAL_MOD_LIST));
 
 app.use(express.static('public'));
+app.use('/Assets', express.static(path.join(__dirname, 'Assets')));
 app.use(express.json());
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));

@@ -1,6 +1,6 @@
 {
-  "name": "factorio-mod-manager",
-  "version": "1.4.0",
+  "name": "belt-mod-manager",
+  "version": "0.8.0",
   "main": "electron/main.js",
   "scripts": {
     "start": "npm run build-css && electron .",
