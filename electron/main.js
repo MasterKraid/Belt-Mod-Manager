@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 
 // Automatically spawn and run the Express backend server internally!
@@ -21,4 +21,8 @@ app.whenReady().then(createWindow);
 ipcMain.handle('select-folder', async () => {
   const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
   return result.canceled ? null : result.filePaths[0];
+});
+
+ipcMain.on('open-external', (event, url) => {
+  shell.openExternal(url);
 });

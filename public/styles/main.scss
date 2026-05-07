@@ -183,10 +183,6 @@ button {
 
 .profile-item .switch {
   order: 3;
-  
-  .slider:before {
-    bottom: 2px !important;
-  }
 }
 
 .slider {
@@ -703,7 +699,7 @@ input:checked + .slider {
   }
 }
 
-.folder-open-btn {
+.folder-open-btn, .steam-detect-btn {
   &:hover:not(:disabled) {
     border-color: #f4d35e !important;
     background-color: rgba(35, 35, 35, 0.95) !important;

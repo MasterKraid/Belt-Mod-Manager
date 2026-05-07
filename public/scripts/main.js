@@ -212,6 +212,25 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         });
       },
+      detectSteamPath() {
+        if (this.isGameRunning) return;
+        this.notify('Searching Steam for Factorio installation...');
+        fetch('/api/detect-steam-game', { method: 'POST' })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              this.gamePath = data.path;
+              this.notify('Factorio detected and path updated!');
+              this.fetchInstalledMods(); // refresh to pick up DLCs
+            } else {
+              this.notify('Game not found on Steam. Opening store page...');
+              window.electronAPI.openExternal(data.openUrl);
+            }
+          })
+          .catch(err => {
+            this.notify('Detection failed: ' + err.message);
+          });
+      },
       setModPath() {
         window.electronAPI.selectFolder().then(folder => {
           if (!folder) return;

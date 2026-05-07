@@ -128,6 +128,62 @@ function findInfoJson(zip) {
 let modZipCache = {}; // maps modName to zipPath on disk
 let cachedScannedMods = null; // in-memory cache of scanned mod metadata results
 
+function detectSteamFactorioPath() {
+  const { execSync } = require('child_process');
+  let steamPath = '';
+  
+  try {
+    const out = execSync('reg query "HKCU\\Software\\Valve\\Steam" /v SteamPath', { encoding: 'utf-8' });
+    const match = out.match(/SteamPath\s+REG_SZ\s+(.*)/);
+    if (match) {
+      steamPath = match[1].trim();
+    }
+  } catch (e) {
+    const possiblePaths = [
+      'C:\\Program Files (x86)\\Steam',
+      'C:\\Program Files\\Steam',
+      'D:\\Steam',
+      'D:\\SteamLibrary'
+    ];
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        steamPath = p;
+        break;
+      }
+    }
+  }
+
+  if (!steamPath) return null;
+
+  const libraries = [steamPath];
+  const vdfPath = path.join(steamPath, 'steamapps', 'libraryfolders.vdf');
+  if (fs.existsSync(vdfPath)) {
+    try {
+      const content = fs.readFileSync(vdfPath, 'utf-8');
+      const regex = /"path"\s+"([^"]+)"/g;
+      let m;
+      while ((m = regex.exec(content)) !== null) {
+        const libPath = m[1].replace(/\\\\/g, '\\');
+        if (fs.existsSync(libPath) && !libraries.includes(libPath)) {
+          libraries.push(libPath);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to parse libraryfolders.vdf:', err.message);
+    }
+  }
+
+  for (const lib of libraries) {
+    const candidate = path.join(lib, 'steamapps', 'common', 'Factorio');
+    const exePath = path.join(candidate, 'bin', 'x64', 'factorio.exe');
+    if (fs.existsSync(exePath)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
 function invalidateModCache() {
   cachedScannedMods = null;
 }
@@ -438,6 +494,22 @@ app.post('/api/set-game-path', (req, res) => {
   invalidateModCache();
   saveConfig();
   res.sendStatus(200);
+});
+
+app.post('/api/detect-steam-game', (req, res) => {
+  try {
+    const foundPath = detectSteamFactorioPath();
+    if (foundPath) {
+      userGamePath = foundPath;
+      invalidateModCache();
+      saveConfig();
+      res.json({ success: true, path: foundPath });
+    } else {
+      res.json({ success: false, openUrl: 'steam://store/427520' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/api/get-game-path', (req, res) => {

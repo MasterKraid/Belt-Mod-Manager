@@ -188,9 +188,6 @@ button {
 .profile-item .switch {
   order: 3;
 }
-.profile-item .switch .slider:before {
-  bottom: 2px !important;
-}
 
 .slider {
   position: absolute;
@@ -693,14 +690,14 @@ input:checked + .slider:before {
   padding-bottom: 0.5rem;
 }
 
-.folder-open-btn:hover:not(:disabled) {
+.folder-open-btn:hover:not(:disabled), .steam-detect-btn:hover:not(:disabled) {
   border-color: #f4d35e !important;
   background-color: rgba(35, 35, 35, 0.95) !important;
   color: #ffe66d !important;
   box-shadow: 0 0 12px rgba(244, 211, 94, 0.25);
   transform: scale(1.05);
 }
-.folder-open-btn:active:not(:disabled) {
+.folder-open-btn:active:not(:disabled), .steam-detect-btn:active:not(:disabled) {
   transform: scale(0.95);
 }
 
