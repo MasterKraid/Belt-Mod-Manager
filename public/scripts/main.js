@@ -82,6 +82,21 @@ document.addEventListener('DOMContentLoaded', () => {
           this.notifications = this.notifications.filter(n => n.id !== id);
         }, duration * 1000);
       },
+      minimizeWindow() {
+        if (window.electronAPI && window.electronAPI.minimizeWindow) {
+          window.electronAPI.minimizeWindow();
+        }
+      },
+      maximizeWindow() {
+        if (window.electronAPI && window.electronAPI.maximizeWindow) {
+          window.electronAPI.maximizeWindow();
+        }
+      },
+      closeWindow() {
+        if (window.electronAPI && window.electronAPI.closeWindow) {
+          window.electronAPI.closeWindow();
+        }
+      },
       fetchMods() {
         fetch(`/api/profiles/${this.selectedProfile}`)
           .then(res => res.json())
