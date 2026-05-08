@@ -7,30 +7,25 @@
   <link rel="icon" type="image/png" href="/Assets/Belt.png">
   <link rel="stylesheet" href="/styles/main.css">
   <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
-  <style>
-    [v-cloak] {
-      display: none;
-    }
-  </style>
 </head>
 
 <body spellcheck="false">
 
-  <div id="notifications" class="notifications" v-cloak>
-    <div class="notif" v-for="note in notifications" :key="note.id">
-      {{ note.message }}
-      <div class="bar" :style="{ animationDuration: note.duration + 's' }"></div>
-    </div>
-  </div>
-
   <div id="app" v-cloak>
+    <div id="notifications" class="notifications">
+      <div class="notif" v-for="note in notifications" :key="note.id">
+        {{ note.message }}
+        <div class="bar" :style="{ animationDuration: note.duration + 's' }"></div>
+      </div>
+    </div>
+
     <div class="glass-container">
       <!-- Custom Frameless Titlebar -->
       <div class="custom-titlebar">
         <div class="titlebar-drag-region"></div>
         <div class="titlebar-logo-title">
           <img src="/Assets/Belt.png" alt="Logo" class="titlebar-logo">
-          <span class="titlebar-title" style="margin-right: 0.5rem;">Belt Mod Manager</span>
+          <span class="titlebar-title">Belt Mod Manager</span>
         </div>
         <div class="drag-ridges"></div>
         <div class="titlebar-controls">
@@ -42,10 +37,10 @@
         </div>
       </div>
       <div class="header-area">
-        <div class="header-title-container" style="display: flex; align-items: center;">
-          <img src="/Assets/Belt.png" class="thumbnail" style="margin: 0 1.25rem 0 0; object-fit: contain;" />
+        <div class="header-title-container">
+          <img src="/Assets/Belt.png" class="thumbnail header-thumbnail" />
           <h1>Belt Mod Manager <span
-              style="font-size: 0.85rem; color: rgba(244, 211, 94, 0.7); font-family: 'Consolas', monospace; vertical-align: middle; margin-left: 0.5rem; background: rgba(244, 211, 94, 0.1); padding: 0.15rem 0.4rem; border: 1px solid rgba(244, 211, 94, 0.25); border-radius: 4px; letter-spacing: 0.5px;">v0.8.5</span>
+              style="font-size: 0.85rem; color: rgba(244, 211, 94, 0.7); font-family: 'Consolas', monospace; vertical-align: middle; margin-left: 0.5rem; background: rgba(244, 211, 94, 0.1); padding: 0.15rem 0.4rem; border: 1px solid rgba(244, 211, 94, 0.25); border-radius: 4px; letter-spacing: 0.5px;">v0.9.3</span>
           </h1>
         </div>
         <button class="launch-btn" :class="{ running: isGameRunning }" @click="launchGame"
@@ -74,7 +69,7 @@
           Factorio is currently running. Editing features are disabled to prevent file conflicts.
         </div>
 
-        <nav class="tabs" style="margin-bottom: 0.25rem;">
+        <nav class="tabs">
           <button :class="{active: currentTab==='profiles'}" @click="switchTab('profiles')">Profiles</button>
           <button :class="{active: currentTab==='manager'}" @click="switchTab('manager')">Manager</button>
           <button :class="{active: currentTab==='installed'}" @click="switchTab('installed')">Installed Mods</button>
@@ -82,13 +77,13 @@
           <button :class="{active: currentTab==='downloader'}" @click="switchTab('downloader')">Downloader</button>
 
           <!-- Tab bar separator -->
-          <span style="margin-left: auto; align-self: center; height: 16px; border-left: 1px solid rgba(244, 211, 94, 0.3); margin-right: 0.28rem; margin-bottom: 4px;"></span>
+          <span class="tabs-separator"></span>
 
           <!-- Auth profile button on the far right of the tab bar -->
-          <button class="dl-auth-btn has-tooltip tooltip-below" @click="showAuthPopup = true; playSound('click')"
+          <button class="dl-auth-btn tabs-auth-btn has-tooltip tooltip-below" @click="showAuthPopup = true; playSound('click')"
             :class="{ authenticated: portalAuth.authenticated }"
             :data-tooltip="portalAuth.authenticated ? 'Logged in as ' + portalAuth.username : 'Set Factorio credentials'"
-            style="align-self: center; margin-bottom: 4px;">
+            >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -97,8 +92,7 @@
           </button>
         </nav>
 
-        <p class="status" v-show="status"
-          style="margin: 0.15rem 0 0.4rem 0; font-size: 0.8rem; line-height: 1; color: rgba(244, 211, 94, 0.7);">{{
+        <p class="status status-line" v-show="status">{{
           status }}</p>
 
         <div v-show="currentTab==='profiles'" class="tab-content-wrapper">
@@ -655,74 +649,6 @@
             </label>
           </div>
 
-          <!-- Auth Popup Modal -->
-          <div v-if="showAuthPopup" class="dl-modal-overlay" @click.self="showAuthPopup = false">
-            <div class="dl-modal">
-              <div class="dl-modal-header">
-                <h3>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -3px; margin-right: 0.4rem;">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="12" cy="7" r="4"></circle>
-                  </svg>
-                  Factorio Credentials
-                </h3>
-                <button class="dl-modal-close" @click="showAuthPopup = false; playSound('click')">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
-              </div>
-
-              <div class="dl-modal-body">
-                <p class="dl-modal-desc" v-if="!portalAuth.authenticated">
-                  Enter your Factorio account <strong>username</strong> and <strong>password</strong> to
-                  authenticate directly with Factorio servers. This enables downloading
-                  from the official mod portal.
-                </p>
-                <p class="dl-modal-desc dl-auth-active" v-else>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" stroke-width="2.5">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
-                  Authenticated as <strong>{{ portalAuth.username }}</strong>. Downloads use the official Factorio mod portal.
-                </p>
-
-                <p v-if="authError" class="dl-auth-error">{{ authError }}</p>
-                <div v-if="!portalAuth.authenticated" class="dl-form-group">
-                  <label>Username</label>
-                  <input type="text" v-model="authUsername" placeholder="Your Factorio username" class="dl-form-input"
-                    @keyup.enter="$event.target.nextElementSibling && $event.target.parentElement.nextElementSibling.querySelector('input').focus()" />
-                </div>
-                <div v-if="!portalAuth.authenticated" class="dl-form-group">
-                  <label>Password</label>
-                  <input type="password" v-model="authPassword" placeholder="Your Factorio password" class="dl-form-input"
-                    @keyup.enter="saveAuthCredentials" />
-                </div>
-
-                <div class="dl-modal-actions">
-                  <button v-if="!portalAuth.authenticated" class="dl-btn dl-btn-primary"
-                    @click="saveAuthCredentials" :disabled="!authUsername || !authPassword || authLoading">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                      <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                      <polyline points="7 3 7 8 15 8"></polyline>
-                    </svg>
-                    {{ authLoading ? 'Authenticating...' : 'Login & Save' }}
-                  </button>
-                  <button v-if="portalAuth.authenticated" class="dl-btn dl-btn-danger"
-                    @click="clearAuthCredentials">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                      <polyline points="3 6 5 6 21 6"></polyline>
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </svg>
-                    Remove Credentials
-                  </button>
-                  <button class="dl-btn dl-btn-deps" @click="showAuthPopup = false; playSound('click')">Close</button>
-                </div>
-              </div>
-            </div>
-          </div>
 
           <!-- Search Results -->
           <div class="dl-results-area mod-list" v-if="portalResults.length > 0 || portalLoading">
@@ -907,6 +833,75 @@
       <div class="app-footer">
         <button class="exit-btn" @click="closeWindow">Exit</button>
         <div class="drag-ridges"></div>
+      </div>
+
+      <!-- Auth Popup Modal -->
+      <div v-if="showAuthPopup" class="dl-modal-overlay" @click.self="showAuthPopup = false">
+        <div class="dl-modal">
+          <div class="dl-modal-header">
+            <h3>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -3px; margin-right: 0.4rem;">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              Factorio Credentials
+            </h3>
+            <button class="dl-modal-close" @click="showAuthPopup = false; playSound('click')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+
+          <div class="dl-modal-body">
+            <p class="dl-modal-desc" v-if="!portalAuth.authenticated">
+              Enter your Factorio account <strong>username</strong> and <strong>password</strong> to
+              authenticate directly with Factorio servers. This enables downloading
+              from the official mod portal.
+            </p>
+            <p class="dl-modal-desc dl-auth-active" v-else>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" stroke-width="2.5">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              Authenticated as <strong>{{ portalAuth.username }}</strong>. Downloads use the official Factorio mod portal.
+            </p>
+
+            <p v-if="authError" class="dl-auth-error">{{ authError }}</p>
+            <div v-if="!portalAuth.authenticated" class="dl-form-group">
+              <label>Username</label>
+              <input type="text" v-model="authUsername" placeholder="Your Factorio username" class="dl-form-input"
+                @keyup.enter="$event.target.nextElementSibling && $event.target.parentElement.nextElementSibling.querySelector('input').focus()" />
+            </div>
+            <div v-if="!portalAuth.authenticated" class="dl-form-group">
+              <label>Password</label>
+              <input type="password" v-model="authPassword" placeholder="Your Factorio password" class="dl-form-input"
+                @keyup.enter="saveAuthCredentials" />
+            </div>
+
+            <div class="dl-modal-actions">
+              <button v-if="!portalAuth.authenticated" class="dl-btn dl-btn-primary"
+                @click="saveAuthCredentials" :disabled="!authUsername || !authPassword || authLoading">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                  <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                  <polyline points="7 3 7 8 15 8"></polyline>
+                </svg>
+                {{ authLoading ? 'Authenticating...' : 'Login & Save' }}
+              </button>
+              <button v-if="portalAuth.authenticated" class="dl-btn dl-btn-danger"
+                @click="clearAuthCredentials">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+                Remove Credentials
+              </button>
+              <button class="dl-btn dl-btn-deps" @click="showAuthPopup = false; playSound('click')">Close</button>
+            </div>
+          </div>
+        </div>
       </div>
 
     </div>

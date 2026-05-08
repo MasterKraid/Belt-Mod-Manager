@@ -25,7 +25,7 @@ const CORE_MODS = new Set(['base', 'elevated-rails', 'quality', 'space-age']);
 function httpsGet(url, options = {}) {
   return new Promise((resolve, reject) => {
     const req = https.get(url, {
-      headers: { 'User-Agent': 'BeltModManager/0.8.5' },
+      headers: { 'User-Agent': 'BeltModManager/0.9.3' },
       timeout: 15000,
       ...options
     }, resolve);
@@ -75,7 +75,7 @@ function headCheck(url) {
     const req = https.request({
       hostname: u.hostname, path: u.pathname + u.search,
       method: 'HEAD',
-      headers: { 'User-Agent': 'BeltModManager/0.8.5' },
+      headers: { 'User-Agent': 'BeltModManager/0.9.3' },
       timeout: 8000
     }, (res) => {
       res.resume();
@@ -550,6 +550,22 @@ class DownloadManager {
     };
   }
 
+  _validateZipFileName(fileName) {
+    if (!fileName || typeof fileName !== 'string') {
+      throw new Error('Invalid download file name');
+    }
+    if (path.basename(fileName) !== fileName) {
+      throw new Error('Invalid download file name');
+    }
+    if (!fileName.toLowerCase().endsWith('.zip')) {
+      throw new Error('Invalid download file type');
+    }
+    // Disallow path traversal-ish sequences even as basename.
+    if (fileName.includes('..')) {
+      throw new Error('Invalid download file name');
+    }
+  }
+
   _jobStatus(job) {
     return {
       id: job.id, modName: job.modName, version: job.version,
@@ -597,6 +613,16 @@ class DownloadManager {
 
     job.status = 'downloading';
     job.retryCount = attempt - 1;
+
+    try {
+      this._validateZipFileName(job.fileName);
+    } catch (e) {
+      job.status = 'failed';
+      job.error = e.message;
+      this.activeCount--;
+      this._processQueue();
+      return;
+    }
 
     const partPath = path.join(modsDir, job.fileName + '.part');
     const finalPath = path.join(modsDir, job.fileName);
@@ -658,15 +684,36 @@ class DownloadManager {
 
   _streamDownload(job, url, destPath) {
     return new Promise((resolve, reject) => {
-      const doRequest = (requestUrl) => {
+      const allowedHosts = new Set(['mods.factorio.com', 'mods-storage.re146.dev']);
+      const doRequest = (requestUrl, redirectCount = 0) => {
+        if (redirectCount > 5) {
+          reject(new Error('Too many redirects'));
+          return;
+        }
+        let parsed;
+        try {
+          parsed = new URL(requestUrl);
+        } catch {
+          reject(new Error('Invalid download URL'));
+          return;
+        }
+        if (parsed.protocol !== 'https:') {
+          reject(new Error('Insecure download URL'));
+          return;
+        }
+        if (!allowedHosts.has(parsed.hostname)) {
+          reject(new Error('Unexpected download host'));
+          return;
+        }
+
         const req = https.get(requestUrl, {
-          headers: { 'User-Agent': 'BeltModManager/0.8.5' },
+          headers: { 'User-Agent': 'BeltModManager/0.9.3' },
           timeout: 30000
         }, (res) => {
           // Follow redirects
           if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
             res.resume();
-            doRequest(res.headers.location);
+            doRequest(res.headers.location, redirectCount + 1);
             return;
           }
 

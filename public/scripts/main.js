@@ -52,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
       activeDownloads: [],
       includeOptionalDeps: false,
       downloadPollTimer: null,
+      downloadPollBytes: {},
       dlSortOpen: false,
       dlCategoryOpen: false,
       dlTagOpen: false,
@@ -698,18 +699,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
       startDownloadPolling() {
         if (this.downloadPollTimer) return;
-        this.pollDownloads();
-        this.downloadPollTimer = setInterval(() => this.pollDownloads(), 600);
+        this.downloadPollBytes = {};
+        this.pollDownloads(0);
       },
 
       stopDownloadPolling() {
         if (this.downloadPollTimer) {
-          clearInterval(this.downloadPollTimer);
+          clearTimeout(this.downloadPollTimer);
           this.downloadPollTimer = null;
         }
       },
 
-      pollDownloads() {
+      pollDownloads(nextDelayMs) {
+        if (this.downloadPollTimer) {
+          clearTimeout(this.downloadPollTimer);
+          this.downloadPollTimer = null;
+        }
         fetch('/api/portal/downloads')
           .then(res => res.json())
           .then(data => {
@@ -723,7 +728,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
               }
             });
-            const hasActive = data.some(d => ['downloading', 'queued', 'retrying'].includes(d.status));
+            const list = data || [];
+            const hasActive = list.some(d => ['downloading', 'queued', 'retrying'].includes(d.status));
             if (!hasActive && this.downloadPollTimer) {
               // All done — do a final poll after a brief delay, then stop
               setTimeout(() => {
@@ -731,7 +737,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.fetchMods();
                 this.fetchInstalledMods();
               }, 1000);
+              return;
             }
+
+            if (!hasActive) return;
+
+            // Adaptive polling:
+            // - Fast while bytes are changing (active download progress)
+            // - Slower while queued/retrying or stalled
+            let anyByteChange = false;
+            let anyDownloading = false;
+            list.forEach(job => {
+              if (job.status === 'downloading') anyDownloading = true;
+              const key = String(job.id);
+              const prev = this.downloadPollBytes[key] || 0;
+              const now = job.downloadedBytes || 0;
+              if (now > prev) anyByteChange = true;
+              this.downloadPollBytes[key] = now;
+            });
+
+            let delay = 2000;
+            if (anyDownloading && anyByteChange) delay = 600;
+            else if (anyDownloading) delay = 1200;
+            else delay = 2000;
+
+            this.downloadPollTimer = setTimeout(() => this.pollDownloads(delay), delay);
           })
           .catch(() => {});
       },
@@ -852,7 +882,8 @@ document.addEventListener('DOMContentLoaded', () => {
       fetch('/api/get-game-path')
         .then(res => res.json())
         .then(data => this.gamePath = data.path);
-      this.fetchInstalledMods();
+      // Defer mod scanning fetch to allow initial paint to happen first.
+      requestAnimationFrame(() => this.fetchInstalledMods());
       this.fetchAuthStatus();
       this.portalSearch(1, true);
 
@@ -973,22 +1004,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
 
-      // Poll game running status every 2 seconds
-      setInterval(() => {
+      // Adaptive polling of game status:
+      // - Fast while running (for quick UI lock/unlock)
+      // - Slow while not running (reduce background load)
+      const pollGameStatus = () => {
         fetch('/api/game-status')
           .then(res => res.json())
           .then(data => {
             const wasRunning = this.isGameRunning;
             this.isGameRunning = data.running;
-            
+
             // If the game has just exited, automatically re-fetch mods to catch any in-game changes!
             if (wasRunning && !data.running) {
               this.notify('Factorio closed. Synchronizing mod profile states...');
               this.fetchMods();
             }
           })
-          .catch(() => {});
-      }, 2000);
+          .catch(() => {})
+          .finally(() => {
+            const delay = this.isGameRunning ? 2000 : 10000;
+            setTimeout(pollGameStatus, delay);
+          });
+      };
+      pollGameStatus();
     }
   });
 });

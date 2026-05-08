@@ -6,9 +6,12 @@ const AdmZip = require('adm-zip');
 const { DownloadManager } = require('./download-manager');
 const credStore = require('./credential-store');
 const https = require('https');
+const { Worker } = require('worker_threads');
 
 const app = express();
-const PORT = 3000;
+const PORT = Number.parseInt(process.env.BELTMM_PORT || '0', 10);
+const HOST = '127.0.0.1';
+const SERVER_START_MS = Date.now();
 
 const MODS_DIR_DEFAULT = path.join(process.env.APPDATA || '', 'Factorio', 'mods');
 let userModPath = MODS_DIR_DEFAULT;
@@ -71,7 +74,14 @@ app.get('/', (req, res) => res.render('index'));
 app.get('/game-thumbs/*', (req, res) => {
   if (!userGamePath) return res.status(404).send('Game path not set');
   const relativePath = req.params[0];
-  const fullPath = path.join(userGamePath, 'data', relativePath);
+  const baseDir = path.resolve(userGamePath, 'data');
+  const fullPath = path.resolve(baseDir, relativePath || '');
+  if (!fullPath.startsWith(baseDir + path.sep)) {
+    return res.status(400).send('Invalid path');
+  }
+  if (!fullPath.toLowerCase().endsWith('.png')) {
+    return res.status(400).send('Invalid file type');
+  }
   if (fs.existsSync(fullPath)) {
     res.sendFile(fullPath);
   } else {
@@ -84,11 +94,19 @@ function getModListPath() {
   return path.join(userModPath, 'mod-list.json');
 }
 
+function isSafeProfileName(name) {
+  if (typeof name !== 'string') return false;
+  if (!name || name.length > 64) return false;
+  // Windows-safe + no path traversal separators
+  return /^[A-Za-z0-9 _.-]+$/.test(name) && !name.includes('..');
+}
+
 function readModList() {
   try {
     const file = fs.readFileSync(getModListPath(), 'utf-8');
     const json = JSON.parse(file);
     const map = {};
+    if (!json || !Array.isArray(json.mods)) return {};
     json.mods.forEach(mod => map[mod.name] = mod.enabled);
     return map;
   } catch {
@@ -130,6 +148,42 @@ function findInfoJson(zip) {
 let modZipCache = {}; // maps modName to zipPath on disk
 let cachedScannedMods = null; // in-memory cache of scanned mod metadata results
 let lastModDirMtime = 0; // Tracks directory modified time to auto-invalidate cache
+let modScanInFlight = false;
+
+function startBackgroundModScan(reason = 'unknown') {
+  if (modScanInFlight) return;
+  modScanInFlight = true;
+  const scanStart = Date.now();
+
+  const workerPath = path.join(__dirname, 'mod-scan-worker.js');
+  const modsDir = userModPath;
+  const gamePath = userGamePath;
+
+  const worker = new Worker(workerPath, { workerData: { modsDir, gamePath } });
+
+  worker.once('message', (msg) => {
+    if (msg && msg.ok) {
+      cachedScannedMods = Array.isArray(msg.results) ? msg.results : [];
+      modZipCache = msg.modZipCache && typeof msg.modZipCache === 'object' ? msg.modZipCache : {};
+      lastModDirMtime = typeof msg.modDirMtime === 'number' ? msg.modDirMtime : 0;
+      if (process.env.NODE_ENV !== 'test') {
+        console.log(
+          `[Perf] Mod scan (${reason}) completed in ${Date.now() - scanStart}ms (${cachedScannedMods.length} mods)`
+        );
+      }
+    } else {
+      console.warn(`[ModScan] Worker scan failed (${reason}):`, msg && msg.error ? msg.error : 'unknown error');
+    }
+  });
+
+  worker.once('error', (err) => {
+    console.warn(`[ModScan] Worker error (${reason}):`, err.message);
+  });
+
+  worker.once('exit', () => {
+    modScanInFlight = false;
+  });
+}
 
 function detectSteamFactorioPath() {
   const { execSync } = require('child_process');
@@ -369,6 +423,7 @@ app.post('/api/set-mod-path', (req, res) => {
   if (fs.existsSync(newPath)) {
     userModPath = newPath;
     invalidateModCache();
+    startBackgroundModScan('set-mod-path');
     saveConfig();
     const result = linkOrWarn();
     if (result.status === 'linked') {
@@ -392,7 +447,27 @@ app.get('/api/check-modlist', (req, res) => {
 });
 
 app.get('/api/installed-mods', (req, res) => {
+  // Serve cached results immediately when available; keep a safe fallback.
+  if (cachedScannedMods) {
+    const statusMap = readModList();
+    return res.json(
+      cachedScannedMods.map((m) => ({
+        ...m,
+        enabled: m.type === 'core' ? true : (statusMap[m.name] ?? false),
+      }))
+    );
+  }
+
+  // Kick off a background scan so subsequent calls are fast.
+  startBackgroundModScan('installed-mods-request');
+
+  // Fallback to the existing synchronous scan to avoid changing UX on first load.
+  const t0 = Date.now();
   const mods = scanMods();
+  const dt = Date.now() - t0;
+  if (process.env.NODE_ENV !== 'test' && dt > 100) {
+    console.log(`[Perf] Sync scanMods() fallback took ${dt}ms`);
+  }
   res.json(mods);
 });
 
@@ -404,12 +479,17 @@ app.get('/api/profiles', (req, res) => {
 });
 
 app.get('/api/profiles/:name', (req, res) => {
-  const file = path.join(PROFILES_DIR, `${req.params.name}.json`);
+  const profileName = req.params.name;
+  if (!isSafeProfileName(profileName)) return res.status(400).send('Invalid profile name');
+  const file = path.join(PROFILES_DIR, `${profileName}.json`);
   if (fs.existsSync(file)) {
-    const raw = fs.readFileSync(file);
+    const raw = fs.readFileSync(file, 'utf-8');
     const data = JSON.parse(raw);
+    if (!Array.isArray(data)) {
+      return res.status(500).json({ error: 'Profile file is not a mod list array' });
+    }
     const scanned = scanMods();
-    const added = mergeNewMods(scanned, data);
+    mergeNewMods(scanned, data);
     res.json(data);
   } else {
     const scanned = scanMods();
@@ -420,26 +500,33 @@ app.get('/api/profiles/:name', (req, res) => {
 });
 
 app.post('/api/profiles/:name', (req, res) => {
+  const profileName = req.params.name;
+  if (!isSafeProfileName(profileName)) return res.status(400).send('Invalid profile name');
   const mods = req.body;
-  const file = path.join(PROFILES_DIR, `${req.params.name}.json`);
+  const file = path.join(PROFILES_DIR, `${profileName}.json`);
   fs.writeFileSync(file, JSON.stringify(mods, null, 2));
-  activeProfile = req.params.name;
+  activeProfile = profileName;
   saveConfig();
   saveToModList(mods);
   res.sendStatus(200);
 });
 
 app.put('/api/profiles/:name', (req, res) => {
-  const file = path.join(PROFILES_DIR, `${req.params.name}.json`);
+  const profileName = req.params.name;
+  if (!isSafeProfileName(profileName)) return res.status(400).send('Invalid profile name');
+  const file = path.join(PROFILES_DIR, `${profileName}.json`);
   fs.writeFileSync(file, JSON.stringify(req.body || [], null, 2));
   res.sendStatus(201);
 });
 
 app.post('/api/switch/:name', (req, res) => {
-  const file = path.join(PROFILES_DIR, `${req.params.name}.json`);
+  const profileName = req.params.name;
+  if (!isSafeProfileName(profileName)) return res.status(400).send('Invalid profile name');
+  const file = path.join(PROFILES_DIR, `${profileName}.json`);
   if (!fs.existsSync(file)) return res.status(404).send('Not found');
-  const mods = JSON.parse(fs.readFileSync(file));
-  activeProfile = req.params.name;
+  const mods = JSON.parse(fs.readFileSync(file, 'utf-8'));
+  if (!Array.isArray(mods)) return res.status(500).send('Profile file is invalid');
+  activeProfile = profileName;
   saveConfig();
   saveToModList(mods);
   res.sendStatus(200);
@@ -479,7 +566,8 @@ app.post('/api/delete-profile', (req, res) => {
       saveConfig();
       const defaultFile = path.join(PROFILES_DIR, 'default.json');
       if (fs.existsSync(defaultFile)) {
-        const mods = JSON.parse(fs.readFileSync(defaultFile));
+        const mods = JSON.parse(fs.readFileSync(defaultFile, 'utf-8'));
+        if (!Array.isArray(mods)) return res.status(500).send('Default profile is invalid');
         saveToModList(mods);
       }
     }
@@ -602,11 +690,14 @@ app.post('/api/delete-mod-with-deps', (req, res) => {
 
 app.post('/api/open-mod-folder', (req, res) => {
   if (fs.existsSync(userModPath)) {
-    const { exec } = require('child_process');
-    exec(`start "" "${userModPath}"`, (err) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.sendStatus(200);
-    });
+    const { spawn } = require('child_process');
+    try {
+      const child = spawn('explorer.exe', [userModPath], { windowsHide: true, shell: false });
+      child.on('error', (err) => res.status(500).json({ error: err.message }));
+      child.on('spawn', () => res.sendStatus(200));
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   } else {
     res.status(404).json({ error: 'Folder does not exist' });
   }
@@ -619,6 +710,7 @@ app.get('/api/active-profile', (req, res) => {
 app.post('/api/set-game-path', (req, res) => {
   userGamePath = req.body.path;
   invalidateModCache();
+  startBackgroundModScan('set-game-path');
   saveConfig();
   res.sendStatus(200);
 });
@@ -629,6 +721,7 @@ app.post('/api/detect-steam-game', (req, res) => {
     if (foundPath) {
       userGamePath = foundPath;
       invalidateModCache();
+      startBackgroundModScan('detect-steam-game');
       saveConfig();
       res.json({ success: true, path: foundPath });
     } else {
@@ -788,6 +881,7 @@ app.post('/api/portal/download', (req, res) => {
   }
   const job = downloadManager.queueDownload(modName, version, fileName, officialDownloadUrl || '');
   invalidateModCache();
+  startBackgroundModScan('portal-download');
   res.json(job);
 });
 
@@ -797,6 +891,7 @@ app.post('/api/portal/download-with-deps', async (req, res) => {
   try {
     const plan = await downloadManager.queueWithDependencies(modName, !!includeOptional);
     invalidateModCache();
+    startBackgroundModScan('portal-download-with-deps');
     res.json(plan);
   } catch (err) {
     res.status(500).json({ error: 'Dependency resolution failed: ' + err.message });
@@ -896,23 +991,54 @@ app.post('/api/portal/auth-clear', (req, res) => {
 
 
 // === Start ===
+let httpServer = null;
+let _resolveReady;
+let boundPort = PORT;
+
+const whenReady =
+  process.env.NODE_ENV === 'test'
+    ? Promise.resolve({ host: HOST, port: null })
+    : new Promise((resolve) => {
+        _resolveReady = resolve;
+      });
+
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
-    backupModList();
-    const result = linkOrWarn();
-    if (result.status === 'linked') {
-      console.log('[OK] Symlink created from /mod-list/mod-list.json -> user mod path');
-    } else if (result.status === 'missing') {
-      console.warn('[x] mod-list.json not found in selected path');
-    }
-    
-    // Warm up the in-memory scanned mods cache on startup
-    console.log('Pre-scanning mods to warm up metadata cache...');
-    scanMods();
-    console.log('Mod metadata cache warmed successfully!');
-    
-    console.log(`Mod Manager running at http://localhost:${PORT}`);
-  });
+  const startServer = (tryPort) => {
+    httpServer = app.listen(tryPort, HOST, () => {
+      boundPort = httpServer.address().port;
+      console.log(`[Perf] Server listen ready in ${Date.now() - SERVER_START_MS}ms on port ${boundPort}`);
+      backupModList();
+      const result = linkOrWarn();
+      if (result.status === 'linked') {
+        console.log('[OK] Symlink created from /mod-list/mod-list.json -> user mod path');
+      } else if (result.status === 'missing') {
+        console.warn('[x] mod-list.json not found in selected path');
+      }
+
+      // Warm up mod metadata cache without blocking startup.
+      console.log('Starting background mod scan to warm metadata cache...');
+      startBackgroundModScan('startup');
+
+      console.log(`Mod Manager running at http://${HOST}:${boundPort}`);
+      if (_resolveReady) _resolveReady({ host: HOST, port: boundPort });
+    });
+
+    httpServer.on('error', (err) => {
+      if (tryPort !== 0) {
+        console.warn(`[Warning] Failed to listen on port ${tryPort} (${err.code}). Retrying with an ephemeral port...`);
+        startServer(0);
+      } else {
+        console.error('[Fatal] Failed to bind to ephemeral port:', err);
+      }
+    });
+  };
+
+  startServer(PORT);
 }
 
-module.exports = app;
+module.exports = {
+  app,
+  whenReady,
+  getServerInfo: () => ({ host: HOST, port: boundPort }),
+  getHttpServer: () => httpServer,
+};
