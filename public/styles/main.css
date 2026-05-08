@@ -2923,8 +2923,13 @@ input:checked + .slider:before {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   padding-top: 0.75rem;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
   gap: 0.75rem;
+  align-items: center;
+}
+.installed-details-actions-box > div {
+  display: inline-block;
 }
 
 .delete-warn-text {
