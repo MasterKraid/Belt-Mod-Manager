@@ -50,6 +50,8 @@ document.addEventListener('DOMContentLoaded', () => {
       portalLoading: false,
       portalSearched: false,
       activeDownloads: [],
+      hadActiveDownloads: false,
+      notifiedDownloads: [],
       includeOptionalDeps: false,
       downloadPollTimer: null,
       downloadPollBytes: {},
@@ -236,10 +238,98 @@ document.addEventListener('DOMContentLoaded', () => {
       toggleModStatus(mod) {
         if (mod.enabled) {
           this.playSound('sliderOn');
+          this.enableDependenciesOf(mod);
         } else {
           this.playSound('sliderOff');
         }
         this.autoSaveMods();
+      },
+      parseDependency(depStr) {
+        if (!depStr) return null;
+        let s = depStr.trim();
+        const isOptional = s.startsWith('?') || s.startsWith('~') || s.startsWith('(?)');
+        const isIncompatible = s.startsWith('!');
+        if (isOptional || isIncompatible) {
+          const cleanName = s.replace(/^[?~!(?)]+\s*/, '').split(/\s+/)[0];
+          return {
+            name: cleanName,
+            required: false,
+            incompatible: isIncompatible,
+            optional: isOptional
+          };
+        }
+        const parts = s.split(/\s+/);
+        const name = parts[0];
+        return {
+          name: name,
+          required: true,
+          incompatible: false,
+          optional: false
+        };
+      },
+      enableDependenciesOf(mod) {
+        const installed = this.installedMods.find(m => m.name === mod.name);
+        if (!installed || !installed.dependencies) return;
+
+        installed.dependencies.forEach(depStr => {
+          const parsed = this.parseDependency(depStr);
+          if (parsed && parsed.required) {
+            const depMod = this.mods.find(m => m.name === parsed.name);
+            if (depMod && !depMod.enabled) {
+              depMod.enabled = true;
+              this.notify(`Enabled required dependency: ${depMod.title || depMod.name}`);
+              this.enableDependenciesOf(depMod);
+            }
+          }
+        });
+      },
+      getMissingDependencies(mod) {
+        const installed = this.installedMods.find(m => m.name === mod.name);
+        if (!installed || !installed.dependencies) return [];
+
+        const CORE_MODS = ['base', 'elevated-rails', 'quality', 'space-age'];
+        const missing = [];
+        installed.dependencies.forEach(depStr => {
+          const parsed = this.parseDependency(depStr);
+          if (parsed && parsed.required && !CORE_MODS.includes(parsed.name)) {
+            const isInstalled = this.installedMods.some(m => m.name === parsed.name);
+            if (!isInstalled) {
+              missing.push(parsed.name);
+            }
+          }
+        });
+        return missing;
+      },
+      downloadDependencies(mod) {
+        this.playSound('click');
+        const missing = this.getMissingDependencies(mod);
+        if (missing.length === 0) return;
+
+        this.notify(`Resolving dependencies for ${mod.title || mod.name}...`, 8);
+        fetch('/api/portal/download-with-deps', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            modName: mod.name,
+            includeOptional: false
+          })
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.error) {
+              this.notify('Error: ' + data.error);
+              return;
+            }
+            const dlCount = (data.downloads || []).length;
+            const skipCount = (data.skipped || []).length;
+            let msg = `Queued ${dlCount} download${dlCount !== 1 ? 's' : ''}`;
+            if (skipCount > 0) msg += `, ${skipCount} already installed`;
+            this.notify(msg, 6);
+            if (dlCount > 0) {
+              this.startDownloadPolling();
+            }
+          })
+          .catch(err => this.notify('Dependency resolution failed: ' + err.message));
       },
       notify(message, duration = 5) {
         const id = ++this.notifId;
@@ -726,16 +816,45 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (m) {
                   m.installed = true;
                 }
+                
+                if (!this.notifiedDownloads.includes(job.id)) {
+                  this.notifiedDownloads.push(job.id);
+                  this.notify(`Downloaded and installed: ${job.modName} (v${job.version})`);
+                  this.playSound('click');
+                  this.fetchInstalledMods();
+                  this.fetchMods();
+                }
               }
             });
             const list = data || [];
             const hasActive = list.some(d => ['downloading', 'queued', 'retrying'].includes(d.status));
+            
+            if (hasActive) {
+              this.hadActiveDownloads = true;
+            }
+
             if (!hasActive && this.downloadPollTimer) {
+              const wasActiveBatch = this.hadActiveDownloads;
+              this.hadActiveDownloads = false;
+
               // All done — do a final poll after a brief delay, then stop
               setTimeout(() => {
                 this.stopDownloadPolling();
                 this.fetchMods();
                 this.fetchInstalledMods();
+
+                if (wasActiveBatch) {
+                  if (this.currentTab !== 'downloader') {
+                    const completedJobs = list.filter(j => j.status === 'complete');
+                    let msg = 'Downloads complete: All mods have been successfully installed.';
+                    if (completedJobs.length > 0) {
+                      const names = completedJobs.map(j => j.modName).join(', ');
+                      msg = `Downloaded ${completedJobs.length} mod${completedJobs.length !== 1 ? 's' : ''} successfully: ${names}`;
+                    }
+                    this.notify(msg, 6);
+                    this.playSound('click');
+                  }
+                }
               }, 1000);
               return;
             }
@@ -911,9 +1030,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
 
-      // Premium Global Custom Tooltip Event Delegation
+      // Global Custom Tooltip Event Delegation
       const tooltipEl = document.createElement('div');
-      tooltipEl.id = 'premium-global-tooltip';
+      tooltipEl.id = 'global-tooltip';
       document.body.appendChild(tooltipEl);
 
       let activeTooltipTarget = null;

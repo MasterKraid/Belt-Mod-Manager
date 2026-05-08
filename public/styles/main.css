@@ -246,6 +246,50 @@ button:disabled {
   gap: 1rem;
   position: relative;
 }
+.mod-item.has-missing-deps {
+  border-color: rgba(239, 71, 111, 0.4) !important;
+  border-left-color: #ef476f !important;
+  background-color: rgba(239, 71, 111, 0.03) !important;
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.6), 0 0 10px rgba(239, 71, 111, 0.08) !important;
+}
+
+.missing-deps-label {
+  color: #ef476f !important;
+  font-size: 0.75rem;
+  font-weight: bold;
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.queue-missing-deps-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(239, 71, 111, 0.15) !important;
+  border: 1px solid rgba(239, 71, 111, 0.4) !important;
+  color: #ef476f !important;
+  font-family: "Consolas", monospace;
+  font-size: 0.75rem;
+  font-weight: bold;
+  padding: 0.3rem 0.6rem !important;
+  border-radius: 4px !important;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.queue-missing-deps-btn svg {
+  stroke: #ef476f;
+}
+.queue-missing-deps-btn:hover {
+  background: rgba(239, 71, 111, 0.28) !important;
+  border-color: #ef476f !important;
+  transform: scale(1.03);
+  box-shadow: 0 0 8px rgba(239, 71, 111, 0.25);
+}
+.queue-missing-deps-btn:active {
+  transform: scale(0.97);
+}
 
 .profile-item {
   display: flex;
@@ -354,19 +398,22 @@ input:checked + .slider:before {
 }
 .notifications .notif {
   pointer-events: auto;
-  background-color: rgba(255, 215, 0, 0.95);
-  color: #1a1a1a;
+  background-color: rgba(244, 211, 94, 0.12);
+  color: #ffffff;
   padding: 0.75rem 1rem;
   font-weight: bold;
+  border: 1px solid rgba(244, 211, 94, 0.3);
   border-radius: 5px;
   position: relative;
   overflow: hidden;
   min-width: 220px;
-  box-shadow: 0 0 10px #000;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 .notifications .notif .bar {
   height: 3px;
-  background: #1a1a1a;
+  background: #f4d35e;
   width: 100%;
   position: absolute;
   bottom: 0;
@@ -590,7 +637,7 @@ input:checked + .slider:before {
   box-shadow: 0 4px 10px rgba(231, 111, 81, 0.1);
 }
 
-.premium-select {
+.modern-select {
   background-color: #1a1a1a;
   color: #f4d35e;
   border: 1px solid #f4d35e;
@@ -604,11 +651,11 @@ input:checked + .slider:before {
   box-shadow: 0 0 5px rgba(244, 211, 94, 0.2);
   transition: all 0.2s ease;
 }
-.premium-select:hover:not(:disabled) {
+.modern-select:hover:not(:disabled) {
   background-color: #2a2a2a;
   box-shadow: 0 0 8px rgba(244, 211, 94, 0.4);
 }
-.premium-select:disabled {
+.modern-select:disabled {
   opacity: 0.5;
   border-color: #555;
   color: #888;
@@ -799,7 +846,7 @@ input:checked + .slider:before {
   pointer-events: none;
   transition: stroke 0.2s ease;
 }
-.search-wrapper .premium-search-input {
+.search-wrapper .modern-search-input {
   width: 100%;
   background-color: rgba(15, 15, 15, 0.85);
   color: #f4d35e;
@@ -812,15 +859,15 @@ input:checked + .slider:before {
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
   transition: all 0.25s ease;
 }
-.search-wrapper .premium-search-input::placeholder {
+.search-wrapper .modern-search-input::placeholder {
   color: rgba(244, 211, 94, 0.4);
 }
-.search-wrapper .premium-search-input:focus {
+.search-wrapper .modern-search-input:focus {
   border-color: #f4d35e;
   background-color: rgba(25, 25, 25, 0.95);
   box-shadow: 0 0 10px rgba(244, 211, 94, 0.2), inset 0 2px 4px rgba(0, 0, 0, 0.5);
 }
-.search-wrapper .premium-search-input:focus ~ .search-icon {
+.search-wrapper .modern-search-input:focus ~ .search-icon {
   stroke: #f4d35e;
 }
 .search-wrapper .search-clear-btn {
@@ -1769,7 +1816,7 @@ input:checked + .slider:before {
   cursor: pointer;
 }
 
-#premium-global-tooltip {
+#global-tooltip {
   position: fixed;
   background: #0d0d0d;
   color: #f4d35e;
@@ -1789,7 +1836,7 @@ input:checked + .slider:before {
   font-weight: 500;
   letter-spacing: 0.2px;
 }
-#premium-global-tooltip::after {
+#global-tooltip::after {
   content: "";
   position: absolute;
   top: 100%;
@@ -1799,11 +1846,11 @@ input:checked + .slider:before {
   border-style: solid;
   border-color: rgba(244, 211, 94, 0.95) transparent transparent transparent;
 }
-#premium-global-tooltip.visible {
+#global-tooltip.visible {
   opacity: 1;
   transform: scale(1);
 }
-#premium-global-tooltip.tooltip-below::after {
+#global-tooltip.tooltip-below::after {
   top: auto;
   bottom: 100%;
   border-width: 0 6px 6px 6px;

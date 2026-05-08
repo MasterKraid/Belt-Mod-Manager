@@ -52,6 +52,10 @@ loadConfig();
 
 // === Download Manager (singleton) ===
 const downloadManager = new DownloadManager(() => userModPath);
+downloadManager.onJobComplete = (job) => {
+  invalidateModCache();
+  startBackgroundModScan('download-complete');
+};
 
 const BACKUP_DIR = process.env.NODE_ENV === 'test' ? path.join(__dirname, 'test-backup') : path.join(__dirname, 'backup');
 const PROFILES_DIR = process.env.NODE_ENV === 'test' ? path.join(__dirname, 'test-profiles') : path.join(__dirname, 'profiles');

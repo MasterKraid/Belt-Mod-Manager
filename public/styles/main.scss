@@ -257,6 +257,54 @@ button {
   box-shadow: inset 0 0 8px #111;
   gap: 1rem;
   position: relative;
+
+  &.has-missing-deps {
+    border-color: rgba(239, 71, 111, 0.4) !important;
+    border-left-color: #ef476f !important;
+    background-color: rgba(239, 71, 111, 0.03) !important;
+    box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.6), 0 0 10px rgba(239, 71, 111, 0.08) !important;
+  }
+}
+
+.missing-deps-label {
+  color: #ef476f !important;
+  font-size: 0.75rem;
+  font-weight: bold;
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.queue-missing-deps-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(239, 71, 111, 0.15) !important;
+  border: 1px solid rgba(239, 71, 111, 0.4) !important;
+  color: #ef476f !important;
+  font-family: "Consolas", monospace;
+  font-size: 0.75rem;
+  font-weight: bold;
+  padding: 0.3rem 0.6rem !important;
+  border-radius: 4px !important;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  svg {
+    stroke: #ef476f;
+  }
+
+  &:hover {
+    background: rgba(239, 71, 111, 0.28) !important;
+    border-color: #ef476f !important;
+    transform: scale(1.03);
+    box-shadow: 0 0 8px rgba(239, 71, 111, 0.25);
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
 }
 
 .profile-item {
@@ -377,19 +425,22 @@ input:checked+.slider {
 
   .notif {
     pointer-events: auto;
-    background-color: rgba(255, 215, 0, 0.95);
-    color: #1a1a1a;
+    background-color: rgba(244, 211, 94, 0.12);
+    color: #ffffff;
     padding: 0.75rem 1rem;
     font-weight: bold;
+    border: 1px solid rgba(244, 211, 94, 0.3);
     border-radius: 5px;
     position: relative;
     overflow: hidden;
     min-width: 220px;
-    box-shadow: 0 0 10px #000;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 
     .bar {
       height: 3px;
-      background: #1a1a1a;
+      background: #f4d35e;
       width: 100%;
       position: absolute;
       bottom: 0;
@@ -636,7 +687,7 @@ input:checked+.slider {
   box-shadow: 0 4px 10px rgba(231, 111, 81, 0.1);
 }
 
-.premium-select {
+.modern-select {
   background-color: #1a1a1a;
   color: #f4d35e;
   border: 1px solid #f4d35e;
@@ -869,7 +920,7 @@ input:checked+.slider {
     transition: stroke 0.2s ease;
   }
 
-  .premium-search-input {
+  .modern-search-input {
     width: 100%;
     background-color: rgba(15, 15, 15, 0.85);
     color: #f4d35e;
@@ -1933,8 +1984,8 @@ input:checked+.slider {
   cursor: pointer;
 }
 
-// Premium Global Body-Appended Tooltip Styling
-#premium-global-tooltip {
+// Global Body-Appended Tooltip Styling
+#global-tooltip {
   position: fixed;
   background: #0d0d0d;
   color: #f4d35e;

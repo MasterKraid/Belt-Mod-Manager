@@ -146,7 +146,7 @@
                   <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                 </svg>
                 <input type="text" v-model="profileSearchQueryPage" placeholder="Search profiles..."
-                  class="premium-search-input" />
+                  class="modern-search-input" />
                 <button v-if="profileSearchQueryPage" class="search-clear-btn" @click="profileSearchQueryPage = ''; playSound('click')">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
@@ -272,7 +272,7 @@
                     <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                   </svg>
                   <input type="text" v-model="searchQueryManager" placeholder="Search mods..."
-                    class="premium-search-input" />
+                    class="modern-search-input" />
                   <button v-if="searchQueryManager" class="search-clear-btn" @click="searchQueryManager = ''; playSound('click')">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                       stroke-linecap="round" stroke-linejoin="round">
@@ -285,7 +285,7 @@
             </div>
 
             <div class="mod-list scrollable-list-box" :style="{ opacity: isGameRunning ? 0.75 : 1 }">
-              <div class="mod-item" v-for="mod in filteredMods" :key="mod.name">
+              <div class="mod-item" :class="{ 'has-missing-deps': getMissingDependencies(mod).length > 0 }" v-for="mod in filteredMods" :key="mod.name">
                 <div class="mod-info-container" style="display: flex; align-items: center; gap: 0.75rem;">
                   <img v-if="mod.thumbnail" :src="mod.thumbnail" class="thumbnail manager-thumbnail"
                     :class="{ 'base-mod-logo': mod.name === 'base' }"
@@ -293,13 +293,31 @@
                   <div class="mod-meta">
                     <strong>{{ mod.title }}</strong> <small>({{ mod.name }})</small>
                     <div class="version">v{{ mod.version }}</div>
+                    <div v-if="getMissingDependencies(mod).length > 0" class="missing-deps-label">
+                      Missing: {{ getMissingDependencies(mod).join(', ') }}
+                    </div>
                   </div>
                 </div>
-                <label class="switch" :class="{ disabled: isGameRunning || mod.name === 'base' }">
-                  <input type="checkbox" v-model="mod.enabled" @change="toggleModStatus(mod)"
-                    :disabled="isGameRunning || mod.name === 'base'">
-                  <span class="slider"></span>
-                </label>
+                
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                  <button v-if="getMissingDependencies(mod).length > 0"
+                    class="queue-missing-deps-btn has-tooltip"
+                    :data-tooltip="'Queue downloading missing required dependencies: ' + getMissingDependencies(mod).join(', ')"
+                    @click.stop="downloadDependencies(mod)">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="7 10 12 15 17 10"></polyline>
+                      <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    Install Deps
+                  </button>
+
+                  <label class="switch" :class="{ disabled: isGameRunning || mod.name === 'base' }">
+                    <input type="checkbox" v-model="mod.enabled" @change="toggleModStatus(mod)"
+                      :disabled="isGameRunning || mod.name === 'base'">
+                    <span class="slider"></span>
+                  </label>
+                </div>
               </div>
             </div>
           </div>
@@ -356,7 +374,7 @@
                   <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                 </svg>
                 <input type="text" v-model="searchQueryInstalled" placeholder="Search installed mods..."
-                  class="premium-search-input" />
+                  class="modern-search-input" />
                 <button v-if="searchQueryInstalled" class="search-clear-btn" @click="searchQueryInstalled = ''; playSound('click')">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
@@ -468,7 +486,7 @@
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
               </svg>
               <input type="text" v-model="portalQuery" placeholder="Search the Factorio Mod Portal..."
-                class="premium-search-input" @keyup.enter="portalSearch(1)" />
+                class="modern-search-input" @keyup.enter="portalSearch(1)" />
               <button v-if="portalQuery" class="search-clear-btn" @click="portalQuery = ''; playSound('click')">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                   stroke-linecap="round" stroke-linejoin="round">

@@ -658,6 +658,15 @@ class DownloadManager {
       job.status = 'complete';
       job.progress = 1;
       this.activeCount--;
+
+      if (typeof this.onJobComplete === 'function') {
+        try {
+          this.onJobComplete(job);
+        } catch (err) {
+          console.error('[DownloadManager] Error in onJobComplete callback:', err);
+        }
+      }
+
       this._processQueue();
 
     } catch (err) {
