@@ -99,7 +99,7 @@
               <span
                 style="font-family: 'Consolas', monospace; color: #ccc; word-break: break-all; font-size: 0.85rem; flex-grow: 1; text-align: left;">{{
                 currentModPath || '(default)' }}</span>
-              <button @click="setModPath" :disabled="isGameRunning"
+              <button @click="setModPath" :disabled="isGameRunning" class="has-tooltip" data-tooltip="Set custom Factorio mods folder path"
                 style="flex-shrink: 0; padding: 0.3rem 0.6rem; font-size: 0.8rem; margin: 0;">Set Path</button>
             </div>
 
@@ -119,7 +119,7 @@
                       d="M 22 6 C 18.745659 6 16.09469 8.6041857 16.007812 11.837891 L 12.337891 17.083984 C 12.065931 17.032464 11.786701 17 11.5 17 C 10.551677 17 9.673638 17.297769 8.9472656 17.800781 L 4 15.84375 L 4 21.220703 L 7.1054688 22.449219 C 7.5429388 24.475474 9.3449541 26 11.5 26 C 13.703628 26 15.534282 24.405137 15.917969 22.310547 L 21.691406 17.984375 C 21.794183 17.989633 21.895937 18 22 18 C 25.309 18 28 15.309 28 12 C 28 8.691 25.309 6 22 6 z M 22 8 C 24.206 8 26 9.794 26 12 C 26 14.206 24.206 16 22 16 C 19.794 16 18 14.206 18 12 C 18 9.794 19.794 8 22 8 z M 22 9 A 3 3 0 0 0 22 15 A 3 3 0 0 0 22 9 z M 11.5 18 C 13.43 18 15 19.57 15 21.5 C 15 23.43 13.43 25 11.5 25 C 10.078718 25 8.8581368 24.145398 8.3105469 22.925781 L 10.580078 23.824219 C 10.882078 23.944219 11.192047 24.001953 11.498047 24.001953 C 12.494047 24.001953 13.436219 23.403875 13.824219 22.421875 C 14.333219 21.137875 13.703922 19.683781 12.419922 19.175781 L 10.142578 18.273438 C 10.560118 18.097145 11.019013 18 11.5 18 z" />
                   </svg>
                 </button>
-                <button @click="setGamePath" :disabled="isGameRunning"
+                <button @click="setGamePath" :disabled="isGameRunning" class="has-tooltip" data-tooltip="Set custom Factorio game folder path"
                   style="flex-shrink: 0; padding: 0.3rem 0.6rem; font-size: 0.8rem; margin: 0; height: 29px; display: flex; align-items: center; justify-content: center;">Set
                   Game Path</button>
               </div>
@@ -477,16 +477,6 @@
               </svg>
               <span>Optional deps</span>
             </label>
-
-            <!-- Auth status indicator -->
-            <span class="dl-auth-indicator has-tooltip tooltip-right" v-if="portalAuth.authenticated" :data-tooltip="'Logged in as ' + portalAuth.username">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="#4CAF50" stroke="none"><circle cx="12" cy="12" r="10"/></svg>
-              {{ portalAuth.username }}
-            </span>
-            <span class="dl-auth-indicator dl-auth-mirror has-tooltip tooltip-right" v-else data-tooltip="Sign in to Factorio to use Official Mod Portal">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="#f4a261" stroke="none"><circle cx="12" cy="12" r="10"/></svg>
-              re146.dev mirror
-            </span>
           </div>
 
           <!-- Auth Popup Modal -->
@@ -641,13 +631,25 @@
             <p style="font-size: 0.8rem; opacity: 0.6;">Downloads are sourced from re146.dev mirror — no login required.</p>
           </div>
 
-          <!-- Pagination -->
-          <div v-if="portalPagination.pageCount > 1" class="dl-pagination">
-            <button @click="portalSearch(portalPagination.page - 1)" :disabled="portalPagination.page <= 1"
-              class="dl-page-btn">&laquo;</button>
-            <span class="dl-page-info">Page {{ portalPagination.page }} of {{ portalPagination.pageCount }}</span>
-            <button @click="portalSearch(portalPagination.page + 1)"
-              :disabled="portalPagination.page >= portalPagination.pageCount" class="dl-page-btn">&raquo;</button>
+          <!-- Pagination / Bottom Status Row -->
+          <div v-if="portalResults.length > 0" class="dl-pagination" style="position: relative; min-height: 32px; display: flex; align-items: center; justify-content: center;">
+            <div v-if="portalPagination.pageCount > 1" style="display: flex; align-items: center; gap: 1rem;">
+              <button @click="portalSearch(portalPagination.page - 1)" :disabled="portalPagination.page <= 1"
+                class="dl-page-btn">&laquo;</button>
+              <span class="dl-page-info">Page {{ portalPagination.page }} of {{ portalPagination.pageCount }}</span>
+              <button @click="portalSearch(portalPagination.page + 1)"
+                :disabled="portalPagination.page >= portalPagination.pageCount" class="dl-page-btn">&raquo;</button>
+            </div>
+            
+            <!-- Auth status indicator moved to bottom right -->
+            <span class="dl-auth-indicator has-tooltip" v-if="portalAuth.authenticated" :data-tooltip="'Logged in as ' + portalAuth.username" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); margin: 0;">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="#4CAF50" stroke="none"><circle cx="12" cy="12" r="10"/></svg>
+              {{ portalAuth.username }}
+            </span>
+            <span class="dl-auth-indicator dl-auth-mirror has-tooltip" v-else data-tooltip="Sign in to Factorio to use Official Mod Portal" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); margin: 0;">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="#f4a261" stroke="none"><circle cx="12" cy="12" r="10"/></svg>
+              re146.dev mirror
+            </span>
           </div>
 
           <!-- Active Downloads Panel -->

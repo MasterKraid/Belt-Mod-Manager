@@ -253,11 +253,6 @@ button {
   box-shadow: inset 0 0 8px #111;
   gap: 1rem;
   position: relative;
-  z-index: 0;
-
-  &:hover {
-    z-index: 10;
-  }
 }
 
 .profile-item {
@@ -1169,12 +1164,10 @@ input:checked+.slider {
   border-left: 4px solid rgba(244, 211, 94, 0.5);
   margin-bottom: 0.5rem;
   transition: all 0.2s ease;
-  position: relative;
 
   &:hover {
     border-left-color: #f4d35e;
     background-color: #333;
-    z-index: 10;
   }
 }
 
@@ -1865,14 +1858,5 @@ input:checked+.slider {
       border-width: 0 6px 6px 6px;
       border-color: transparent transparent rgba(244, 211, 94, 0.95) transparent;
     }
-  }
-}
-
-// Raise stacking context for profile items on hover to ensure child tooltips sit above adjacent rows
-.profile-item {
-  position: relative !important;
-
-  &:hover {
-    z-index: 10 !important;
   }
 }

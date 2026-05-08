@@ -718,12 +718,21 @@ document.addEventListener('DOMContentLoaded', () => {
       tooltipEl.id = 'premium-global-tooltip';
       document.body.appendChild(tooltipEl);
 
+      let activeTooltipTarget = null;
+
       document.addEventListener('mouseover', e => {
         const target = e.target.closest('.has-tooltip');
         if (!target) return;
 
+        // If the mouse is still within the same active target, bypass re-rendering completely to prevent flickering!
+        if (target === activeTooltipTarget) return;
+        activeTooltipTarget = target;
+
         const text = target.getAttribute('data-tooltip') || target.getAttribute('title');
-        if (!text) return;
+        if (!text) {
+          activeTooltipTarget = null;
+          return;
+        }
 
         // Ensure title attribute is converted to data-tooltip to avoid standard browser tooltips
         if (target.hasAttribute('title')) {
@@ -791,6 +800,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.addEventListener('mouseout', e => {
         const target = e.target.closest('.has-tooltip');
         if (!target || !e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest('.has-tooltip')) {
+          activeTooltipTarget = null;
           tooltipEl.classList.remove('visible');
         }
       });
