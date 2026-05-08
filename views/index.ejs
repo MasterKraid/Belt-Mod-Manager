@@ -366,8 +366,360 @@
         <div v-show="currentTab==='settings'">
           <p>Coming soon...</p>
         </div>
-        <div v-show="currentTab==='downloader'">
-          <p>Coming soon...</p>
+        <div v-show="currentTab==='downloader'" class="tab-content-wrapper">
+          <!-- Search Controls -->
+          <div class="dl-controls-row">
+            <div class="search-wrapper dl-search" style="flex-grow: 1; margin: 0;">
+              <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input type="text" v-model="portalQuery" placeholder="Search the Factorio Mod Portal..."
+                class="premium-search-input" @keyup.enter="portalSearch(1)" />
+              <button v-if="portalQuery" class="search-clear-btn" @click="portalQuery = ''; playSound('click')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+
+            <button @click="portalSearch(1)" :disabled="portalLoading" class="dl-search-btn">
+              <svg v-if="!portalLoading" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <span v-else class="dl-spinner"></span>
+              Search
+            </button>
+
+            <!-- Auth profile button -->
+            <button class="dl-auth-btn" @click="showAuthPopup = true; playSound('click')"
+              :class="{ authenticated: portalAuth.authenticated }"
+              :title="portalAuth.authenticated ? 'Logged in as ' + portalAuth.username : 'Set Factorio credentials'">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Filters row -->
+          <div class="dl-filters-row">
+            <!-- Sort dropdown (custom) -->
+            <div class="custom-dropdown dl-mini-dropdown" @click.stop>
+              <div class="dropdown-trigger" @click="dlSortOpen = !dlSortOpen; playSound('click')">
+                <span class="profile-highlight">{{ portalSortLabel }}</span>
+                <svg class="dropdown-arrow" :class="{ open: dlSortOpen }" width="14" height="14" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
+              <div v-show="dlSortOpen" class="dropdown-menu">
+                <div class="dropdown-item" :class="{ active: portalSort === 'updated_at' }"
+                  @click="portalSort = 'updated_at'; dlSortOpen = false; portalSearch(1); playSound('click')">
+                  <svg v-if="portalSort === 'updated_at'" class="check-icon" width="12" height="12" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>Recently Updated</span>
+                </div>
+                <div class="dropdown-item" :class="{ active: portalSort === 'name' }"
+                  @click="portalSort = 'name'; dlSortOpen = false; portalSearch(1); playSound('click')">
+                  <svg v-if="portalSort === 'name'" class="check-icon" width="12" height="12" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>Name (A-Z)</span>
+                </div>
+                <div class="dropdown-item" :class="{ active: portalSort === 'created_at' }"
+                  @click="portalSort = 'created_at'; dlSortOpen = false; portalSearch(1); playSound('click')">
+                  <svg v-if="portalSort === 'created_at'" class="check-icon" width="12" height="12" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>Newest</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Category filter dropdown (custom) -->
+            <div class="custom-dropdown dl-mini-dropdown" @click.stop>
+              <div class="dropdown-trigger" @click="dlCategoryOpen = !dlCategoryOpen; playSound('click')">
+                <span class="profile-highlight">{{ portalCategory || 'All Categories' }}</span>
+                <svg class="dropdown-arrow" :class="{ open: dlCategoryOpen }" width="14" height="14" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
+              <div v-show="dlCategoryOpen" class="dropdown-menu">
+                <div v-for="cat in portalCategories" :key="cat.value" class="dropdown-item"
+                  :class="{ active: portalCategory === cat.value }"
+                  @click="portalCategory = cat.value; dlCategoryOpen = false; portalSearch(1); playSound('click')">
+                  <svg v-if="portalCategory === cat.value" class="check-icon" width="12" height="12" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>{{ cat.label }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Optional deps toggle -->
+            <label class="dl-checkbox-label" @click.prevent="includeOptionalDeps = !includeOptionalDeps; playSound('click')">
+              <span class="dl-checkbox" :class="{ checked: includeOptionalDeps }">
+                <svg v-if="includeOptionalDeps" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f4a261" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+              <span>Optional deps</span>
+            </label>
+
+            <!-- Auth status indicator -->
+            <span class="dl-auth-indicator" v-if="portalAuth.authenticated">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="#4CAF50" stroke="none"><circle cx="12" cy="12" r="10"/></svg>
+              {{ portalAuth.username }}
+            </span>
+            <span class="dl-auth-indicator dl-auth-mirror" v-else>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="#f4a261" stroke="none"><circle cx="12" cy="12" r="10"/></svg>
+              re146.dev mirror
+            </span>
+          </div>
+
+          <!-- Auth Popup Modal -->
+          <div v-if="showAuthPopup" class="dl-modal-overlay" @click.self="showAuthPopup = false">
+            <div class="dl-modal">
+              <div class="dl-modal-header">
+                <h3>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -3px; margin-right: 0.4rem;">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                  </svg>
+                  Factorio Credentials
+                </h3>
+                <button class="dl-modal-close" @click="showAuthPopup = false; playSound('click')">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+
+              <div class="dl-modal-body">
+                <p class="dl-modal-desc" v-if="!portalAuth.authenticated">
+                  Enter your Factorio username and <strong>service token</strong> to download
+                  directly from the official mod portal. Your token can be found in
+                  <code>player-data.json</code> in your Factorio data directory.
+                </p>
+                <p class="dl-modal-desc dl-auth-active" v-else>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" stroke-width="2.5">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  Authenticated as <strong>{{ portalAuth.username }}</strong>. Downloads use the official Factorio mod portal.
+                </p>
+
+                <div v-if="!portalAuth.authenticated" class="dl-form-group">
+                  <label>Username</label>
+                  <input type="text" v-model="authUsername" placeholder="Your Factorio username" class="dl-form-input" />
+                </div>
+                <div v-if="!portalAuth.authenticated" class="dl-form-group">
+                  <label>Service Token</label>
+                  <input type="password" v-model="authToken" placeholder="From player-data.json" class="dl-form-input" />
+                </div>
+
+                <div class="dl-modal-actions">
+                  <button v-if="!portalAuth.authenticated" class="dl-btn dl-btn-primary"
+                    @click="saveAuthCredentials" :disabled="!authUsername || !authToken">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                      <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                      <polyline points="7 3 7 8 15 8"></polyline>
+                    </svg>
+                    Save & Encrypt
+                  </button>
+                  <button v-if="portalAuth.authenticated" class="dl-btn dl-btn-danger"
+                    @click="clearAuthCredentials">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                    Remove Credentials
+                  </button>
+                  <button class="dl-btn dl-btn-deps" @click="showAuthPopup = false; playSound('click')">Close</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Search Results -->
+          <div class="dl-results-area mod-list" v-if="portalResults.length > 0 || portalLoading">
+            <!-- Loading skeleton -->
+            <div v-if="portalLoading" class="dl-loading-indicator">
+              <span class="dl-spinner"></span> Searching mod portal...
+            </div>
+
+            <div v-else class="dl-result-card" v-for="mod in portalResults" :key="mod.name">
+              <div class="dl-result-left">
+                <img v-if="mod.thumbnail" :src="mod.thumbnail" class="dl-result-thumb" />
+                <div v-else class="dl-result-thumb dl-thumb-placeholder">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                  </svg>
+                </div>
+                <div class="dl-result-info">
+                  <div class="dl-result-title-row">
+                    <strong>{{ mod.title }}</strong>
+                    <span class="dl-result-version" v-if="mod.latest_release">v{{ mod.latest_release.version }}</span>
+                    <span class="dl-result-installed" v-if="mod.installed">INSTALLED</span>
+                  </div>
+                  <div class="dl-result-meta">
+                    <span>by {{ mod.owner }}</span>
+                    <span class="dl-dot"></span>
+                    <span>{{ formatDownloads(mod.downloads_count) }} downloads</span>
+                    <span class="dl-dot" v-if="mod.category"></span>
+                    <span v-if="mod.category">{{ mod.category }}</span>
+                  </div>
+                  <div class="dl-result-summary">{{ mod.summary }}</div>
+                </div>
+              </div>
+              <div class="dl-result-actions">
+                <button class="dl-btn dl-btn-primary" @click="downloadMod(mod)"
+                  :disabled="!mod.latest_release || mod.installed || isGameRunning"
+                  :title="mod.installed ? 'Already installed' : 'Download latest version'">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                </button>
+                <button class="dl-btn dl-btn-deps" @click="downloadModWithDeps(mod)"
+                  :disabled="!mod.latest_release || isGameRunning"
+                  title="Download with all dependencies">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                  +deps
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty state -->
+          <div v-if="!portalLoading && portalResults.length === 0 && portalSearched"
+            class="dl-empty-state">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+              stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.4">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <p>No mods found. Try a different search term.</p>
+          </div>
+
+          <!-- Initial state -->
+          <div v-if="!portalSearched && !portalLoading && portalResults.length === 0"
+            class="dl-empty-state">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+              stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.4">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <p>Search the Factorio Mod Portal to find and download mods.</p>
+            <p style="font-size: 0.8rem; opacity: 0.6;">Downloads are sourced from re146.dev mirror — no login required.</p>
+          </div>
+
+          <!-- Pagination -->
+          <div v-if="portalPagination.pageCount > 1" class="dl-pagination">
+            <button @click="portalSearch(portalPagination.page - 1)" :disabled="portalPagination.page <= 1"
+              class="dl-page-btn">&laquo;</button>
+            <span class="dl-page-info">Page {{ portalPagination.page }} of {{ portalPagination.pageCount }}</span>
+            <button @click="portalSearch(portalPagination.page + 1)"
+              :disabled="portalPagination.page >= portalPagination.pageCount" class="dl-page-btn">&raquo;</button>
+          </div>
+
+          <!-- Active Downloads Panel -->
+          <div v-if="activeDownloads.length > 0" class="dl-downloads-panel">
+            <div class="dl-downloads-header">
+              <h4 style="margin: 0;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 0.3rem;">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Downloads
+              </h4>
+              <button class="dl-btn-clear" @click="clearDownloads" title="Clear completed">Clear</button>
+            </div>
+            <div class="dl-downloads-list">
+              <div class="dl-download-item" v-for="dl in activeDownloads" :key="dl.id"
+                :class="'dl-status-' + dl.status">
+                <div class="dl-download-icon">
+                  <svg v-if="dl.status === 'downloading' || dl.status === 'queued'" width="16" height="16"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                  <svg v-else-if="dl.status === 'complete'" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="#4CAF50" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  <svg v-else-if="dl.status === 'retrying'" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="#FFA500" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                  </svg>
+                  <svg v-else-if="dl.status === 'failed'" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="#F44336" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                  <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                  </svg>
+                </div>
+                <div class="dl-download-info">
+                  <div class="dl-download-name">{{ dl.fileName }}</div>
+                  <div class="dl-download-progress-row" v-if="dl.status === 'downloading'">
+                    <div class="dl-progress-bar">
+                      <div class="dl-progress-fill" :style="{ width: (dl.progress * 100) + '%' }"></div>
+                    </div>
+                    <span class="dl-progress-text">
+                      {{ (dl.progress * 100).toFixed(0) }}%
+                      <template v-if="dl.speed"> — {{ formatBytes(dl.speed) }}/s</template>
+                    </span>
+                  </div>
+                  <div class="dl-download-sub" v-else-if="dl.status === 'complete' && dl.skipped">Already installed</div>
+                  <div class="dl-download-sub" v-else-if="dl.status === 'complete'">Completed</div>
+                  <div class="dl-download-sub" v-else-if="dl.status === 'queued'">Queued...</div>
+                  <div class="dl-download-sub" v-else-if="dl.status === 'retrying'">Retrying ({{ dl.retryCount }}/3)...</div>
+                  <div class="dl-download-sub dl-error-text" v-else-if="dl.status === 'failed'">{{ dl.error }}</div>
+                  <div class="dl-download-sub" v-else-if="dl.status === 'cancelled'">Cancelled</div>
+                </div>
+                <button v-if="dl.status === 'downloading' || dl.status === 'queued'"
+                  class="dl-cancel-btn" @click="cancelDownload(dl.id)" title="Cancel">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

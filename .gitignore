@@ -6,3 +6,4 @@ backup/
 config.json
 mod-list/
 scratch/
+.credentials

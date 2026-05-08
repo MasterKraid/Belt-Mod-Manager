@@ -7,10 +7,27 @@ A desktop application to manage mod profiles for Factorio. Switch mods on/off us
 - Vue.js interface inside Electron
 - Profile creation, renaming, and switching
 - Enable/Disable all mods instantly
-- Mod downloads tab (coming soon)
+- Mod downloads tab with search, browse, and dependency resolution
+- Downloads from re146.dev mirror (no login required) with official API fallback
 
 ## Version History
 
+- **v0.9.1**
+  - Secure credential storage (AES-256-GCM, machine-bound key via PBKDF2)
+  - Auth profile button with encrypted username/token popup
+  - Download source logic: auth creds → official API, no creds → re146.dev mirror
+  - Thumbnail proxy endpoint fixes all mod portal images in Electron
+  - Custom dropdown filters for Sort and Category (replaces native `<select>`)
+  - Category filter: Content, Overhaul, Tweaks, Utilities, Scenarios, etc.
+  - Sound effects on all filter/dropdown interactions
+  - Auth status indicator in filter row
+- **v0.9.0**
+  - Implemented Downloader tab: search/browse Factorio Mod Portal, download mods with progress tracking
+  - Recursive dependency resolution with optional deps toggle
+  - Per-file progress bars, download speed display, retry logic (3 attempts)
+  - Concurrent download limiting (3 simultaneous)
+  - Skip-already-installed detection
+  - Downloads panel with status icons (downloading/complete/retrying/failed/cancelled)
 - **v0.8.5**
   - Fine-tuned layout spacing and vertical gaps across all tabs
   - Updated footer gap enforcement and recompiled styles

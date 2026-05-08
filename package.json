@@ -1,6 +1,6 @@
 {
   "name": "belt-mod-manager",
-  "version": "0.8.5",
+  "version": "0.9.1",
   "main": "electron/main.js",
   "scripts": {
     "start": "npm run build-css && electron .",

@@ -3,6 +3,9 @@ const fs = require('fs');
 const fse = require('fs-extra');
 const path = require('path');
 const AdmZip = require('adm-zip');
+const { DownloadManager } = require('./download-manager');
+const credStore = require('./credential-store');
+const https = require('https');
 
 const app = express();
 const PORT = 3000;
@@ -43,6 +46,9 @@ function saveConfig() {
 
 // Load config immediately
 loadConfig();
+
+// === Download Manager (singleton) ===
+const downloadManager = new DownloadManager(() => userModPath);
 
 const BACKUP_DIR = process.env.NODE_ENV === 'test' ? path.join(__dirname, 'test-backup') : path.join(__dirname, 'backup');
 const PROFILES_DIR = process.env.NODE_ENV === 'test' ? path.join(__dirname, 'test-profiles') : path.join(__dirname, 'profiles');
@@ -627,6 +633,114 @@ app.post('/api/launch-game', (req, res) => {
 
 app.get('/api/game-status', (req, res) => {
   res.json({ running: !!gameProcess });
+});
+
+
+// === Portal / Downloader API ===
+
+app.get('/api/portal/search', async (req, res) => {
+  try {
+    const { q, page, page_size, sort, sort_order, category } = req.query;
+    const data = await downloadManager.searchMods(
+      q || '', parseInt(page) || 1, parseInt(page_size) || 20,
+      sort || 'updated_at', sort_order || 'desc', category || ''
+    );
+    res.json(data);
+  } catch (err) {
+    res.status(502).json({ error: 'Failed to query mod portal: ' + err.message });
+  }
+});
+
+app.get('/api/portal/mod/:modName', async (req, res) => {
+  try {
+    const data = await downloadManager.getModDetails(req.params.modName);
+    res.json(data);
+  } catch (err) {
+    res.status(502).json({ error: 'Failed to fetch mod details: ' + err.message });
+  }
+});
+
+app.post('/api/portal/download', (req, res) => {
+  const { modName, version, fileName, officialDownloadUrl } = req.body;
+  if (!modName || !version || !fileName) {
+    return res.status(400).json({ error: 'Missing modName, version, or fileName' });
+  }
+  const job = downloadManager.queueDownload(modName, version, fileName, officialDownloadUrl || '');
+  invalidateModCache();
+  res.json(job);
+});
+
+app.post('/api/portal/download-with-deps', async (req, res) => {
+  const { modName, includeOptional } = req.body;
+  if (!modName) return res.status(400).json({ error: 'Missing modName' });
+  try {
+    const plan = await downloadManager.queueWithDependencies(modName, !!includeOptional);
+    invalidateModCache();
+    res.json(plan);
+  } catch (err) {
+    res.status(500).json({ error: 'Dependency resolution failed: ' + err.message });
+  }
+});
+
+app.get('/api/portal/downloads', (req, res) => {
+  res.json(downloadManager.getStatus());
+});
+
+app.post('/api/portal/download-cancel/:id', (req, res) => {
+  const ok = downloadManager.cancelDownload(parseInt(req.params.id));
+  res.json({ success: ok });
+});
+
+app.post('/api/portal/downloads-clear', (req, res) => {
+  downloadManager.clearCompleted();
+  res.json({ success: true });
+});
+
+// Thumbnail proxy — avoids external URL issues in Electron
+app.get('/api/portal/thumb', (req, res) => {
+  const thumbPath = req.query.path;
+  if (!thumbPath || !thumbPath.startsWith('/assets/')) {
+    return res.status(400).send('Invalid path');
+  }
+  const url = `https://assets-mod.factorio.com${thumbPath}`;
+  https.get(url, { headers: { 'User-Agent': 'BeltModManager/0.9.0' }, timeout: 8000 }, (proxyRes) => {
+    if (proxyRes.statusCode !== 200) {
+      proxyRes.resume();
+      return res.status(proxyRes.statusCode).send('Not found');
+    }
+    res.set('Content-Type', proxyRes.headers['content-type'] || 'image/png');
+    res.set('Cache-Control', 'public, max-age=86400');
+    proxyRes.pipe(res);
+  }).on('error', () => res.status(502).send('Proxy error'));
+});
+
+// Auth credential management
+app.get('/api/portal/auth-status', (req, res) => {
+  const creds = credStore.loadCredentials();
+  res.json({ authenticated: !!creds, username: creds ? creds.username : null });
+});
+
+app.post('/api/portal/auth-save', async (req, res) => {
+  const { username, token } = req.body;
+  if (!username || !token) {
+    return res.status(400).json({ error: 'Username and token are required' });
+  }
+  // Validate credentials against Factorio API
+  try {
+    const { fetchJson } = require('./download-manager');
+    // Use a known mod to test auth — try downloading a HEAD request
+    const testUrl = `https://mods.factorio.com/api/mods?page_size=1`;
+    await fetchJson(testUrl); // Just verify API is reachable
+    credStore.saveCredentials(username, token);
+    res.json({ success: true, username });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save credentials: ' + err.message });
+  }
+});
+
+app.post('/api/portal/auth-clear', (req, res) => {
+  credStore.clearCredentials();
+  res.json({ success: true });
 });
 
 

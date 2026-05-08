@@ -32,7 +32,35 @@ document.addEventListener('DOMContentLoaded', () => {
       dropdownOpen: false,
       profileSearchQuery: '',
       profileSearchQueryPage: '',
-      deletingProfileName: null
+      deletingProfileName: null,
+      // Downloader tab
+      portalQuery: '',
+      portalResults: [],
+      portalPagination: { page: 1, pageCount: 1, count: 0 },
+      portalSort: 'updated_at',
+      portalCategory: '',
+      portalLoading: false,
+      portalSearched: false,
+      activeDownloads: [],
+      includeOptionalDeps: false,
+      downloadPollTimer: null,
+      dlSortOpen: false,
+      dlCategoryOpen: false,
+      showAuthPopup: false,
+      portalAuth: { authenticated: false, username: null },
+      authUsername: '',
+      authToken: '',
+      portalCategories: [
+        { value: '', label: 'All Categories' },
+        { value: 'content', label: 'Content' },
+        { value: 'overhaul', label: 'Overhaul' },
+        { value: 'tweaks', label: 'Tweaks' },
+        { value: 'utilities', label: 'Utilities' },
+        { value: 'scenarios', label: 'Scenarios' },
+        { value: 'mod-packs', label: 'Mod Packs' },
+        { value: 'localizations', label: 'Localizations' },
+        { value: 'internal', label: 'Internal' }
+      ]
     },
     computed: {
       filteredMods() {
@@ -100,6 +128,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const query = this.profileSearchQueryPage.toLowerCase().trim();
         if (!query) return this.profiles;
         return this.profiles.filter(p => p.toLowerCase().includes(query));
+      },
+      portalSortLabel() {
+        const labels = { updated_at: 'Recently Updated', name: 'Name (A-Z)', created_at: 'Newest' };
+        return labels[this.portalSort] || 'Sort';
       }
     },
     methods: {
@@ -426,6 +458,205 @@ document.addEventListener('DOMContentLoaded', () => {
           .catch(err => {
             this.notify('Error: ' + err.message);
           });
+      },
+
+      // --- Downloader Tab ---
+      portalSearch(page) {
+        if (this.portalLoading) return;
+        this.playSound('click');
+        this.portalLoading = true;
+        this.portalSearched = true;
+        const q = this.portalQuery.trim();
+        const params = new URLSearchParams({
+          q: q,
+          page: page || 1,
+          page_size: 15,
+          sort: this.portalSort,
+          sort_order: this.portalSort === 'name' ? 'asc' : 'desc'
+        });
+        if (this.portalCategory) params.set('category', this.portalCategory);
+        fetch(`/api/portal/search?${params}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.error) {
+              this.notify('Search error: ' + data.error);
+              this.portalResults = [];
+            } else {
+              this.portalResults = data.results || [];
+              if (data.pagination) {
+                this.portalPagination = {
+                  page: data.pagination.page || 1,
+                  pageCount: data.pagination.page_count || 1,
+                  count: data.pagination.count || 0
+                };
+              }
+            }
+          })
+          .catch(err => {
+            this.notify('Search failed: ' + err.message);
+            this.portalResults = [];
+          })
+          .finally(() => { this.portalLoading = false; });
+      },
+
+      downloadMod(mod) {
+        if (!mod.latest_release) return;
+        this.playSound('click');
+        this.notify(`Downloading ${mod.title}...`);
+        fetch('/api/portal/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            modName: mod.name,
+            version: mod.latest_release.version,
+            fileName: mod.latest_release.file_name,
+            officialDownloadUrl: mod.latest_release.download_url
+          })
+        })
+          .then(res => res.json())
+          .then(() => {
+            this.startDownloadPolling();
+            mod.installed = true;
+          })
+          .catch(err => this.notify('Download error: ' + err.message));
+      },
+
+      downloadModWithDeps(mod) {
+        if (!mod.latest_release) return;
+        this.playSound('click');
+        this.notify(`Resolving dependencies for ${mod.title}...`, 8);
+        fetch('/api/portal/download-with-deps', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            modName: mod.name,
+            includeOptional: this.includeOptionalDeps
+          })
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.error) {
+              this.notify('Error: ' + data.error);
+              return;
+            }
+            const dlCount = (data.downloads || []).length;
+            const skipCount = (data.skipped || []).length;
+            let msg = `Queued ${dlCount} download${dlCount !== 1 ? 's' : ''}`;
+            if (skipCount > 0) msg += `, ${skipCount} already installed`;
+            this.notify(msg, 6);
+            this.startDownloadPolling();
+          })
+          .catch(err => this.notify('Dependency resolution failed: ' + err.message));
+      },
+
+      startDownloadPolling() {
+        if (this.downloadPollTimer) return;
+        this.pollDownloads();
+        this.downloadPollTimer = setInterval(() => this.pollDownloads(), 600);
+      },
+
+      stopDownloadPolling() {
+        if (this.downloadPollTimer) {
+          clearInterval(this.downloadPollTimer);
+          this.downloadPollTimer = null;
+        }
+      },
+
+      pollDownloads() {
+        fetch('/api/portal/downloads')
+          .then(res => res.json())
+          .then(data => {
+            this.activeDownloads = data || [];
+            const hasActive = data.some(d => ['downloading', 'queued', 'retrying'].includes(d.status));
+            if (!hasActive && this.downloadPollTimer) {
+              // All done — do a final poll after a brief delay, then stop
+              setTimeout(() => {
+                this.stopDownloadPolling();
+                this.fetchMods();
+                this.fetchInstalledMods();
+              }, 1000);
+            }
+          })
+          .catch(() => {});
+      },
+
+      cancelDownload(id) {
+        this.playSound('click');
+        fetch(`/api/portal/download-cancel/${id}`, { method: 'POST' })
+          .then(() => this.pollDownloads())
+          .catch(() => {});
+      },
+
+      clearDownloads() {
+        this.playSound('click');
+        fetch('/api/portal/downloads-clear', { method: 'POST' })
+          .then(() => {
+            this.activeDownloads = [];
+            this.stopDownloadPolling();
+          })
+          .catch(() => {});
+      },
+
+      formatDownloads(n) {
+        if (!n) return '0';
+        if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+        if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+        return String(n);
+      },
+
+      formatBytes(bytes) {
+        if (!bytes) return '0 B';
+        if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
+        if (bytes >= 1024) return (bytes / 1024).toFixed(0) + ' KB';
+        return bytes + ' B';
+      },
+
+      // --- Auth ---
+      fetchAuthStatus() {
+        fetch('/api/portal/auth-status')
+          .then(res => res.json())
+          .then(data => { this.portalAuth = data; })
+          .catch(() => {});
+      },
+
+      saveAuthCredentials() {
+        if (!this.authUsername || !this.authToken) return;
+        this.playSound('click');
+        fetch('/api/portal/auth-save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: this.authUsername, token: this.authToken })
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              this.notify('Credentials saved and encrypted.');
+              this.portalAuth = { authenticated: true, username: data.username };
+              this.authUsername = '';
+              this.authToken = '';
+              this.showAuthPopup = false;
+            } else {
+              this.notify('Error: ' + (data.error || 'Unknown'));
+            }
+          })
+          .catch(err => this.notify('Save failed: ' + err.message));
+      },
+
+      clearAuthCredentials() {
+        this.playSound('click');
+        fetch('/api/portal/auth-clear', { method: 'POST' })
+          .then(res => res.json())
+          .then(() => {
+            this.portalAuth = { authenticated: false, username: null };
+            this.notify('Credentials removed.');
+            this.showAuthPopup = false;
+          })
+          .catch(err => this.notify('Error: ' + err.message));
+      },
+
+      closeDlDropdowns() {
+        this.dlSortOpen = false;
+        this.dlCategoryOpen = false;
       }
     },
     mounted() {
@@ -437,10 +668,12 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(res => res.json())
         .then(data => this.gamePath = data.path);
       this.fetchInstalledMods();
+      this.fetchAuthStatus();
 
       // Dismiss the custom dropdown on click-away
       document.addEventListener('click', () => {
         this.dropdownOpen = false;
+        this.closeDlDropdowns();
       });
 
       // Disable default browser right-click context menu
