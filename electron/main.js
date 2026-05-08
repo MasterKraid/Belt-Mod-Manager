@@ -8,8 +8,10 @@ let mainWindow;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 740,
-    height: 860,
+    width: 720,
+    height: 840,
+    show: false,
+    backgroundColor: '#00000000',
     resizable: false,
     frame: false,
     transparent: true,
@@ -20,6 +22,11 @@ function createWindow() {
       contextIsolation: true
     }
   });
+  
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+  });
+
   mainWindow.loadURL('http://localhost:3000');
 }
 
