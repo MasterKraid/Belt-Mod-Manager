@@ -15,6 +15,8 @@ document.addEventListener('DOMContentLoaded', () => {
     data: {
       mods: [],
       installedMods: [],
+      installedSort: 'name',
+      installedSortOpen: false,
       expandedMods: [],
       profiles: [],
       selectedProfile: 'default',
@@ -33,12 +35,18 @@ document.addEventListener('DOMContentLoaded', () => {
       profileSearchQuery: '',
       profileSearchQueryPage: '',
       deletingProfileName: null,
+      deletingInstalledModName: null,
+      deletingInstalledModDepsName: null,
       // Downloader tab
       portalQuery: '',
       portalResults: [],
       portalPagination: { page: 1, pageCount: 1, count: 0 },
       portalSort: 'updated_at',
       portalCategory: '',
+      portalTag: '',
+      portalVersion: '2.0',
+      portalDeprecated: false,
+      portalSpaceAge: 'any',
       portalLoading: false,
       portalSearched: false,
       activeDownloads: [],
@@ -46,6 +54,9 @@ document.addEventListener('DOMContentLoaded', () => {
       downloadPollTimer: null,
       dlSortOpen: false,
       dlCategoryOpen: false,
+      dlTagOpen: false,
+      dlVersionOpen: false,
+      dlSpaceAgeOpen: false,
       showAuthPopup: false,
       portalAuth: { authenticated: false, username: null },
       authUsername: '',
@@ -61,7 +72,46 @@ document.addEventListener('DOMContentLoaded', () => {
         { value: 'scenarios', label: 'Scenarios' },
         { value: 'mod-packs', label: 'Mod Packs' },
         { value: 'localizations', label: 'Localizations' },
-        { value: 'internal', label: 'Internal' }
+        { value: 'internal', label: 'Internal' },
+        { value: 'no-category', label: 'No Category' }
+      ],
+      portalTags: [
+        { value: '', label: 'All Tags' },
+        { value: 'planets', label: 'Planets' },
+        { value: 'transportation', label: 'Transportation' },
+        { value: 'logistics', label: 'Logistics' },
+        { value: 'trains', label: 'Trains' },
+        { value: 'combat', label: 'Combat' },
+        { value: 'armor', label: 'Armor' },
+        { value: 'character', label: 'Character' },
+        { value: 'enemies', label: 'Enemies' },
+        { value: 'environment', label: 'Environment' },
+        { value: 'mining', label: 'Mining' },
+        { value: 'fluids', label: 'Fluids' },
+        { value: 'logistic-network', label: 'Logistic Network' },
+        { value: 'circuit-network', label: 'Circuit Network' },
+        { value: 'manufacturing', label: 'Manufacturing' },
+        { value: 'power', label: 'Power' },
+        { value: 'storage', label: 'Storage' },
+        { value: 'blueprints', label: 'Blueprints' },
+        { value: 'cheats', label: 'Cheats' }
+      ],
+      portalVersions: [
+        { value: 'any', label: 'Any Version' },
+        { value: '2.0', label: 'Factorio 2.0' },
+        { value: '1.1', label: 'Factorio 1.1' },
+        { value: '1.0', label: 'Factorio 1.0' },
+        { value: '0.18', label: 'Factorio 0.18' },
+        { value: '0.17', label: 'Factorio 0.17' },
+        { value: '0.16', label: 'Factorio 0.16' },
+        { value: '0.15', label: 'Factorio 0.15' },
+        { value: '0.14', label: 'Factorio 0.14' },
+        { value: '0.13', label: 'Factorio 0.13' }
+      ],
+      portalSpaceAgeOptions: [
+        { value: 'any', label: 'Space Age: Include' },
+        { value: 'compatible', label: 'Space Age: Required' },
+        { value: 'exclude', label: 'Space Age: Exclude' }
       ]
     },
     computed: {
@@ -110,11 +160,25 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const coreNames = ['base', 'elevated-rails', 'quality', 'space-age'];
         return list.slice().sort((a, b) => {
-          const aCore = coreNames.indexOf(a.name);
-          const bCore = coreNames.indexOf(b.name);
-          if (aCore !== -1 && bCore !== -1) return aCore - bCore;
-          if (aCore !== -1) return -1;
-          if (bCore !== -1) return 1;
+          if (this.installedSort === 'last-downloaded') {
+            const aCore = coreNames.indexOf(a.name);
+            const bCore = coreNames.indexOf(b.name);
+            if (aCore !== -1 && bCore !== -1) return aCore - bCore; // keep relative core hierarchy
+            if (aCore !== -1) return 1; // push core mods to the end!
+            if (bCore !== -1) return -1; // push core mods to the end!
+
+            const am = a.mtime || 0;
+            const bm = b.mtime || 0;
+            if (am !== bm) {
+              return bm - am; // newest first!
+            }
+          } else {
+            const aCore = coreNames.indexOf(a.name);
+            const bCore = coreNames.indexOf(b.name);
+            if (aCore !== -1 && bCore !== -1) return aCore - bCore;
+            if (aCore !== -1) return -1; // core mods at the top!
+            if (bCore !== -1) return 1; // core mods at the top!
+          }
 
           const aTitle = a.title || a.name;
           const bTitle = b.title || b.name;
@@ -132,8 +196,27 @@ document.addEventListener('DOMContentLoaded', () => {
         return this.profiles.filter(p => p.toLowerCase().includes(query));
       },
       portalSortLabel() {
-        const labels = { updated_at: 'Recently Updated', name: 'Name (A-Z)', created_at: 'Newest' };
+        const labels = {
+          updated_at: 'Recently Updated',
+          downloads_count: 'Most Downloaded',
+          trending_score: 'Trending',
+          highlighted: 'Highlighted Mods',
+          name: 'Name (A-Z)',
+          created_at: 'Newest'
+        };
         return labels[this.portalSort] || 'Sort';
+      },
+      portalTagLabel() {
+        const found = this.portalTags.find(t => t.value === this.portalTag);
+        return found ? found.label : 'All Tags';
+      },
+      portalVersionLabel() {
+        const found = this.portalVersions.find(v => v.value === this.portalVersion);
+        return found ? found.label : 'Factorio: 2.0';
+      },
+      portalSpaceAgeLabel() {
+        const found = this.portalSpaceAgeOptions.find(o => o.value === this.portalSpaceAge);
+        return found ? found.label : 'Space Age: Include';
       }
     },
     methods: {
@@ -447,6 +530,58 @@ document.addEventListener('DOMContentLoaded', () => {
           this.notify('Error: ' + err.message);
         });
       },
+      confirmDeleteInstalledMod(modName) {
+        if (this.isGameRunning) return;
+        this.playSound('click');
+        fetch('/api/delete-mod', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: modName })
+        }).then(res => {
+          if (res.ok) {
+            this.notify(`Mod "${modName}" deleted successfully.`);
+            this.deletingInstalledModName = null;
+            this.fetchMods();
+            this.fetchInstalledMods();
+            const m = this.portalResults.find(r => r.name === modName);
+            if (m) {
+              m.installed = false;
+            }
+          } else {
+            this.notify('Error deleting mod.');
+          }
+        }).catch(err => {
+          this.notify('Error: ' + err.message);
+        });
+      },
+      confirmDeleteInstalledModWithDeps(modName) {
+        if (this.isGameRunning) return;
+        this.playSound('click');
+        fetch('/api/delete-mod-with-deps', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: modName })
+        }).then(res => res.json())
+          .then(data => {
+            if (data.deleted && data.deleted.length > 0) {
+              const names = data.deleted.join(', ');
+              this.notify(`Deleted mod & unused deps: ${names}`);
+              data.deleted.forEach(deletedName => {
+                const m = this.portalResults.find(r => r.name === deletedName);
+                if (m) {
+                  m.installed = false;
+                }
+              });
+              this.deletingInstalledModDepsName = null;
+              this.fetchMods();
+              this.fetchInstalledMods();
+            } else {
+              this.notify('No mods were deleted.');
+            }
+          }).catch(err => {
+            this.notify('Error: ' + err.message);
+          });
+      },
       openModFolder() {
         this.playSound('click');
         fetch('/api/open-mod-folder', { method: 'POST' })
@@ -474,9 +609,12 @@ document.addEventListener('DOMContentLoaded', () => {
           page: page || 1,
           page_size: 15,
           sort: this.portalSort,
-          sort_order: this.portalSort === 'name' ? 'asc' : 'desc'
+          category: this.portalCategory,
+          tag: this.portalTag,
+          version: this.portalVersion,
+          include_deprecated: this.portalDeprecated ? 'true' : 'false',
+          space_age: this.portalSpaceAge
         });
-        if (this.portalCategory) params.set('category', this.portalCategory);
         fetch(`/api/portal/search?${params}`)
           .then(res => res.json())
           .then(data => {
@@ -501,6 +639,14 @@ document.addEventListener('DOMContentLoaded', () => {
           .finally(() => { this.portalLoading = false; });
       },
 
+      getDownloadStatus(modName) {
+        const job = this.activeDownloads.find(d => d.modName === modName);
+        return job ? job.status : null;
+      },
+      isModDownloading(modName) {
+        const status = this.getDownloadStatus(modName);
+        return ['downloading', 'queued', 'retrying'].includes(status);
+      },
       downloadMod(mod) {
         if (!mod.latest_release) return;
         this.playSound('click');
@@ -518,7 +664,6 @@ document.addEventListener('DOMContentLoaded', () => {
           .then(res => res.json())
           .then(() => {
             this.startDownloadPolling();
-            mod.installed = true;
           })
           .catch(err => this.notify('Download error: ' + err.message));
       },
@@ -569,6 +714,15 @@ document.addEventListener('DOMContentLoaded', () => {
           .then(res => res.json())
           .then(data => {
             this.activeDownloads = data || [];
+            // Mark completed items as installed immediately
+            this.activeDownloads.forEach(job => {
+              if (job.status === 'complete') {
+                const m = this.portalResults.find(r => r.name === job.modName);
+                if (m) {
+                  m.installed = true;
+                }
+              }
+            });
             const hasActive = data.some(d => ['downloading', 'queued', 'retrying'].includes(d.status));
             if (!hasActive && this.downloadPollTimer) {
               // All done — do a final poll after a brief delay, then stop
@@ -666,6 +820,19 @@ document.addEventListener('DOMContentLoaded', () => {
       closeDlDropdowns() {
         this.dlSortOpen = false;
         this.dlCategoryOpen = false;
+        this.dlTagOpen = false;
+        this.dlVersionOpen = false;
+        this.dlSpaceAgeOpen = false;
+        this.installedSortOpen = false;
+      },
+
+      closeAllDropdownsExcept(except) {
+        const list = ['dlSortOpen', 'dlCategoryOpen', 'dlTagOpen', 'dlVersionOpen', 'dlSpaceAgeOpen'];
+        list.forEach(item => {
+          if (item !== except) {
+            this[item] = false;
+          }
+        });
       },
 
       openModPage(modName) {

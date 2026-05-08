@@ -1065,6 +1065,24 @@ input:checked + .slider:before {
   border-left-color: #f4d35e;
   background-color: #333;
 }
+.dl-result-card.is-installed {
+  border-left-color: rgba(76, 175, 80, 0.6);
+  box-shadow: inset 3px 0 6px rgba(76, 175, 80, 0.1), 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+.dl-result-card.is-installed:hover {
+  border-left-color: #4CAF50;
+  box-shadow: inset 4px 0 8px rgba(76, 175, 80, 0.2), 0 4px 12px rgba(76, 175, 80, 0.1);
+  background-color: #313c32;
+}
+.dl-result-card.is-downloading {
+  border-left-color: rgba(244, 162, 97, 0.6);
+  box-shadow: inset 3px 0 6px rgba(244, 162, 97, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+.dl-result-card.is-downloading:hover {
+  border-left-color: #f4a261;
+  box-shadow: inset 4px 0 8px rgba(244, 162, 97, 0.25), 0 4px 12px rgba(244, 162, 97, 0.15);
+  background-color: #3b3531;
+}
 
 .dl-result-left {
   display: flex;
@@ -1480,6 +1498,22 @@ input:checked + .slider:before {
 .dl-mini-dropdown .dropdown-item {
   padding: 0.4rem 0.75rem;
   font-size: 0.82rem;
+}
+
+.dl-version-dropdown {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+.dl-version-dropdown .dropdown-trigger {
+  height: 100% !important;
+  min-height: 35.5px;
+  padding: 0 0.8rem !important;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  background: #111111;
 }
 
 .dl-auth-indicator {

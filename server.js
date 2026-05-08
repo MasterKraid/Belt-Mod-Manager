@@ -224,6 +224,7 @@ function scanMods() {
     if (!file.endsWith('.zip')) continue;
     const zipPath = path.join(userModPath, file);
     try {
+      const stats = fs.statSync(zipPath);
       const zip = new AdmZip(zipPath);
       const infoEntry = findInfoJson(zip);
       if (!infoEntry) continue;
@@ -248,7 +249,8 @@ function scanMods() {
         description: info.description || '(no description)',
         dependencies: info.dependencies || [],
         homepage: info.homepage || '',
-        thumbnail: hasThumbnail ? `/api/mods/thumbnail/${info.name}` : null
+        thumbnail: hasThumbnail ? `/api/mods/thumbnail/${info.name}` : null,
+        mtime: stats.mtimeMs
       });
     } catch (err) {
       console.warn('Bad zip:', zipPath);
@@ -274,7 +276,8 @@ function scanMods() {
           dependencies: info.dependencies || [],
           homepage: info.homepage || '',
           type: 'core',
-          thumbnail: fs.existsSync(thumbPath) ? `/game-thumbs/${name}/thumbnail.png` : null
+          thumbnail: fs.existsSync(thumbPath) ? `/game-thumbs/${name}/thumbnail.png` : null,
+          mtime: 0
         });
       }
     }
@@ -486,6 +489,117 @@ app.post('/api/delete-profile', (req, res) => {
   }
 });
 
+app.post('/api/delete-mod', (req, res) => {
+  const { name } = req.body;
+  if (!name) {
+    return res.status(400).send('Mod name is required');
+  }
+  if (['base', 'elevated-rails', 'quality', 'space-age'].includes(name)) {
+    return res.status(400).send('Cannot delete core game mods');
+  }
+
+  const zipPath = modZipCache[name];
+  if (zipPath && fs.existsSync(zipPath)) {
+    try {
+      fs.unlinkSync(zipPath);
+      invalidateModCache();
+      res.sendStatus(200);
+    } catch (err) {
+      res.status(500).send('Failed to delete mod file: ' + err.message);
+    }
+  } else {
+    res.status(404).send('Mod file not found');
+  }
+});
+
+app.post('/api/delete-mod-with-deps', (req, res) => {
+  const { name } = req.body;
+  if (!name) {
+    return res.status(400).send('Mod name is required');
+  }
+  const coreMods = ['base', 'elevated-rails', 'quality', 'space-age'];
+  if (coreMods.includes(name)) {
+    return res.status(400).send('Cannot delete core game mods');
+  }
+
+  if (!cachedScannedMods) {
+    scanMods();
+  }
+
+  const allMods = cachedScannedMods || [];
+  const targetMod = allMods.find(m => m.name === name);
+  if (!targetMod) {
+    return res.status(404).send('Mod not found');
+  }
+
+  function getDepCleanName(depStr) {
+    let s = depStr.trim();
+    if (s.startsWith('(?)')) s = s.slice(3).trim();
+    else if (s.startsWith('?')) s = s.slice(1).trim();
+    else if (s.startsWith('(!)')) s = s.slice(3).trim();
+    else if (s.startsWith('!')) s = s.slice(1).trim();
+    else if (s.startsWith('~')) s = s.slice(1).trim();
+    return s.split(/\s+/)[0];
+  }
+
+  const modsToDelete = new Set([name]);
+  const queue = [name];
+
+  while (queue.length > 0) {
+    const currentName = queue.shift();
+    const currentMod = allMods.find(m => m.name === currentName);
+    if (!currentMod) continue;
+
+    const currentDeps = (currentMod.dependencies || [])
+      .map(d => getDepCleanName(d))
+      .filter(n => n && !coreMods.includes(n));
+
+    currentDeps.forEach(depName => {
+      const depMod = allMods.find(m => m.name === depName);
+      if (depMod && !modsToDelete.has(depName)) {
+        let isNeededByOthers = false;
+        for (const mod of allMods) {
+          if (modsToDelete.has(mod.name)) continue;
+          const modDeps = (mod.dependencies || []).map(d => getDepCleanName(d));
+          if (modDeps.includes(depName)) {
+            isNeededByOthers = true;
+            break;
+          }
+        }
+
+        if (!isNeededByOthers) {
+          modsToDelete.add(depName);
+          queue.push(depName);
+        }
+      }
+    });
+  }
+
+  const deleted = [];
+  const errors = [];
+
+  for (const modName of modsToDelete) {
+    if (coreMods.includes(modName)) continue;
+    const zipPath = modZipCache[modName];
+    if (zipPath && fs.existsSync(zipPath)) {
+      try {
+        fs.unlinkSync(zipPath);
+        deleted.push(modName);
+      } catch (err) {
+        errors.push(`${modName}: ${err.message}`);
+      }
+    }
+  }
+
+  invalidateModCache();
+
+  if (errors.length > 0) {
+    res.status(207).json({ deleted, errors });
+  } else {
+    res.status(200).json({ deleted });
+  }
+});
+
 app.post('/api/open-mod-folder', (req, res) => {
   if (fs.existsSync(userModPath)) {
     const { exec } = require('child_process');
@@ -640,10 +754,17 @@ app.get('/api/game-status', (req, res) => {
 
 app.get('/api/portal/search', async (req, res) => {
   try {
-    const { q, page, page_size, sort, sort_order, category } = req.query;
+    const { q, page, page_size, sort, category, tag, version, include_deprecated, space_age } = req.query;
     const data = await downloadManager.searchMods(
-      q || '', parseInt(page) || 1, parseInt(page_size) || 20,
-      sort || 'updated_at', sort_order || 'desc', category || ''
+      q || '',
+      parseInt(page) || 1,
+      parseInt(page_size) || 20,
+      sort || 'updated_at',
+      category || '',
+      tag || '',
+      version || '2.0',
+      include_deprecated === 'true',
+      space_age || 'any'
     );
     res.json(data);
   } catch (err) {

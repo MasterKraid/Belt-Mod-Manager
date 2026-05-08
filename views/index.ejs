@@ -318,6 +318,36 @@
 
             <div
               style="display: flex; align-items: center; gap: 0.5rem; flex-grow: 1; max-width: 390px; justify-content: flex-end;">
+              <!-- Sorting Dropdown for Installed Mods -->
+              <div class="custom-dropdown dl-mini-dropdown" @click.stop style="flex-shrink: 0; min-width: 150px;">
+                <div class="dropdown-trigger has-tooltip" data-tooltip="Sort Installed Mods"
+                  @click="installedSortOpen = !installedSortOpen; playSound('click')">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; opacity: 0.7;">
+                    <path d="M15 15l-3 3-3-3M12 6v12M9 9l3-3 3 3"></path>
+                  </svg>
+                  <span class="profile-highlight">{{ installedSort === 'last-downloaded' ? 'Last Downloaded' : 'Alphabetical' }}</span>
+                  <svg class="dropdown-arrow" :class="{ open: installedSortOpen }" width="14" height="14" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+                <div v-show="installedSortOpen" class="dropdown-menu" style="min-width: 100%;">
+                  <div class="dropdown-item" :class="{ active: installedSort === 'name' }"
+                    @click="installedSort = 'name'; installedSortOpen = false; playSound('click')">
+                    <svg v-if="installedSort === 'name'" class="check-icon" width="12" height="12" viewBox="0 0 24 24"
+                      fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    <span>Alphabetical</span>
+                  </div>
+                  <div class="dropdown-item" :class="{ active: installedSort === 'last-downloaded' }"
+                    @click="installedSort = 'last-downloaded'; installedSortOpen = false; playSound('click')">
+                    <svg v-if="installedSort === 'last-downloaded'" class="check-icon" width="12" height="12" viewBox="0 0 24 24"
+                      fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    <span>Last Downloaded</span>
+                  </div>
+                </div>
+              </div>
+
               <button class="folder-open-btn has-tooltip" @click="openModFolder" data-tooltip="Open Mods Folder"
                 style="background: rgba(25, 25, 25, 0.85); border: 1px solid rgba(244, 211, 94, 0.3); border-radius: 4px; padding: 0.45rem; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #f4d35e; transition: all 0.2s ease;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -372,6 +402,59 @@
                     }}
                   </span>
                 </p>
+
+                <!-- Two-Step Mod Deletion Options -->
+                <div v-if="!['base', 'elevated-rails', 'quality', 'space-age'].includes(mod.name)" style="margin-top: 1rem; border-top: 1px solid #444; padding-top: 0.75rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                  
+                  <!-- Standard Deletion -->
+                  <div>
+                    <!-- Confirmation Mode -->
+                    <div v-if="deletingInstalledModName === mod.name" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                      <span style="color: #d62246; font-size: 0.85rem; font-weight: bold; font-family: 'Consolas', monospace;">Delete this mod zip file from disk?</span>
+                      <button class="dl-btn dl-btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; font-weight: bold;" @click.stop="confirmDeleteInstalledMod(mod.name)">
+                        Yes, Delete!
+                      </button>
+                      <button class="dl-btn dl-btn-deps" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" @click.stop="deletingInstalledModName = null; playSound('click')">
+                        Cancel
+                      </button>
+                    </div>
+                    <!-- Trigger Mode -->
+                    <div v-else-if="deletingInstalledModDepsName !== mod.name">
+                      <button class="dl-btn dl-btn-danger" style="padding: 0.35rem 0.75rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.35rem;" @click.stop="deletingInstalledModName = mod.name; playSound('click')">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                          <polyline points="3 6 5 6 21 6"></polyline>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        Delete Mod
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Recursive Dependency Deletion -->
+                  <div>
+                    <!-- Confirmation Mode -->
+                    <div v-if="deletingInstalledModDepsName === mod.name" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                      <span style="color: #d62246; font-size: 0.85rem; font-weight: bold; font-family: 'Consolas', monospace;">Delete this mod AND all its unused dependencies recursively?</span>
+                      <button class="dl-btn dl-btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; font-weight: bold;" @click.stop="confirmDeleteInstalledModWithDeps(mod.name)">
+                        Yes, Delete Mod + Deps!
+                      </button>
+                      <button class="dl-btn dl-btn-deps" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" @click.stop="deletingInstalledModDepsName = null; playSound('click')">
+                        Cancel
+                      </button>
+                    </div>
+                    <!-- Trigger Mode -->
+                    <div v-else-if="deletingInstalledModName !== mod.name">
+                      <button class="dl-btn dl-btn-deps" style="padding: 0.35rem 0.75rem; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.35rem; color: #f4d35e; border-color: rgba(244, 211, 94, 0.3); background: rgba(244, 211, 94, 0.05);" @click.stop="deletingInstalledModDepsName = mod.name; playSound('click')">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                          <polyline points="3 6 5 6 21 6"></polyline>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        Delete +deps
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
               </div>
             </div>
           </div>
@@ -384,7 +467,7 @@
         <div v-show="currentTab==='downloader'" class="tab-content-wrapper">
           <!-- Search Controls -->
           <div class="dl-controls-row">
-            <div class="search-wrapper dl-search" style="flex-grow: 1; margin: 0;">
+            <div class="search-wrapper dl-search" style="flex-grow: 1; margin: 0; margin-right: 0.5rem;">
               <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"></circle>
@@ -401,7 +484,27 @@
               </button>
             </div>
 
-            <button @click="portalSearch(1)" :disabled="portalLoading" class="dl-search-btn">
+            <!-- Version Selection Dropdown (Top Row) -->
+            <div class="custom-dropdown dl-mini-dropdown dl-version-dropdown" @click.stop style="margin-right: 0.5rem; flex-shrink: 0;">
+              <div class="dropdown-trigger" @click="closeAllDropdownsExcept('dlVersionOpen'); dlVersionOpen = !dlVersionOpen; playSound('click')">
+                <span class="profile-highlight">{{ portalVersionLabel }}</span>
+                <svg class="dropdown-arrow" :class="{ open: dlVersionOpen }" width="14" height="14" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
+              <div v-show="dlVersionOpen" class="dropdown-menu">
+                <div v-for="ver in portalVersions" :key="ver.value" class="dropdown-item"
+                  :class="{ active: portalVersion === ver.value }"
+                  @click="portalVersion = ver.value; dlVersionOpen = false; portalSearch(1); playSound('click')">
+                  <svg v-if="portalVersion === ver.value" class="check-icon" width="12" height="12" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>{{ ver.label }}</span>
+                </div>
+              </div>
+            </div>
+
+            <button @click="portalSearch(1)" :disabled="portalLoading" class="dl-search-btn" style="margin-right: 0.5rem;">
               <svg v-if="!portalLoading" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                 stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"></circle>
@@ -412,7 +515,7 @@
             </button>
 
             <!-- Optional deps toggle beside search bar -->
-            <label class="dl-checkbox-label has-tooltip" @click.prevent="includeOptionalDeps = !includeOptionalDeps; playSound('click')" data-tooltip="Include optional dependencies when downloading mods with +deps" style="margin-left: auto; padding-left: 0.5rem; flex-shrink: 0; white-space: nowrap;">
+            <label class="dl-checkbox-label has-tooltip" @click.prevent="includeOptionalDeps = !includeOptionalDeps; playSound('click')" data-tooltip="Include optional dependencies when downloading mods with +deps" style="padding-left: 0.5rem; flex-shrink: 0; white-space: nowrap;">
               <span class="dl-checkbox" :class="{ checked: includeOptionalDeps }">
                 <svg v-if="includeOptionalDeps" width="12" height="12" viewBox="0 0 24 24" fill="none"
                   stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
@@ -433,7 +536,7 @@
           <div class="dl-filters-row">
             <!-- Sort dropdown (custom) -->
             <div class="custom-dropdown dl-mini-dropdown" @click.stop>
-              <div class="dropdown-trigger" @click="dlCategoryOpen = false; dlSortOpen = !dlSortOpen; playSound('click')">
+              <div class="dropdown-trigger" @click="closeAllDropdownsExcept('dlSortOpen'); dlSortOpen = !dlSortOpen; playSound('click')">
                 <span class="profile-highlight">{{ portalSortLabel }}</span>
                 <svg class="dropdown-arrow" :class="{ open: dlSortOpen }" width="14" height="14" viewBox="0 0 24 24"
                   fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -446,6 +549,24 @@
                   <svg v-if="portalSort === 'updated_at'" class="check-icon" width="12" height="12" viewBox="0 0 24 24"
                     fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
                   <span>Recently Updated</span>
+                </div>
+                <div class="dropdown-item" :class="{ active: portalSort === 'downloads_count' }"
+                  @click="portalSort = 'downloads_count'; dlSortOpen = false; portalSearch(1); playSound('click')">
+                  <svg v-if="portalSort === 'downloads_count'" class="check-icon" width="12" height="12" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>Most Downloaded</span>
+                </div>
+                <div class="dropdown-item" :class="{ active: portalSort === 'trending_score' }"
+                  @click="portalSort = 'trending_score'; dlSortOpen = false; portalSearch(1); playSound('click')">
+                  <svg v-if="portalSort === 'trending_score'" class="check-icon" width="12" height="12" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>Trending</span>
+                </div>
+                <div class="dropdown-item" :class="{ active: portalSort === 'highlighted' }"
+                  @click="portalSort = 'highlighted'; dlSortOpen = false; portalSearch(1); playSound('click')">
+                  <svg v-if="portalSort === 'highlighted'" class="check-icon" width="12" height="12" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>Highlighted Mods</span>
                 </div>
                 <div class="dropdown-item" :class="{ active: portalSort === 'name' }"
                   @click="portalSort = 'name'; dlSortOpen = false; portalSearch(1); playSound('click')">
@@ -464,8 +585,8 @@
 
             <!-- Category filter dropdown (custom) -->
             <div class="custom-dropdown dl-mini-dropdown" @click.stop>
-              <div class="dropdown-trigger" @click="dlSortOpen = false; dlCategoryOpen = !dlCategoryOpen; playSound('click')">
-                <span class="profile-highlight">{{ portalCategory || 'All Categories' }}</span>
+              <div class="dropdown-trigger" @click="closeAllDropdownsExcept('dlCategoryOpen'); dlCategoryOpen = !dlCategoryOpen; playSound('click')">
+                <span class="profile-highlight">{{ portalCategory ? (portalCategories.find(c => c.value === portalCategory)?.label || 'Category') : 'All Categories' }}</span>
                 <svg class="dropdown-arrow" :class="{ open: dlCategoryOpen }" width="14" height="14" viewBox="0 0 24 24"
                   fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="6 9 12 15 18 9"></polyline>
@@ -482,7 +603,56 @@
               </div>
             </div>
 
+            <!-- Tag filter dropdown (custom) -->
+            <div class="custom-dropdown dl-mini-dropdown" @click.stop>
+              <div class="dropdown-trigger" @click="closeAllDropdownsExcept('dlTagOpen'); dlTagOpen = !dlTagOpen; playSound('click')">
+                <span class="profile-highlight">{{ portalTagLabel }}</span>
+                <svg class="dropdown-arrow" :class="{ open: dlTagOpen }" width="14" height="14" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
+              <div v-show="dlTagOpen" class="dropdown-menu" style="max-height: 250px; overflow-y: auto;">
+                <div v-for="tagObj in portalTags" :key="tagObj.value" class="dropdown-item"
+                  :class="{ active: portalTag === tagObj.value }"
+                  @click="portalTag = tagObj.value; dlTagOpen = false; portalSearch(1); playSound('click')">
+                  <svg v-if="portalTag === tagObj.value" class="check-icon" width="12" height="12" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>{{ tagObj.label }}</span>
+                </div>
+              </div>
+            </div>
 
+            <!-- Space Age DLC filter dropdown (custom) -->
+            <div class="custom-dropdown dl-mini-dropdown" @click.stop>
+              <div class="dropdown-trigger" @click="closeAllDropdownsExcept('dlSpaceAgeOpen'); dlSpaceAgeOpen = !dlSpaceAgeOpen; playSound('click')">
+                <span class="profile-highlight">{{ portalSpaceAgeLabel }}</span>
+                <svg class="dropdown-arrow" :class="{ open: dlSpaceAgeOpen }" width="14" height="14" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
+              <div v-show="dlSpaceAgeOpen" class="dropdown-menu">
+                <div v-for="opt in portalSpaceAgeOptions" :key="opt.value" class="dropdown-item"
+                  :class="{ active: portalSpaceAge === opt.value }"
+                  @click="portalSpaceAge = opt.value; dlSpaceAgeOpen = false; portalSearch(1); playSound('click')">
+                  <svg v-if="portalSpaceAge === opt.value" class="check-icon" width="12" height="12" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span>{{ opt.label }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Deprecated mods toggle -->
+            <label class="dl-checkbox-label has-tooltip" @click.prevent="portalDeprecated = !portalDeprecated; portalSearch(1); playSound('click')" data-tooltip="Show mods that have been marked as deprecated by their authors" style="margin-left: auto; flex-shrink: 0; white-space: nowrap;">
+              <span class="dl-checkbox" :class="{ checked: portalDeprecated }">
+                <svg v-if="portalDeprecated" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </span>
+              <span>Include deprecated</span>
+            </label>
           </div>
 
           <!-- Auth Popup Modal -->
@@ -561,7 +731,7 @@
               <span class="dl-spinner"></span> Searching mod portal...
             </div>
 
-            <div v-else class="dl-result-card" v-for="mod in portalResults" :key="mod.name">
+            <div v-else class="dl-result-card" :class="{ 'is-installed': mod.installed && !isModDownloading(mod.name), 'is-downloading': isModDownloading(mod.name) }" v-for="mod in portalResults" :key="mod.name">
               <div class="dl-result-left">
                 <img v-if="mod.thumbnail" :src="mod.thumbnail" class="dl-result-thumb" />
                 <div v-else class="dl-result-thumb dl-thumb-placeholder">
@@ -589,8 +759,8 @@
               </div>
               <div class="dl-result-actions">
                 <button class="dl-btn dl-btn-primary has-tooltip" @click="downloadMod(mod)"
-                  :disabled="!mod.latest_release || mod.installed || isGameRunning"
-                  :data-tooltip="mod.installed ? 'Already installed' : 'Download latest version'">
+                  :disabled="!mod.latest_release || isGameRunning || isModDownloading(mod.name)"
+                  :data-tooltip="isModDownloading(mod.name) ? 'Downloading...' : (mod.installed ? 'Already downloaded! Update?' : 'Download latest version')">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                     stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -599,7 +769,7 @@
                   </svg>
                 </button>
                 <button class="dl-btn dl-btn-deps has-tooltip" @click="downloadModWithDeps(mod)"
-                  :disabled="!mod.latest_release || isGameRunning"
+                  :disabled="!mod.latest_release || isGameRunning || isModDownloading(mod.name)"
                   data-tooltip="Download with all dependencies">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                     stroke-linecap="round" stroke-linejoin="round">

@@ -51,6 +51,24 @@ async function fetchJson(url) {
   });
 }
 
+async function fetchHtml(url) {
+  const res = await httpsGet(url);
+  if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+    return fetchHtml(res.headers.location);
+  }
+  if (res.statusCode !== 200) {
+    res.resume();
+    throw new Error(`HTTP ${res.statusCode} for ${url}`);
+  }
+  return new Promise((resolve, reject) => {
+    let data = '';
+    res.on('data', chunk => data += chunk);
+    res.on('end', () => resolve(data));
+    res.on('error', reject);
+  });
+}
+
+
 function headCheck(url) {
   return new Promise((resolve) => {
     const u = new URL(url);
@@ -79,9 +97,22 @@ function headCheck(url) {
 function parseDep(raw) {
   let s = raw.trim();
   let type = 'required';
-  if (s.startsWith('(?)'))  { type = 'optional';      s = s.slice(3).trim(); }
-  else if (s.startsWith('!')) { type = 'incompatible'; s = s.slice(1).trim(); }
-  else if (s.startsWith('~')) { type = 'hidden';       s = s.slice(1).trim(); }
+  if (s.startsWith('(?)')) {
+    type = 'optional';
+    s = s.slice(3).trim();
+  } else if (s.startsWith('?')) {
+    type = 'optional';
+    s = s.slice(1).trim();
+  } else if (s.startsWith('(!)')) {
+    type = 'incompatible';
+    s = s.slice(3).trim();
+  } else if (s.startsWith('!')) {
+    type = 'incompatible';
+    s = s.slice(1).trim();
+  } else if (s.startsWith('~')) {
+    type = 'hidden';
+    s = s.slice(1).trim();
+  }
   const name = s.split(/\s+/)[0];
   return { type, name };
 }
@@ -104,75 +135,239 @@ class DownloadManager {
 
   // ---- Portal API proxies ------------------------------------------------
 
-  async searchMods(query, page, pageSize, sort, sortOrder, category) {
-    // The official API has no free-text search. We handle two strategies:
-    //   1. If query provided, try namelist exact match first (works for mod names)
-    //   2. If namelist returns nothing, fetch a large batch and filter client-side
-    //   3. If no query, just list/browse with pagination
+  async searchMods(query, page, pageSize, sort, category, tag, factorioVersion, includeDeprecated, spaceAgeFilter) {
     const ps = pageSize || 20;
+    const q = query ? query.trim() : '';
 
-    if (!query || !query.trim()) {
-      // No query — pure browse mode
-      if (category) {
-        // Category filter requires client-side filtering since API doesn't support it
-        const url = `${FACTORIO_API}/api/mods?page=1&page_size=200` +
-                    `&sort=${sort || 'updated_at'}&sort_order=${sortOrder || 'desc'}&hide_deprecated=true`;
-        const data = await fetchJson(url);
-        const filtered = (data.results || []).filter(m => m.category === category);
-        const startIdx = ((page || 1) - 1) * ps;
-        data.results = filtered.slice(startIdx, startIdx + ps);
-        data.pagination = {
-          count: filtered.length,
-          page: page || 1,
-          page_count: Math.ceil(filtered.length / ps) || 1,
-          page_size: ps
-        };
-        return this._normalizeResults(data);
+    // When a keyword is provided, use /search?query= (the real Factorio portal search endpoint)
+    // The official JSON API does NOT support free-text search — q= is silently ignored by the API.
+    if (q) {
+      const searchParams = new URLSearchParams();
+      searchParams.set('query', q);
+      if (factorioVersion && factorioVersion !== 'any') {
+        searchParams.set('factorio_version', factorioVersion);
       }
-      const url = `${FACTORIO_API}/api/mods?page=${page || 1}&page_size=${ps}` +
-                  `&sort=${sort || 'updated_at'}&sort_order=${sortOrder || 'desc'}&hide_deprecated=true`;
-      return this._normalizeResults(await fetchJson(url));
+      if (category) {
+        searchParams.set('category', category);
+      }
+      if (tag) {
+        searchParams.set('tag', tag);
+      }
+      searchParams.set('show_deprecated', includeDeprecated ? 'True' : 'False');
+      searchParams.set('exclude_category', 'internal');
+      if (spaceAgeFilter === 'compatible') {
+        searchParams.set('expansion', 'space-age');
+      } else if (spaceAgeFilter === 'exclude') {
+        searchParams.set('exclude_expansion', 'space-age');
+      }
+      if (page && page > 1) {
+        searchParams.set('page', page);
+      }
+
+      const searchUrl = `${FACTORIO_API}/search?${searchParams.toString()}`;
+      let html;
+      try {
+        html = await fetchHtml(searchUrl);
+      } catch (err) {
+        console.error('Search fetch error:', err.message);
+        throw err;
+      }
+
+      // Parse search results — same structure as browse
+      const scraped = [];
+      const blocks = html.split('<div class="panel-inset-lighter flex-column p0">');
+      for (let i = 1; i < blocks.length; i++) {
+        const block = blocks[i];
+        const slugMatch = block.match(/href="\/mod\/([^"?\s]+)/);
+        if (slugMatch) {
+          const slug = slugMatch[1].trim();
+          const thumbMatch = block.match(/class="[^"]*mod-thumbnail[^"]*"[\s\S]*?<img src="([^"]+)"/) || block.match(/<img[^>]*src="([^"]+)"/);
+          let thumbnail = thumbMatch ? thumbMatch[1].trim() : '';
+          if (thumbnail.startsWith('https://assets-mod.factorio.com')) {
+            thumbnail = thumbnail.replace('https://assets-mod.factorio.com', '');
+          }
+          scraped.push({ slug, thumbnail });
+        }
+      }
+
+      let pageCount = 1;
+      const paginationMatch = html.match(/href="[^"]*page=(\d+)"/g) || [];
+      paginationMatch.forEach(m => {
+        const p = m.match(/page=(\d+)/);
+        if (p) {
+          const num = parseInt(p[1]);
+          if (num > pageCount) pageCount = num;
+        }
+      });
+
+      if (scraped.length === 0) {
+        return { results: [], pagination: { count: 0, page: page || 1, page_count: 1, page_size: ps } };
+      }
+
+      const names = scraped.map(s => s.slug);
+      const namelistUrl = `${FACTORIO_API}/api/mods?namelist=${encodeURIComponent(names.join(','))}`;
+      let apiData;
+      try {
+        apiData = await fetchJson(namelistUrl);
+      } catch (err) {
+        console.error('Search batch metadata error:', err.message);
+        throw err;
+      }
+
+      const scrapedMap = {};
+      scraped.forEach((s, idx) => { scrapedMap[s.slug] = { index: idx, thumbnail: s.thumbnail }; });
+
+      const results = (apiData.results || []).map(m => {
+        const meta = scrapedMap[m.name] || { index: 999, thumbnail: '' };
+        return { ...m, thumbnail: meta.thumbnail || m.thumbnail || '', _scrapedIndex: meta.index };
+      });
+      results.sort((a, b) => a._scrapedIndex - b._scrapedIndex);
+
+      return this._normalizeResults({
+        results,
+        pagination: { count: results.length, page: page || 1, page_count: pageCount, page_size: ps }
+      });
     }
 
-    // Try exact namelist match first (comma-separated names work here)
-    const namelistUrl = `${FACTORIO_API}/api/mods?page=${page || 1}&page_size=${ps}` +
-                        `&sort=${sort || 'updated_at'}&sort_order=${sortOrder || 'desc'}` +
-                        `&hide_deprecated=true&namelist=${encodeURIComponent(query.trim())}`;
-    const data = await fetchJson(namelistUrl);
-
-    if (data.results && data.results.length > 0) {
-      if (category) {
-        data.results = data.results.filter(m => m.category === category);
+    // No keyword: use JSON API for name/created_at sorts
+    if (sort === 'name' || sort === 'created_at') {
+      let url = `${FACTORIO_API}/api/mods?page=${page || 1}&page_size=${ps}` +
+                `&sort=${sort}&sort_order=${sort === 'name' ? 'asc' : 'desc'}`;
+      if (includeDeprecated) {
+        url += '&hide_deprecated=false';
+      } else {
+        url += '&hide_deprecated=true';
       }
+      const data = await fetchJson(url);
       return this._normalizeResults(data);
     }
 
-    // Namelist returned nothing — fetch a bigger pool and filter client-side
-    const fallbackUrl = `${FACTORIO_API}/api/mods?page=1&page_size=200` +
-                         `&sort=${sort || 'updated_at'}&sort_order=${sortOrder || 'desc'}&hide_deprecated=true`;
-    const fallback = await fetchJson(fallbackUrl);
-    const q = query.toLowerCase();
-    let filtered = (fallback.results || []).filter(m =>
-      (m.name && m.name.toLowerCase().includes(q)) ||
-      (m.title && m.title.toLowerCase().includes(q)) ||
-      (m.summary && m.summary.toLowerCase().includes(q))
-    );
-    if (category) {
-      filtered = filtered.filter(m => m.category === category);
+    // Scrape-based browse for Most Downloaded, Trending, Highlighted, Recently Updated
+    let pathName = '/browse';
+    if (sort === 'downloads_count') {
+      pathName = '/browse/downloaded';
+    } else if (sort === 'trending_score') {
+      pathName = '/browse/trending';
+    } else if (sort === 'highlighted') {
+      pathName = '/highlights';
     }
 
-    // Paginate filtered results client-side
-    const startIdx = ((page || 1) - 1) * ps;
-    const paged = filtered.slice(startIdx, startIdx + ps);
+    const queryParams = new URLSearchParams();
+    if (factorioVersion && factorioVersion !== 'any') {
+      queryParams.set('factorio_version', factorioVersion);
+    }
+    if (category) {
+      queryParams.set('category', category);
+    }
+    if (tag) {
+      queryParams.set('tag', tag);
+    }
+    queryParams.set('show_deprecated', includeDeprecated ? 'True' : 'False');
+    queryParams.set('exclude_category', 'internal');
 
-    fallback.results = paged;
-    fallback.pagination = {
-      count: filtered.length,
-      page: page || 1,
-      page_count: Math.ceil(filtered.length / ps) || 1,
-      page_size: ps
-    };
-    return this._normalizeResults(fallback);
+    if (spaceAgeFilter === 'compatible') {
+      queryParams.set('expansion', 'space-age');
+    } else if (spaceAgeFilter === 'exclude') {
+      queryParams.set('exclude_expansion', 'space-age');
+    }
+
+    if (page && pathName !== '/highlights') {
+      queryParams.set('page', page);
+    }
+
+    const url = `${FACTORIO_API}${pathName}?${queryParams.toString()}`;
+
+    let html;
+    try {
+      html = await fetchHtml(url);
+    } catch (err) {
+      console.error('HTML Scraper fetch error:', err.message);
+      throw err;
+    }
+
+    // Parse slugs and thumbnails
+    const scraped = [];
+    const isHighlights = (pathName === '/highlights');
+
+    if (isHighlights) {
+      const tiles = html.split('class="panel-inset-lighter mt0 flex-column flex-items-center mb12 mod-tile"');
+      for (let i = 1; i < tiles.length; i++) {
+        const tile = tiles[i];
+        const slugMatch = tile.match(/href="\/mod\/([^"?\s]+)"/);
+        if (slugMatch) {
+          const slug = slugMatch[1].trim();
+          const thumbMatch = tile.match(/<img src="([^"]+)"/);
+          let thumbnail = thumbMatch ? thumbMatch[1].trim() : '';
+          if (thumbnail.startsWith('https://assets-mod.factorio.com')) {
+            thumbnail = thumbnail.replace('https://assets-mod.factorio.com', '');
+          }
+          scraped.push({ slug, thumbnail });
+        }
+      }
+    } else {
+      const blocks = html.split('<div class="panel-inset-lighter flex-column p0">');
+      for (let i = 1; i < blocks.length; i++) {
+        const block = blocks[i];
+        const slugMatch = block.match(/href="\/mod\/([^"?\s]+)/);
+        if (slugMatch) {
+          const slug = slugMatch[1].trim();
+          const thumbMatch = block.match(/class="[^"]*mod-thumbnail[^"]*"[\s\S]*?<img src="([^"]+)"/) || block.match(/<img[^>]*src="([^"]+)"/);
+          let thumbnail = thumbMatch ? thumbMatch[1].trim() : '';
+          if (thumbnail.startsWith('https://assets-mod.factorio.com')) {
+            thumbnail = thumbnail.replace('https://assets-mod.factorio.com', '');
+          }
+          scraped.push({ slug, thumbnail });
+        }
+      }
+    }
+
+    // Parse pagination page count
+    let pageCount = 1;
+    if (!isHighlights) {
+      const paginationMatch = html.match(/href="[^"]*page=(\d+)"/g) || [];
+      paginationMatch.forEach(m => {
+        const p = m.match(/page=(\d+)/);
+        if (p) {
+          const num = parseInt(p[1]);
+          if (num > pageCount) pageCount = num;
+        }
+      });
+    }
+
+    if (scraped.length === 0) {
+      return {
+        results: [],
+        pagination: { count: 0, page: page || 1, page_count: 1, page_size: ps }
+      };
+    }
+
+    // Fetch full metadata via official batch namelist API
+    const names = scraped.map(s => s.slug);
+    const namelistUrl = `${FACTORIO_API}/api/mods?namelist=${encodeURIComponent(names.join(','))}`;
+    let apiData;
+    try {
+      apiData = await fetchJson(namelistUrl);
+    } catch (err) {
+      console.error('Batch metadata query error:', err.message);
+      throw err;
+    }
+
+    const scrapedMap = {};
+    scraped.forEach((s, idx) => {
+      scrapedMap[s.slug] = { index: idx, thumbnail: s.thumbnail };
+    });
+
+    const results = (apiData.results || []).map(m => {
+      const meta = scrapedMap[m.name] || { index: 999, thumbnail: '' };
+      return { ...m, thumbnail: meta.thumbnail || m.thumbnail || '', _scrapedIndex: meta.index };
+    });
+
+    results.sort((a, b) => a._scrapedIndex - b._scrapedIndex);
+
+    return this._normalizeResults({
+      results,
+      pagination: { count: results.length, page: page || 1, page_count: pageCount, page_size: ps }
+    });
   }
 
   async getModDetails(modName) {
