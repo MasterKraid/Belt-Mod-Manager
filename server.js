@@ -1045,4 +1045,7 @@ module.exports = {
   whenReady,
   getServerInfo: () => ({ host: HOST, port: boundPort }),
   getHttpServer: () => httpServer,
+  downloadManager,
+  invalidateModCache,
+  isCacheCleared: () => cachedScannedMods === null,
 };

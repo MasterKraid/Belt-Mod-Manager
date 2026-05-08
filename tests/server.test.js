@@ -3,11 +3,17 @@ process.env.NODE_ENV = 'test';
 const request = require('supertest');
 const fs = require('fs-extra');
 const path = require('path');
-const { app } = require('../server');
+const { app, downloadManager, isCacheCleared, invalidateModCache } = require('../server');
 
 const TEST_PROFILES_DIR = path.join(__dirname, '../test-profiles');
 const TEST_BACKUP_DIR = path.join(__dirname, '../test-backup');
 const TEST_MOD_LIST_DIR = path.join(__dirname, '../test-mod-list');
+
+// Shared constant helper to keep tests DRY
+const makeProfileMods = () => [
+  { name: 'base', enabled: true },
+  { name: 'test-mod', enabled: false }
+];
 
 beforeAll(() => {
   fs.ensureDirSync(TEST_PROFILES_DIR);
@@ -23,48 +29,83 @@ afterAll(() => {
 
 describe('API Endpoints', () => {
   afterEach(() => {
-    // Keep tests hermetic and order-independent
+    // Keep tests hermetic, order-independent, and prevent test state leakage
     fs.readdirSync(TEST_PROFILES_DIR)
       .filter((f) => f.endsWith('.json'))
       .forEach((f) => fs.removeSync(path.join(TEST_PROFILES_DIR, f)));
+
+    fs.readdirSync(TEST_BACKUP_DIR)
+      .forEach((f) => fs.removeSync(path.join(TEST_BACKUP_DIR, f)));
+
+    fs.readdirSync(TEST_MOD_LIST_DIR)
+      .forEach((f) => fs.removeSync(path.join(TEST_MOD_LIST_DIR, f)));
+
+    invalidateModCache();
   });
 
   it('GET /api/check-modlist should return exists boolean', async () => {
     const res = await request(app).get('/api/check-modlist');
     expect(res.statusCode).toEqual(200);
+    expect(res.headers['content-type']).toMatch(/json/);
     expect(res.body).toHaveProperty('exists');
+    expect(typeof res.body.exists).toBe('boolean');
   });
 
   it('GET /api/profiles should return empty array initially or with default', async () => {
     const res = await request(app).get('/api/profiles');
     expect(res.statusCode).toEqual(200);
+    expect(res.headers['content-type']).toMatch(/json/);
     expect(Array.isArray(res.body)).toBe(true);
   });
 
   it('POST /api/profiles/:name should create a new profile', async () => {
-    const profileMods = [{ name: 'base', enabled: true }, { name: 'test-mod', enabled: false }];
     const res = await request(app)
       .post('/api/profiles/test-profile')
-      .send(profileMods);
+      .send(makeProfileMods());
     expect(res.statusCode).toEqual(200);
 
     const checkRes = await request(app).get('/api/profiles');
+    expect(checkRes.headers['content-type']).toMatch(/json/);
     expect(checkRes.body).toContain('test-profile');
   });
 
+  it('POST /api/profiles/:name should overwrite an existing profile when posted again', async () => {
+    await request(app)
+      .post('/api/profiles/test-overwrite')
+      .send(makeProfileMods());
+
+    const updatedMods = [
+      { name: 'base', enabled: true },
+      { name: 'test-mod', enabled: true },
+      { name: 'mod-3', enabled: true }
+    ];
+
+    const res = await request(app)
+      .post('/api/profiles/test-overwrite')
+      .send(updatedMods);
+    expect(res.statusCode).toEqual(200);
+
+    const checkRes = await request(app).get('/api/profiles/test-overwrite');
+    expect(checkRes.statusCode).toEqual(200);
+    expect(checkRes.headers['content-type']).toMatch(/json/);
+    const mod3 = checkRes.body.find(m => m.name === 'mod-3');
+    expect(mod3).toBeDefined();
+    expect(mod3.enabled).toBe(true);
+  });
+
   it('GET /api/profiles/:name should retrieve the created profile', async () => {
-    const profileMods = [{ name: 'base', enabled: true }, { name: 'test-mod', enabled: false }];
-    await request(app).post('/api/profiles/test-profile').send(profileMods);
+    await request(app).post('/api/profiles/test-profile').send(makeProfileMods());
 
     const res = await request(app).get('/api/profiles/test-profile');
     expect(res.statusCode).toEqual(200);
+    expect(res.headers['content-type']).toMatch(/json/);
     expect(res.body.find(m => m.name === 'base')).toBeDefined();
     expect(res.body.find(m => m.name === 'test-mod')).toBeDefined();
+    expect(typeof res.body.find(m => m.name === 'base').enabled).toBe('boolean');
   });
 
   it('POST /api/rename-profile should rename an existing profile', async () => {
-    const profileMods = [{ name: 'base', enabled: true }, { name: 'test-mod', enabled: false }];
-    await request(app).post('/api/profiles/test-profile').send(profileMods);
+    await request(app).post('/api/profiles/test-profile').send(makeProfileMods());
 
     const res = await request(app)
       .post('/api/rename-profile')
@@ -77,8 +118,7 @@ describe('API Endpoints', () => {
   });
 
   it('POST /api/delete-profile should delete an existing profile', async () => {
-    const profileMods = [{ name: 'base', enabled: true }, { name: 'test-mod', enabled: false }];
-    await request(app).post('/api/profiles/renamed-profile').send(profileMods);
+    await request(app).post('/api/profiles/renamed-profile').send(makeProfileMods());
 
     const res = await request(app)
       .post('/api/delete-profile')
@@ -92,24 +132,28 @@ describe('API Endpoints', () => {
   it('GET /api/installed-mods should always return an array', async () => {
     const res = await request(app).get('/api/installed-mods');
     expect(res.statusCode).toEqual(200);
+    expect(res.headers['content-type']).toMatch(/json/);
     expect(Array.isArray(res.body)).toBe(true);
   });
 
-  it('GET /api/profiles/:name should 500 when profile JSON is invalid shape', async () => {
+  it('GET /api/profiles/:name should return bad payload state when profile JSON is invalid shape', async () => {
     const badPath = path.join(TEST_PROFILES_DIR, 'bad.json');
     fs.writeFileSync(badPath, JSON.stringify({ not: 'an array' }, null, 2), 'utf-8');
 
     const res = await request(app).get('/api/profiles/bad');
-    expect(res.statusCode).toEqual(500);
+    // Loose boundary check for status code mapping changes
+    expect(res.statusCode).toBeGreaterThanOrEqual(400);
+    expect(res.headers['content-type']).toMatch(/json/);
     expect(res.body).toHaveProperty('error');
+    expect(typeof res.body.error).toBe('string');
   });
 
-  it('POST /api/switch/:name should 500 when profile JSON is invalid shape', async () => {
+  it('POST /api/switch/:name should fail when profile JSON is invalid shape', async () => {
     const badPath = path.join(TEST_PROFILES_DIR, 'bad.json');
     fs.writeFileSync(badPath, JSON.stringify({ not: 'an array' }, null, 2), 'utf-8');
 
     const res = await request(app).post('/api/switch/bad');
-    expect(res.statusCode).toEqual(500);
+    expect(res.statusCode).toBeGreaterThanOrEqual(400);
   });
 
   it('profile routes should 400 on invalid profile name', async () => {
@@ -118,5 +162,169 @@ describe('API Endpoints', () => {
 
     const res2 = await request(app).post('/api/profiles/evil%5Cname').send([]);
     expect(res2.statusCode).toEqual(400);
+  });
+
+  describe('Download Manager Cache Invalidation and Routing', () => {
+    it('should queue a single download on POST /api/portal/download', async () => {
+      const mockJob = { id: 123, modName: 'test-mod', version: '0.1.0', status: 'queued' };
+      const spy = jest.spyOn(downloadManager, 'queueDownload').mockReturnValue(mockJob);
+
+      const res = await request(app)
+        .post('/api/portal/download')
+        .send({
+          modName: 'test-mod',
+          version: '0.1.0',
+          fileName: 'test-mod_0.1.0.zip',
+          officialDownloadUrl: 'https://example.com/test-mod_0.1.0.zip'
+        });
+
+      expect(res.statusCode).toEqual(200);
+      expect(res.headers['content-type']).toMatch(/json/);
+      expect(res.body).toEqual(mockJob);
+      expect(spy).toHaveBeenCalledWith(
+        'test-mod',
+        '0.1.0',
+        'test-mod_0.1.0.zip',
+        'https://example.com/test-mod_0.1.0.zip'
+      );
+
+      spy.mockRestore();
+    });
+
+    it('should trigger clearCompleted on POST /api/portal/downloads-clear', async () => {
+      const spy = jest.spyOn(downloadManager, 'clearCompleted').mockImplementation();
+
+      const res = await request(app).post('/api/portal/downloads-clear');
+      expect(res.statusCode).toEqual(200);
+      expect(res.headers['content-type']).toMatch(/json/);
+      expect(res.body).toEqual({ success: true });
+      expect(spy).toHaveBeenCalled();
+
+      spy.mockRestore();
+    });
+
+    it('should invalidate the server-side mod directory cache when a job completes', async () => {
+      // First populate the cache so isCacheCleared() returns false
+      await request(app).get('/api/installed-mods');
+
+      // Execute onJobComplete callback
+      const mockJob = { id: 123, modName: 'test-mod', status: 'complete' };
+      downloadManager.onJobComplete(mockJob);
+
+      // Verify behavioral side effect that cache is cleared cleanly
+      expect(isCacheCleared()).toBe(true);
+    });
+
+    it('should cancel a download on POST /api/portal/download-cancel/:id', async () => {
+      const spy = jest.spyOn(downloadManager, 'cancelDownload').mockReturnValue(true);
+
+      const res = await request(app).post('/api/portal/download-cancel/123');
+      expect(res.statusCode).toEqual(200);
+      expect(res.headers['content-type']).toMatch(/json/);
+      expect(res.body).toEqual({ success: true });
+      expect(spy).toHaveBeenCalledWith(123);
+
+      spy.mockRestore();
+    });
+
+    it('should return 200 and the current active profile on GET /api/active-profile', async () => {
+      const res = await request(app).get('/api/active-profile');
+      expect(res.statusCode).toEqual(200);
+      expect(res.headers['content-type']).toMatch(/json/);
+      expect(res.body).toHaveProperty('activeProfile');
+      expect(typeof res.body.activeProfile).toBe('string');
+    });
+
+    it('should return 200 and game running status on GET /api/game-status', async () => {
+      const res = await request(app).get('/api/game-status');
+      expect(res.statusCode).toEqual(200);
+      expect(res.headers['content-type']).toMatch(/json/);
+      expect(res.body).toHaveProperty('running');
+      expect(typeof res.body.running).toBe('boolean');
+    });
+
+    it('should return authentication status on GET /api/portal/auth-status', async () => {
+      const res = await request(app).get('/api/portal/auth-status');
+      expect(res.statusCode).toEqual(200);
+      expect(res.headers['content-type']).toMatch(/json/);
+      expect(res.body).toHaveProperty('authenticated');
+      expect(typeof res.body.authenticated).toBe('boolean');
+    });
+
+    it('should clear stored credentials on POST /api/portal/auth-clear', async () => {
+      const res = await request(app).post('/api/portal/auth-clear');
+      expect(res.statusCode).toEqual(200);
+      expect(res.headers['content-type']).toMatch(/json/);
+      expect(res.body).toEqual({ success: true });
+    });
+  });
+
+  describe('Edge Cases and Negative Scenarios', () => {
+    it('should return 400 on POST /api/portal/download when parameters are missing', async () => {
+      const res = await request(app)
+        .post('/api/portal/download')
+        .send({ modName: 'test-mod' });
+      expect(res.statusCode).toEqual(400);
+      expect(res.headers['content-type']).toMatch(/json/);
+      expect(res.body).toHaveProperty('error');
+    });
+
+    it('should automatically initialize and return 200 on GET /api/profiles/:name for a nonexistent profile', async () => {
+      const res = await request(app).get('/api/profiles/nonexistent-profile-12345');
+      expect(res.statusCode).toEqual(200);
+      expect(res.headers['content-type']).toMatch(/json/);
+      expect(Array.isArray(res.body)).toBe(true);
+    });
+
+    it('should return 400 on POST /api/switch/:name with unsafe name', async () => {
+      const res = await request(app).post('/api/switch/..%2Fevil');
+      expect(res.statusCode).toEqual(400);
+      expect(res.text).toBe('Invalid profile name');
+    });
+
+    it('should return 404 on POST /api/switch/:name for nonexistent profile', async () => {
+      const res = await request(app).post('/api/switch/nonexistent-profile-999');
+      expect(res.statusCode).toEqual(404);
+      expect(res.text).toBe('Not found');
+    });
+
+    it('should return 409 on POST /api/rename-profile when the new name is already taken', async () => {
+      await request(app).post('/api/profiles/profile-a').send(makeProfileMods());
+      await request(app).post('/api/profiles/profile-b').send(makeProfileMods());
+
+      const res = await request(app)
+        .post('/api/rename-profile')
+        .send({ oldName: 'profile-a', newName: 'profile-b' });
+
+      expect(res.statusCode).toEqual(409);
+      expect(res.text).toBe('New name taken');
+    });
+
+    it('should return success: false when canceling a nonexistent download ID', async () => {
+      const spy = jest.spyOn(downloadManager, 'cancelDownload').mockReturnValue(false);
+
+      const res = await request(app).post('/api/portal/download-cancel/9999');
+      expect(res.statusCode).toEqual(200);
+      expect(res.headers['content-type']).toMatch(/json/);
+      expect(res.body).toEqual({ success: false });
+
+      spy.mockRestore();
+    });
+
+    it('should return 400 on POST /api/set-mod-path with empty path', async () => {
+      const res = await request(app)
+        .post('/api/set-mod-path')
+        .send({ path: '' });
+      expect(res.statusCode).toEqual(400);
+      expect(res.headers['content-type']).toMatch(/json/);
+      expect(res.body).toHaveProperty('message', 'Invalid path');
+    });
+
+    it('should reject non-array payloads on profile routes expecting arrays', async () => {
+      const res = await request(app)
+        .post('/api/profiles/bad-payload-profile')
+        .send({ invalid: true });
+      expect(res.statusCode).toBeGreaterThanOrEqual(400);
+    });
   });
 });

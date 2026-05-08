@@ -9,9 +9,8 @@ const sfx = {
   tabSwitch: new Audio('/Assets/sound/tab-switch.ogg')
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-  new Vue({
-    el: '#app',
+const vueAppOptions = {
+  el: '#app',
     data: {
       mods: [],
       installedMods: [],
@@ -1147,5 +1146,12 @@ document.addEventListener('DOMContentLoaded', () => {
       };
       pollGameStatus();
     }
-  });
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  new Vue(vueAppOptions);
 });
+
+if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+  module.exports = { vueAppOptions, sfx };
+}
