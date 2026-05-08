@@ -713,6 +713,88 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
 
+      // Premium Global Custom Tooltip Event Delegation
+      const tooltipEl = document.createElement('div');
+      tooltipEl.id = 'premium-global-tooltip';
+      document.body.appendChild(tooltipEl);
+
+      document.addEventListener('mouseover', e => {
+        const target = e.target.closest('.has-tooltip');
+        if (!target) return;
+
+        const text = target.getAttribute('data-tooltip') || target.getAttribute('title');
+        if (!text) return;
+
+        // Ensure title attribute is converted to data-tooltip to avoid standard browser tooltips
+        if (target.hasAttribute('title')) {
+          target.setAttribute('data-tooltip', text);
+          target.removeAttribute('title');
+        }
+
+        tooltipEl.textContent = text;
+        
+        // 1. Reset classes and transitions to measure size accurately
+        tooltipEl.className = '';
+        tooltipEl.style.transition = 'none';
+        tooltipEl.style.visibility = 'hidden';
+        tooltipEl.style.display = 'block';
+
+        // 2. Measure tooltip real size
+        const tooltipWidth = tooltipEl.offsetWidth;
+        const tooltipHeight = tooltipEl.offsetHeight;
+
+        // 3. Measure target element position
+        const targetRect = target.getBoundingClientRect();
+        const targetCenter = targetRect.left + (targetRect.width / 2);
+
+        // 4. Calculate coordinates relative to viewport
+        let tooltipLeft = targetCenter - (tooltipWidth / 2);
+        let tooltipTop = targetRect.top - tooltipHeight - 8; // 8px space above
+        let isBelow = false;
+
+        // 5. Collision check: Top edge viewport boundaries
+        if (tooltipTop < 10) {
+          tooltipTop = targetRect.bottom + 8; // display below instead
+          isBelow = true;
+        }
+
+        // 6. Collision check: Left/Right edge viewport boundaries
+        const padding = 12; // margin safety padding from window edge
+        if (tooltipLeft + tooltipWidth > window.innerWidth - padding) {
+          tooltipLeft = window.innerWidth - padding - tooltipWidth;
+        }
+        if (tooltipLeft < padding) {
+          tooltipLeft = padding;
+        }
+
+        // 7. Calculate pointer arrow position relative to the tooltip box
+        let arrowLeft = targetCenter - tooltipLeft;
+        const minArrowPadding = 16;
+        if (arrowLeft < minArrowPadding) arrowLeft = minArrowPadding;
+        if (arrowLeft > tooltipWidth - minArrowPadding) arrowLeft = tooltipWidth - minArrowPadding;
+
+        // 8. Apply calculated coordinates, transform origin and CSS variables
+        tooltipEl.style.setProperty('--arrow-left', arrowLeft + 'px');
+        tooltipEl.style.left = tooltipLeft + 'px';
+        tooltipEl.style.top = tooltipTop + 'px';
+        tooltipEl.style.transformOrigin = isBelow ? `${arrowLeft}px top` : `${arrowLeft}px bottom`;
+
+        // Restore transitions and show
+        tooltipEl.style.transition = '';
+        tooltipEl.style.visibility = '';
+        if (isBelow) {
+          tooltipEl.classList.add('tooltip-below');
+        }
+        tooltipEl.classList.add('visible');
+      });
+
+      document.addEventListener('mouseout', e => {
+        const target = e.target.closest('.has-tooltip');
+        if (!target || !e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest('.has-tooltip')) {
+          tooltipEl.classList.remove('visible');
+        }
+      });
+
       // Poll game running status every 2 seconds
       setInterval(() => {
         fetch('/api/game-status')

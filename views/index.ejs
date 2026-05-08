@@ -34,7 +34,7 @@
         </div>
         <div class="drag-ridges"></div>
         <div class="titlebar-controls">
-          <button class="titlebar-btn minimize" @click="minimizeWindow" title="Minimize">
+          <button class="titlebar-btn minimize has-tooltip tooltip-right" @click="minimizeWindow" data-tooltip="Minimize">
             <svg viewBox="0 0 10.2 1" width="10" height="10">
               <rect y="0" width="10.2" height="1"></rect>
             </svg>
@@ -111,8 +111,8 @@
                 style="font-family: 'Consolas', monospace; color: #ccc; word-break: break-all; font-size: 0.85rem; flex-grow: 1; text-align: left;">{{
                 gamePath || '(not set)' }}</span>
               <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
-                <button @click="detectSteamPath" :disabled="isGameRunning" class="steam-detect-btn"
-                  title="Auto-detect from Steam"
+                <button @click="detectSteamPath" :disabled="isGameRunning" class="steam-detect-btn has-tooltip"
+                  data-tooltip="Auto-detect from Steam"
                   style="display: flex; align-items: center; justify-content: center; padding: 0; margin: 0; background: rgba(25, 25, 25, 0.85); border: 1px solid rgba(244, 211, 94, 0.3); border-radius: 4px; cursor: pointer; color: #f4d35e; transition: all 0.2s ease; height: 29px; width: 29px;">
                   <svg width="24" height="24" viewBox="0 0 32 32" fill="currentColor">
                     <path
@@ -174,7 +174,7 @@
                   </div>
 
                   <template v-else>
-                    <span v-if="p !== 'default'" @click.stop="deletingProfileName = p; playSound('click')" title="Delete Profile"
+                    <span v-if="p !== 'default'" @click.stop="deletingProfileName = p; playSound('click')" class="has-tooltip" data-tooltip="Delete Profile"
                       style="cursor: pointer; display: flex; align-items: center; margin-right: 0.25rem;">
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none"
                         stroke="#d62246" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -186,7 +186,7 @@
                         <line x1="14" y1="11" x2="14" y2="17"></line>
                       </svg>
                     </span>
-                    <span class="pencil" @click.stop="startRename(p)" title="Rename Profile">
+                    <span class="pencil has-tooltip" @click.stop="startRename(p)" data-tooltip="Rename Profile">
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
                         <path
                           d="M4 21v-3.586l11.293-11.293 3.586 3.586L7.586 21H4zm14.707-14.707l-1.414-1.414a1 1 0 00-1.414 0l-1.293 1.293 3.586 3.586 1.293-1.293a1 1 0 000-1.414z" />
@@ -249,7 +249,7 @@
 
               <div
                 style="display: flex; align-items: center; gap: 0.5rem; flex-grow: 1; max-width: 390px; justify-content: flex-end;">
-                <button class="folder-open-btn" @click="openModFolder" title="Open Mods Folder"
+                <button class="folder-open-btn has-tooltip" @click="openModFolder" data-tooltip="Open Mods Folder"
                   style="background: rgba(25, 25, 25, 0.85); border: 1px solid rgba(244, 211, 94, 0.3); border-radius: 4px; padding: 0.45rem; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #f4d35e; transition: all 0.2s ease;">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
@@ -303,7 +303,7 @@
 
             <div
               style="display: flex; align-items: center; gap: 0.5rem; flex-grow: 1; max-width: 390px; justify-content: flex-end;">
-              <button class="folder-open-btn" @click="openModFolder" title="Open Mods Folder"
+              <button class="folder-open-btn has-tooltip" @click="openModFolder" data-tooltip="Open Mods Folder"
                 style="background: rgba(25, 25, 25, 0.85); border: 1px solid rgba(244, 211, 94, 0.3); border-radius: 4px; padding: 0.45rem; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #f4d35e; transition: all 0.2s ease;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                   stroke-linecap="round" stroke-linejoin="round">
@@ -397,9 +397,9 @@
             </button>
 
             <!-- Auth profile button -->
-            <button class="dl-auth-btn" @click="showAuthPopup = true; playSound('click')"
+            <button class="dl-auth-btn has-tooltip" @click="showAuthPopup = true; playSound('click')"
               :class="{ authenticated: portalAuth.authenticated }"
-              :title="portalAuth.authenticated ? 'Logged in as ' + portalAuth.username : 'Set Factorio credentials'">
+              :data-tooltip="portalAuth.authenticated ? 'Logged in as ' + portalAuth.username : 'Set Factorio credentials'">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -479,11 +479,11 @@
             </label>
 
             <!-- Auth status indicator -->
-            <span class="dl-auth-indicator" v-if="portalAuth.authenticated">
+            <span class="dl-auth-indicator has-tooltip tooltip-right" v-if="portalAuth.authenticated" :data-tooltip="'Logged in as ' + portalAuth.username">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="#4CAF50" stroke="none"><circle cx="12" cy="12" r="10"/></svg>
               {{ portalAuth.username }}
             </span>
-            <span class="dl-auth-indicator dl-auth-mirror" v-else>
+            <span class="dl-auth-indicator dl-auth-mirror has-tooltip tooltip-right" v-else data-tooltip="Sign in to Factorio to use Official Mod Portal">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="#f4a261" stroke="none"><circle cx="12" cy="12" r="10"/></svg>
               re146.dev mirror
             </span>
@@ -577,7 +577,7 @@
                 </div>
                 <div class="dl-result-info">
                   <div class="dl-result-title-row">
-                    <strong class="dl-mod-title" @dblclick="openModPage(mod.name)" title="Double-click to open mod page">{{ mod.title }}</strong>
+                    <strong class="dl-mod-title has-tooltip" @dblclick="openModPage(mod.name)" data-tooltip="Double-click to open mod page">{{ mod.title }}</strong>
                     <span class="dl-result-version" v-if="mod.latest_release">v{{ mod.latest_release.version }}</span>
                     <span class="dl-result-installed" v-if="mod.installed">INSTALLED</span>
                   </div>
@@ -592,9 +592,9 @@
                 </div>
               </div>
               <div class="dl-result-actions">
-                <button class="dl-btn dl-btn-primary" @click="downloadMod(mod)"
+                <button class="dl-btn dl-btn-primary has-tooltip" @click="downloadMod(mod)"
                   :disabled="!mod.latest_release || mod.installed || isGameRunning"
-                  :title="mod.installed ? 'Already installed' : 'Download latest version'">
+                  :data-tooltip="mod.installed ? 'Already installed' : 'Download latest version'">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                     stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -602,9 +602,9 @@
                     <line x1="12" y1="15" x2="12" y2="3"></line>
                   </svg>
                 </button>
-                <button class="dl-btn dl-btn-deps" @click="downloadModWithDeps(mod)"
+                <button class="dl-btn dl-btn-deps has-tooltip" @click="downloadModWithDeps(mod)"
                   :disabled="!mod.latest_release || isGameRunning"
-                  title="Download with all dependencies">
+                  data-tooltip="Download with all dependencies">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                     stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -662,7 +662,7 @@
                 </svg>
                 Downloads
               </h4>
-              <button class="dl-btn-clear" @click="clearDownloads" title="Clear completed">Clear</button>
+              <button class="dl-btn-clear has-tooltip" @click="clearDownloads" data-tooltip="Clear completed">Clear</button>
             </div>
             <div class="dl-downloads-list">
               <div class="dl-download-item" v-for="dl in activeDownloads" :key="dl.id"
@@ -713,7 +713,7 @@
                   <div class="dl-download-sub" v-else-if="dl.status === 'cancelled'">Cancelled</div>
                 </div>
                 <button v-if="dl.status === 'downloading' || dl.status === 'queued'"
-                  class="dl-cancel-btn" @click="cancelDownload(dl.id)" title="Cancel">
+                  class="dl-cancel-btn has-tooltip" @click="cancelDownload(dl.id)" data-tooltip="Cancel">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                     stroke-linecap="round" stroke-linejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
