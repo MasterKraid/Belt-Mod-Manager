@@ -118,9 +118,8 @@ function isSafeProfileName(name) {
     }
   }
 
-  // Must not contain Windows forbidden characters: \ / : * ? " < > |
-  // And must not contain path traversal indicators like '..'
-  if (/[\\/:*?"<>|]/.test(decoded) || decoded.includes('..')) return false;
+  // Must not contain Windows forbidden characters, null bytes, or path traversal indicators
+  if (decoded.includes('\0') || /[\\/:*?"<>|]/.test(decoded) || decoded.includes('..')) return false;
 
   // Must not start or end with spaces or dots (Windows automatically trims these)
   if (decoded.startsWith(' ') || decoded.endsWith(' ') || decoded.startsWith('.') || decoded.endsWith('.')) return false;

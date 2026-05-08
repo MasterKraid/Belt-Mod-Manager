@@ -250,6 +250,7 @@ const vueAppOptions = {
         const isIncompatible = s.startsWith('!');
         if (isOptional || isIncompatible) {
           const cleanName = s.replace(/^[?~!(?)]+\s*/, '').split(/\s+/)[0];
+          if (!cleanName) return null;
           return {
             name: cleanName,
             required: false,
@@ -259,6 +260,7 @@ const vueAppOptions = {
         }
         const parts = s.split(/\s+/);
         const name = parts[0];
+        if (!name) return null;
         return {
           name: name,
           required: true,

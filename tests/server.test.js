@@ -532,5 +532,44 @@ describe('API Endpoints', () => {
         invalidateModCache();
       }).not.toThrow();
     });
+
+    it('should reject prototype pollution payloads inside profile JSON', async () => {
+      const payload = JSON.parse('{"__proto__": {"polluted": true}}');
+      const res = await request(app)
+        .post('/api/profiles/proto-pollute')
+        .send(payload);
+
+      expect(res.statusCode).toBeGreaterThanOrEqual(400);
+      expect(Object.prototype.polluted).toBeUndefined(); // Verify prototype remains intact!
+    });
+
+    it('should reject profile names with null-byte injection', async () => {
+      const res = await request(app)
+        .post('/api/profiles/test%00profile')
+        .send([{ name: 'base', enabled: true }]);
+
+      expect(res.statusCode).toBeGreaterThanOrEqual(400);
+    });
+
+    it('should reject content-type mismatches or non-JSON payloads on profiles', async () => {
+      const res = await request(app)
+        .post('/api/profiles/test-profile')
+        .set('Content-Type', 'text/plain')
+        .send('not json');
+
+      expect(res.statusCode).toBeGreaterThanOrEqual(400);
+    });
+
+    it('should reject extremely deep JSON nesting to prevent stack exhaustion', async () => {
+      let deep = {};
+      for (let i = 0; i < 100; i++) {
+        deep = { child: deep };
+      }
+      const res = await request(app)
+        .post('/api/profiles/deep-nest')
+        .send(deep);
+
+      expect(res.statusCode).toBeGreaterThanOrEqual(400);
+    });
   });
 });

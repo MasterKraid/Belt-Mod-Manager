@@ -6,7 +6,30 @@ describe('Frontend Application Logic and Helper Tests', () => {
   let vueAppOptions;
   let sfx;
 
+  let activeTimeouts;
+  let originalSetTimeout;
+  let originalClearTimeout;
+
   beforeEach(() => {
+    // Track and clean all scheduled timers centrally to mitigate async leakage risks
+    activeTimeouts = new Set();
+    originalSetTimeout = global.setTimeout;
+    originalClearTimeout = global.clearTimeout;
+
+    global.setTimeout = (fn, delay, ...args) => {
+      const id = originalSetTimeout(() => {
+        activeTimeouts.delete(id);
+        fn(...args);
+      }, delay);
+      activeTimeouts.add(id);
+      return id;
+    };
+
+    global.clearTimeout = (id) => {
+      activeTimeouts.delete(id);
+      originalClearTimeout(id);
+    };
+
     // 1. Mock global window, document and Audio synchronously in Node context
     global.window = {
       Audio: class {
@@ -90,6 +113,14 @@ describe('Frontend Application Logic and Helper Tests', () => {
   });
 
   afterEach(() => {
+    // Clear any dangling/leakage active timeouts from recursive pollDownloads/notify triggers
+    if (activeTimeouts) {
+      activeTimeouts.forEach(id => originalClearTimeout(id));
+      activeTimeouts.clear();
+    }
+    global.setTimeout = originalSetTimeout;
+    global.clearTimeout = originalClearTimeout;
+
     // Rigid global and mock teardowns to prevent any leakages
     delete global.window;
     delete global.Audio;
@@ -182,20 +213,10 @@ describe('Frontend Application Logic and Helper Tests', () => {
     expect(vueInstance.parseDependency('')).toBeNull();
 
     // Malformed operators / syntax
-    expect(vueInstance.parseDependency('???')).toEqual({
-      name: '',
-      required: false,
-      incompatible: false,
-      optional: true
-    });
+    expect(vueInstance.parseDependency('???')).toBeNull();
 
     // Invalid operator structures
-    expect(vueInstance.parseDependency('base << invalid')).toEqual({
-      name: 'base',
-      required: true,
-      incompatible: false,
-      optional: false
-    });
+    expect(vueInstance.parseDependency('   ')).toBeNull();
   });
 
   it('should return missing required dependencies on getMissingDependencies', () => {
@@ -416,7 +437,7 @@ describe('Frontend Application Logic and Helper Tests', () => {
       }).not.toThrow();
     });
 
-    it('should safely handle cyclic dependencies without causing infinite loops or call stack overflows', () => {
+    it('should safely handle cyclic dependencies without causing infinite loops, verify terminated recursion, and prevent runaway notification duplicates', () => {
       vueInstance.mods = [
         { name: 'a', enabled: false },
         { name: 'b', enabled: false }
@@ -427,9 +448,24 @@ describe('Frontend Application Logic and Helper Tests', () => {
         { name: 'b', dependencies: ['a'] }
       ];
 
-      expect(() => {
-        vueInstance.enableDependenciesOf({ name: 'a' });
-      }).not.toThrow();
+      const notifySpy = jest.spyOn(vueInstance, 'notify').mockImplementation();
+      const enableSpy = jest.spyOn(vueInstance, 'enableDependenciesOf');
+
+      // Call recursive enable
+      vueInstance.enableDependenciesOf({ name: 'a' });
+
+      // Ensure b got enabled correctly
+      const bMod = vueInstance.mods.find(m => m.name === 'b');
+      expect(bMod.enabled).toBe(true);
+
+      // Verify recursion terminated promptly and with precise execution counts
+      expect(enableSpy).toHaveBeenCalledTimes(3); // 'a' calls 'b', 'b' calls 'a' (which terminates immediately since 'a' is visited)
+      expect(notifySpy).toHaveBeenCalledTimes(2);  // 1 for enabling 'b', 1 for enabling 'a'
+      expect(notifySpy).toHaveBeenNthCalledWith(1, 'Enabled required dependency: b');
+      expect(notifySpy).toHaveBeenNthCalledWith(2, 'Enabled required dependency: a');
+
+      notifySpy.mockRestore();
+      enableSpy.mockRestore();
     });
 
     it('should handle failed download cancellation requests gracefully', async () => {
