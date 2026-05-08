@@ -1595,7 +1595,10 @@ input:checked+.slider {
   }
 
   .dropdown-menu {
+    left: 0;
+    right: auto;
     min-width: 160px;
+    width: auto;
     z-index: 200;
   }
 
@@ -1780,5 +1783,29 @@ input:checked+.slider {
 
   &:active:not(:disabled) {
     transform: scale(0.94);
+  }
+}
+
+// Auth error message
+.dl-auth-error {
+  color: #F44336;
+  font-size: 0.82rem;
+  margin: 0 0 0.75rem 0;
+  padding: 0.5rem 0.6rem;
+  background: rgba(244, 67, 54, 0.08);
+  border: 1px solid rgba(244, 67, 54, 0.2);
+  border-radius: 4px;
+}
+
+// Double-click mod title
+.dl-mod-title {
+  cursor: pointer;
+  transition: color 0.15s ease;
+
+  &:hover {
+    color: #f4d35e;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 2px;
   }
 }

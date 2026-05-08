@@ -49,7 +49,9 @@ document.addEventListener('DOMContentLoaded', () => {
       showAuthPopup: false,
       portalAuth: { authenticated: false, username: null },
       authUsername: '',
-      authToken: '',
+      authPassword: '',
+      authError: '',
+      authLoading: false,
       portalCategories: [
         { value: '', label: 'All Categories' },
         { value: 'content', label: 'Content' },
@@ -620,26 +622,33 @@ document.addEventListener('DOMContentLoaded', () => {
       },
 
       saveAuthCredentials() {
-        if (!this.authUsername || !this.authToken) return;
+        if (!this.authUsername || !this.authPassword) return;
         this.playSound('click');
+        this.authError = '';
+        this.authLoading = true;
         fetch('/api/portal/auth-save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: this.authUsername, token: this.authToken })
+          body: JSON.stringify({ username: this.authUsername, password: this.authPassword })
         })
-          .then(res => res.json())
-          .then(data => {
-            if (data.success) {
-              this.notify('Credentials saved and encrypted.');
+          .then(res => res.json().then(data => ({ ok: res.ok, data })))
+          .then(({ ok, data }) => {
+            this.authLoading = false;
+            if (ok && data.success) {
+              this.notify('Authenticated successfully!');
               this.portalAuth = { authenticated: true, username: data.username };
               this.authUsername = '';
-              this.authToken = '';
+              this.authPassword = '';
+              this.authError = '';
               this.showAuthPopup = false;
             } else {
-              this.notify('Error: ' + (data.error || 'Unknown'));
+              this.authError = data.error || 'Authentication failed';
             }
           })
-          .catch(err => this.notify('Save failed: ' + err.message));
+          .catch(err => {
+            this.authLoading = false;
+            this.authError = 'Connection error: ' + err.message;
+          });
       },
 
       clearAuthCredentials() {
@@ -657,6 +666,15 @@ document.addEventListener('DOMContentLoaded', () => {
       closeDlDropdowns() {
         this.dlSortOpen = false;
         this.dlCategoryOpen = false;
+      },
+
+      openModPage(modName) {
+        const url = `https://mods.factorio.com/mod/${encodeURIComponent(modName)}`;
+        if (window.electronAPI && window.electronAPI.openExternal) {
+          window.electronAPI.openExternal(url);
+        } else {
+          window.open(url, '_blank');
+        }
       }
     },
     mounted() {

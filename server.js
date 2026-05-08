@@ -721,20 +721,50 @@ app.get('/api/portal/auth-status', (req, res) => {
 });
 
 app.post('/api/portal/auth-save', async (req, res) => {
-  const { username, token } = req.body;
-  if (!username || !token) {
-    return res.status(400).json({ error: 'Username and token are required' });
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password are required' });
   }
-  // Validate credentials against Factorio API
+  // Authenticate with Factorio servers to obtain a service token
   try {
-    const { fetchJson } = require('./download-manager');
-    // Use a known mod to test auth — try downloading a HEAD request
-    const testUrl = `https://mods.factorio.com/api/mods?page_size=1`;
-    await fetchJson(testUrl); // Just verify API is reachable
+    const postData = `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&require_game_ownership=true&api_version=2`;
+    const token = await new Promise((resolve, reject) => {
+      const postReq = https.request({
+        hostname: 'auth.factorio.com',
+        path: '/api-login',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Length': Buffer.byteLength(postData),
+          'User-Agent': 'BeltModManager/0.9.1'
+        },
+        timeout: 15000
+      }, (authRes) => {
+        let body = '';
+        authRes.on('data', chunk => body += chunk);
+        authRes.on('end', () => {
+          if (authRes.statusCode === 200) {
+            try {
+              const parsed = JSON.parse(body);
+              if (parsed[0]) resolve(parsed[0]);
+              else reject(new Error('No token returned'));
+            } catch { reject(new Error('Invalid response from auth server')); }
+          } else if (authRes.statusCode === 401) {
+            reject(new Error('Invalid username or password'));
+          } else {
+            reject(new Error(`Auth server returned ${authRes.statusCode}`));
+          }
+        });
+      });
+      postReq.on('error', reject);
+      postReq.on('timeout', () => { postReq.destroy(); reject(new Error('Auth server timeout')); });
+      postReq.write(postData);
+      postReq.end();
+    });
     credStore.saveCredentials(username, token);
     res.json({ success: true, username });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to save credentials: ' + err.message });
+    res.status(401).json({ error: err.message });
   }
 });
 

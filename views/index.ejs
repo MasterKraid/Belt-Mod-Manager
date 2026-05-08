@@ -412,7 +412,7 @@
           <div class="dl-filters-row">
             <!-- Sort dropdown (custom) -->
             <div class="custom-dropdown dl-mini-dropdown" @click.stop>
-              <div class="dropdown-trigger" @click="dlSortOpen = !dlSortOpen; playSound('click')">
+              <div class="dropdown-trigger" @click="dlCategoryOpen = false; dlSortOpen = !dlSortOpen; playSound('click')">
                 <span class="profile-highlight">{{ portalSortLabel }}</span>
                 <svg class="dropdown-arrow" :class="{ open: dlSortOpen }" width="14" height="14" viewBox="0 0 24 24"
                   fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -443,7 +443,7 @@
 
             <!-- Category filter dropdown (custom) -->
             <div class="custom-dropdown dl-mini-dropdown" @click.stop>
-              <div class="dropdown-trigger" @click="dlCategoryOpen = !dlCategoryOpen; playSound('click')">
+              <div class="dropdown-trigger" @click="dlSortOpen = false; dlCategoryOpen = !dlCategoryOpen; playSound('click')">
                 <span class="profile-highlight">{{ portalCategory || 'All Categories' }}</span>
                 <svg class="dropdown-arrow" :class="{ open: dlCategoryOpen }" width="14" height="14" viewBox="0 0 24 24"
                   fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -511,9 +511,9 @@
 
               <div class="dl-modal-body">
                 <p class="dl-modal-desc" v-if="!portalAuth.authenticated">
-                  Enter your Factorio username and <strong>service token</strong> to download
-                  directly from the official mod portal. Your token can be found in
-                  <code>player-data.json</code> in your Factorio data directory.
+                  Enter your Factorio account <strong>username</strong> and <strong>password</strong> to
+                  authenticate directly with Factorio servers. This enables downloading
+                  from the official mod portal.
                 </p>
                 <p class="dl-modal-desc dl-auth-active" v-else>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" stroke-width="2.5">
@@ -522,24 +522,27 @@
                   Authenticated as <strong>{{ portalAuth.username }}</strong>. Downloads use the official Factorio mod portal.
                 </p>
 
+                <p v-if="authError" class="dl-auth-error">{{ authError }}</p>
                 <div v-if="!portalAuth.authenticated" class="dl-form-group">
                   <label>Username</label>
-                  <input type="text" v-model="authUsername" placeholder="Your Factorio username" class="dl-form-input" />
+                  <input type="text" v-model="authUsername" placeholder="Your Factorio username" class="dl-form-input"
+                    @keyup.enter="$event.target.nextElementSibling && $event.target.parentElement.nextElementSibling.querySelector('input').focus()" />
                 </div>
                 <div v-if="!portalAuth.authenticated" class="dl-form-group">
-                  <label>Service Token</label>
-                  <input type="password" v-model="authToken" placeholder="From player-data.json" class="dl-form-input" />
+                  <label>Password</label>
+                  <input type="password" v-model="authPassword" placeholder="Your Factorio password" class="dl-form-input"
+                    @keyup.enter="saveAuthCredentials" />
                 </div>
 
                 <div class="dl-modal-actions">
                   <button v-if="!portalAuth.authenticated" class="dl-btn dl-btn-primary"
-                    @click="saveAuthCredentials" :disabled="!authUsername || !authToken">
+                    @click="saveAuthCredentials" :disabled="!authUsername || !authPassword || authLoading">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                       <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
                       <polyline points="17 21 17 13 7 13 7 21"></polyline>
                       <polyline points="7 3 7 8 15 8"></polyline>
                     </svg>
-                    Save & Encrypt
+                    {{ authLoading ? 'Authenticating...' : 'Login & Save' }}
                   </button>
                   <button v-if="portalAuth.authenticated" class="dl-btn dl-btn-danger"
                     @click="clearAuthCredentials">
@@ -574,7 +577,7 @@
                 </div>
                 <div class="dl-result-info">
                   <div class="dl-result-title-row">
-                    <strong>{{ mod.title }}</strong>
+                    <strong class="dl-mod-title" @dblclick="openModPage(mod.name)" title="Double-click to open mod page">{{ mod.title }}</strong>
                     <span class="dl-result-version" v-if="mod.latest_release">v{{ mod.latest_release.version }}</span>
                     <span class="dl-result-installed" v-if="mod.installed">INSTALLED</span>
                   </div>

@@ -141,15 +141,6 @@ class DownloadManager {
     const data = await fetchJson(namelistUrl);
 
     if (data.results && data.results.length > 0) {
-      // namelist results lack thumbnail — supplement from individual mod info
-      await Promise.all(data.results.map(async (m) => {
-        if (!m.thumbnail) {
-          try {
-            const info = await fetchJson(`${FACTORIO_API}/api/mods/${encodeURIComponent(m.name)}`);
-            if (info.thumbnail) m.thumbnail = info.thumbnail;
-          } catch {}
-        }
-      }));
       if (category) {
         data.results = data.results.filter(m => m.category === category);
       }
@@ -193,7 +184,7 @@ class DownloadManager {
     return await fetchJson(`${FACTORIO_API}/api/mods/${encodeURIComponent(modName)}`);
   }
 
-  _normalizeResults(data) {
+  async _normalizeResults(data) {
     const modsDir = this.getModsDir();
     const installedFiles = new Set();
     if (modsDir && fs.existsSync(modsDir)) {
@@ -203,6 +194,19 @@ class DownloadManager {
     }
 
     if (data.results) {
+      // Fetch thumbnails for mods missing them (API listing never includes them)
+      // Batch-fetch in groups of 10 to avoid hammering
+      const needThumb = data.results.filter(m => !m.thumbnail);
+      for (let i = 0; i < needThumb.length; i += 10) {
+        const batch = needThumb.slice(i, i + 10);
+        await Promise.all(batch.map(async (m) => {
+          try {
+            const info = await fetchJson(`${FACTORIO_API}/api/mods/${encodeURIComponent(m.name)}`);
+            if (info.thumbnail) m.thumbnail = info.thumbnail;
+          } catch {}
+        }));
+      }
+
       data.results = data.results.map(m => {
         const lr = m.latest_release || (m.releases ? m.releases[m.releases.length - 1] : null);
         const installed = lr ? installedFiles.has(lr.file_name) : false;
