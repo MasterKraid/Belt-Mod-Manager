@@ -1071,8 +1071,7 @@ input:checked + .slider:before {
   gap: 0.4rem;
   padding: 0.55rem 1rem;
   font-size: 0.85rem;
-  margin: 0;
-  white-space: nowrap;
+  margin: 0 0.5rem 0 0;
 }
 
 .dl-checkbox-label {
@@ -1084,6 +1083,9 @@ input:checked + .slider:before {
   color: rgba(244, 211, 94, 0.7);
   user-select: none;
   transition: color 0.15s ease;
+  padding-left: 0.5rem;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .dl-checkbox-label:hover {
   color: #f4d35e;
@@ -1855,6 +1857,1162 @@ input:checked + .slider:before {
   bottom: 100%;
   border-width: 0 6px 6px 6px;
   border-color: transparent transparent rgba(244, 211, 94, 0.95) transparent;
+}
+
+.app-version-tag {
+  font-size: 0.85rem;
+  color: rgba(244, 211, 94, 0.7);
+  font-family: "Consolas", monospace;
+  vertical-align: middle;
+  margin-left: 0.5rem;
+  background: rgba(244, 211, 94, 0.1);
+  padding: 0.15rem 0.4rem;
+  border: 1px solid rgba(244, 211, 94, 0.25);
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+.banner-warning-icon {
+  margin-right: 0.5rem;
+  vertical-align: middle;
+}
+
+.paths-box {
+  margin-top: 10px;
+  margin-bottom: 9px;
+  padding: 0.6rem 1.2rem;
+}
+
+.paths-title {
+  margin: 0;
+  border: none;
+  padding: 0;
+  border-bottom: 1px solid rgba(244, 211, 94, 0.15);
+  padding-bottom: 0.3rem;
+  margin-bottom: 0.8rem;
+  font-size: 1.1rem;
+}
+
+.path-setting-row-spacer {
+  margin-bottom: calc(0.6rem + 3px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.paths-label {
+  font-weight: bold;
+  color: #f4d35e;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  min-width: 100px;
+}
+
+.paths-value {
+  font-family: "Consolas", monospace;
+  color: #ccc;
+  word-break: break-all;
+  font-size: 0.85rem;
+  flex-grow: 1;
+  text-align: left;
+}
+
+.paths-btn {
+  flex-shrink: 0;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+.steam-detect-btn-style {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  background: rgba(25, 25, 25, 0.85);
+  border: 1px solid rgba(244, 211, 94, 0.3);
+  border-radius: 4px;
+  cursor: pointer;
+  color: #f4d35e;
+  transition: all 0.2s ease;
+  height: 29px;
+  width: 29px;
+}
+
+.btn-set-game-path {
+  flex-shrink: 0;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8rem;
+  margin: 0;
+  height: 29px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profiles-section-reset-mt {
+  margin-top: 0px !important;
+}
+
+.profiles-list-titlebar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.2rem;
+  border-bottom: 1px solid rgba(244, 211, 94, 0.15);
+  padding-bottom: 0.5rem;
+}
+
+.profiles-list-title {
+  margin: 0;
+  border: none;
+  padding: 0;
+}
+
+.search-wrapper-mini {
+  width: 250px;
+  margin: 0;
+}
+
+.profile-name-container {
+  flex-grow: 1;
+  max-width: calc(100% - 150px);
+}
+
+.profile-edit-input-field {
+  background: #111;
+  border: 1px solid #f4d35e;
+  color: #f4d35e;
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  font-family: "Consolas", monospace;
+  font-size: 0.9rem;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.profile-actions-layout {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.profile-edit-actions-cluster {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.btn-profile-rename-accept {
+  background: rgba(244, 211, 94, 0.2);
+  border: 1px solid #f4d35e;
+  color: #f4d35e;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-family: "Consolas", monospace;
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.btn-profile-mini-cancel {
+  background: #333;
+  border: 1px solid #555;
+  color: #ccc;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-family: "Consolas", monospace;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.profile-delete-actions-cluster {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.btn-profile-delete-trigger {
+  background: #d62246;
+  border: 1px solid #d62246;
+  color: white;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-family: "Consolas", monospace;
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.profile-delete-svg-btn {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  margin-right: 0.25rem;
+}
+
+.profile-delete-svg {
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+.profile-delete-svg:hover {
+  opacity: 1;
+}
+
+.switch-label-spacing {
+  margin-left: 0.25rem;
+}
+
+.btn-profile-create-placement {
+  margin-top: 1rem;
+  align-self: flex-start;
+}
+
+.manager-active-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: calc(1.25rem - 5px);
+  margin-bottom: 0.75rem;
+  position: relative;
+  z-index: 10;
+}
+
+.manager-active-profile-row-heading {
+  margin: 0;
+}
+
+.dropdown-items-scroll {
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.manager-section-margin {
+  margin-top: 0.5rem;
+}
+
+.manager-controls-layout {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.btn-group-row-alignment {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.manager-search-and-folders {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-grow: 1;
+  max-width: 390px;
+  justify-content: flex-end;
+}
+
+.btn-icon-square-layout {
+  background: rgba(25, 25, 25, 0.85);
+  border: 1px solid rgba(244, 211, 94, 0.3);
+  border-radius: 4px;
+  padding: 0.45rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #f4d35e;
+  transition: all 0.2s ease;
+}
+
+.search-wrapper-manager {
+  flex-grow: 1;
+  max-width: 350px;
+  margin: 0;
+}
+
+.manager-mod-thumbnail {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid rgba(244, 211, 94, 0.2);
+}
+
+.mod-info-middle-layout {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.mod-actions-flex {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.installed-tab-header-layout {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  gap: 1rem;
+}
+
+.installed-tab-title {
+  margin: 0;
+}
+
+.installed-tab-controls-cluster {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-grow: 1;
+  max-width: 390px;
+  justify-content: flex-end;
+}
+
+.installed-sort-dropdown-width {
+  flex-shrink: 0;
+  min-width: 150px;
+}
+
+.sort-svg-alignment {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.full-width-dropdown-menu {
+  min-width: 100%;
+}
+
+.installed-folder-open-style {
+  background: rgba(25, 25, 25, 0.85);
+  border: 1px solid rgba(244, 211, 94, 0.3);
+  border-radius: 4px;
+  padding: 0.45rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #f4d35e;
+  transition: all 0.2s ease;
+}
+
+.search-wrapper-installed {
+  flex-grow: 1;
+  max-width: 350px;
+  margin: 0;
+}
+
+.installed-mod-thumbnail {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid rgba(244, 211, 94, 0.25);
+}
+
+.installed-mod-meta-middle {
+  flex-grow: 1;
+}
+
+.tag-core-highlight {
+  background: rgba(244, 211, 94, 0.15);
+  color: #f4d35e;
+  border: 1px solid rgba(244, 211, 94, 0.35);
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-family: "Consolas", monospace;
+  vertical-align: middle;
+  margin-left: 0.5rem;
+  letter-spacing: 0.5px;
+}
+
+.installed-mod-desc-text {
+  font-size: 0.85rem;
+  color: #aaa;
+  margin: 0.15rem 0 0.35rem;
+  line-height: 1.3;
+}
+
+.tag-groupings-alignment {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: 0.2rem;
+}
+
+.tag-badge {
+  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  color: #999;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: "Consolas", monospace;
+}
+
+.installed-details-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 0.5rem;
+}
+
+.btn-install-dep {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  border: 1px solid rgba(244, 211, 94, 0.3);
+  background: rgba(244, 211, 94, 0.1);
+  color: #f4d35e;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-aux-mini {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.empty-list-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  color: #888;
+}
+
+.empty-list-subtext {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.downloader-section-margin {
+  margin-top: 0.5rem;
+}
+
+.downloader-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.downloader-search-alignment {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-grow: 1;
+  max-width: 450px;
+  justify-content: flex-end;
+}
+
+.dl-version-dropdown-width {
+  flex-shrink: 0;
+  min-width: 140px;
+}
+
+.dl-filter-dropdown-width {
+  flex-shrink: 0;
+  min-width: 120px;
+}
+
+.search-wrapper-downloader {
+  flex-grow: 1;
+  max-width: 250px;
+  margin: 0;
+}
+
+.mod-details-header-flex {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.mod-details-thumbnail-sizing {
+  width: 54px;
+  height: 54px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid rgba(244, 211, 94, 0.3);
+}
+
+.mod-details-info-middle-layout {
+  flex-grow: 1;
+}
+
+.popup-h4-layout {
+  margin: 0;
+  font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.popup-tag-mono {
+  font-family: "Consolas", monospace;
+  font-size: 0.75rem;
+  opacity: 0.5;
+}
+
+.popup-card-description-clamp {
+  font-size: 0.85rem;
+  color: #ccc;
+  line-height: 1.4;
+  margin: 0.35rem 0 0.5rem;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.popup-tag-row-flow {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.popup-tag-badge {
+  font-size: 0.7rem;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  color: #888;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: "Consolas", monospace;
+}
+
+.popup-stats-column {
+  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  flex-shrink: 0;
+  color: #aaa;
+}
+
+.stats-count-row {
+  color: #f4d35e;
+  font-weight: bold;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.stats-subtext {
+  font-size: 0.75rem;
+  margin-top: 0.15rem;
+}
+
+.popup-actions-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 0.8rem;
+  margin-top: auto;
+}
+
+.popup-owner-category-block {
+  font-size: 0.75rem;
+  color: #888;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.popup-generic-flex {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.downloads-panel-status-row {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.btn-downloads-clear-completed {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+.downloads-scrollable-heights {
+  min-height: 120px;
+  max-height: 220px;
+}
+
+.downloads-indicator-progress-width {
+  flex-grow: 1;
+  max-width: calc(100% - 140px);
+}
+
+.downloads-panel-item-thumbnail {
+  width: 25px;
+  height: 25px;
+  border-radius: 4px;
+}
+
+.downloads-panel-row-constraint {
+  flex-grow: 1;
+  overflow: hidden;
+  min-width: 0;
+  max-width: calc(100% - 35px);
+}
+
+.downloads-panel-ellipsis {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.85rem;
+}
+
+.downloads-panel-sub-label {
+  font-size: 0.72rem;
+  color: #888;
+}
+
+.downloads-panel-badge {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.btn-download-cancel-mini {
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  width: 24px;
+  border-radius: 4px;
+  border: 1px solid rgba(239, 71, 111, 0.4);
+  background: rgba(239, 71, 111, 0.1);
+  color: #ef476f;
+  cursor: pointer;
+}
+
+.empty-panel-centered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #888;
+  min-height: 200px;
+}
+
+.empty-panel-constraint {
+  max-width: 400px;
+}
+
+.empty-panel-subtitle {
+  margin-top: 0.75rem;
+  line-height: 1.5;
+  font-size: 0.9rem;
+}
+
+.vertical-gaps-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dl-pagination-btn-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.settings-box-sizing {
+  margin-top: 10px;
+  padding: 1.25rem;
+}
+
+.settings-header-border {
+  margin-top: 0;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid rgba(244, 211, 94, 0.15);
+  padding-bottom: 0.5rem;
+}
+
+.settings-row-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 600px;
+}
+
+.settings-row-align {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.settings-field-flex {
+  flex-grow: 1;
+}
+
+.settings-field-title {
+  font-weight: bold;
+  color: #f4d35e;
+}
+
+.settings-field-subtext {
+  font-size: 0.8rem;
+  color: #aaa;
+  margin-top: 0.15rem;
+}
+
+.settings-slider-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 250px;
+}
+
+.settings-range-slider {
+  flex-grow: 1;
+  accent-color: #f4d35e;
+  cursor: pointer;
+}
+
+.settings-scale-text {
+  font-family: "Consolas", monospace;
+  color: #f4d35e;
+  font-size: 0.9rem;
+  width: 45px;
+  text-align: right;
+}
+
+.auth-popup-width-constraint {
+  max-width: 400px;
+}
+
+.auth-popup-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.margin-0 {
+  margin: 0;
+}
+
+.btn-no-bg {
+  background: none;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+}
+
+.auth-form-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.auth-input-item-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.auth-input-label {
+  font-size: 0.8rem;
+  color: #f4d35e;
+  font-weight: bold;
+}
+
+.auth-disclaimer-notice {
+  font-size: 0.75rem;
+  color: #aaa;
+  line-height: 1.4;
+  margin-top: -0.25rem;
+}
+
+.btn-auth-full-width {
+  width: 100%;
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.auth-state-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
+.auth-status-green-success {
+  color: #4df099;
+  font-weight: bold;
+  font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.auth-success-details-desc {
+  font-size: 0.85rem;
+  color: #ccc;
+}
+
+.auth-success-username-highlight {
+  font-size: 0.8rem;
+  font-family: "Consolas", monospace;
+  color: #888;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.35rem;
+  border-radius: 4px;
+  margin: 0.25rem 0;
+}
+
+.btn-auth-clear-credentials {
+  width: 100%;
+  margin-top: 0.5rem;
+  background: rgba(239, 71, 111, 0.1);
+  border: 1px solid rgba(239, 71, 111, 0.4);
+  color: #ef476f;
+  font-family: "Consolas", monospace;
+  font-size: 0.85rem;
+  border-radius: 4px;
+  padding: 0.45rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mod-details-popup-constraint {
+  max-width: 650px;
+}
+
+.mod-details-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.mod-details-header-title-block {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.mod-details-popup-thumbnail {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid rgba(244, 211, 94, 0.35);
+}
+
+.mod-details-title-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.mod-details-title-heading {
+  margin: 0;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mod-details-subtitle {
+  font-family: "Consolas", monospace;
+  font-size: 0.8rem;
+  opacity: 0.6;
+  margin-top: 0.1rem;
+}
+
+.btn-modal-close {
+  background: none;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  margin-top: -0.25rem;
+}
+
+.mod-details-popup-scrollable-body {
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.mod-details-summary-desc {
+  font-size: 0.92rem;
+  color: #eee;
+  line-height: 1.5;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 0.75rem;
+  border-radius: 6px;
+  border-left: 3px solid #f4d35e;
+}
+
+.mod-details-section-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.mod-details-section-heading {
+  font-weight: bold;
+  color: #f4d35e;
+  font-size: 0.85rem;
+  border-bottom: 1px solid rgba(244, 211, 94, 0.15);
+  padding-bottom: 0.2rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mod-details-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.6rem;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  font-size: 0.85rem;
+}
+
+.mod-details-stats-label-span {
+  font-family: "Consolas", monospace;
+  color: #ccc;
+  text-transform: inherit;
+}
+
+.mod-details-releases-scroll {
+  max-height: 150px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  background: rgba(0, 0, 0, 0.15);
+  padding: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.mod-details-release-row-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.mod-details-release-info-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mod-details-release-version-num {
+  font-family: "Consolas", monospace;
+  color: #f4d35e;
+}
+
+.mod-details-release-date {
+  font-size: 0.72rem;
+  color: #888;
+}
+
+.mod-details-release-requirement-desc {
+  font-size: 0.72rem;
+  color: #aaa;
+  font-family: "Consolas", monospace;
+}
+
+.btn-mod-details-release-dl {
+  padding: 0.2rem 0.4rem;
+  font-size: 0.72rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.mod-details-deps-wrap-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.6rem;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.mod-details-deps-tag-badge {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-family: "Consolas", monospace;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ccc;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mod-details-footer-actions-layout {
+  margin-top: 0.5rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 0.8rem;
+}
+
+.path-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.installed-details-actions-box {
+  margin-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.delete-warn-text {
+  color: #d62246;
+  font-size: 0.85rem;
+  font-weight: bold;
+  font-family: "Consolas", monospace;
+}
+
+.btn-delete-mod-trigger {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.btn-delete-mod-deps-trigger {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #f4d35e;
+  border-color: rgba(244, 211, 94, 0.3);
+  background: rgba(244, 211, 94, 0.05);
+}
+
+.btn-confirm-delete-action {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.btn-cancel-delete-action {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+.dl-checkbox-deprecated {
+  margin-left: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.opacity-muted-heavy {
+  opacity: 0.4;
+}
+
+.dl-empty-state-footnote {
+  font-size: 0.8rem;
+  opacity: 0.6;
+}
+
+.dl-pagination-layout {
+  position: relative;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dl-pagination-buttons-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.dl-auth-indicator-corner {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+}
+
+.dl-downloads-header-title {
+  margin: 0;
+}
+
+.vertical-align-icon-text {
+  vertical-align: -2px;
+  margin-right: 0.3rem;
+}
+
+.dl-modal-header-icon {
+  vertical-align: -3px;
+  margin-right: 0.4rem;
 }
 
 /*# sourceMappingURL=main.css.map */
