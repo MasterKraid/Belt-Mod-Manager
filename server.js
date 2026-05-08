@@ -68,7 +68,7 @@ fse.ensureDirSync(path.dirname(LOCAL_MOD_LIST));
 
 app.use(express.static('public'));
 app.use('/Assets', express.static(path.join(__dirname, 'Assets')));
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
@@ -1079,4 +1079,5 @@ module.exports = {
   downloadManager,
   invalidateModCache,
   isCacheCleared: () => cachedScannedMods === null,
+  isSafeProfileName,
 };

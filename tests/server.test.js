@@ -4,7 +4,7 @@ const request = require('supertest');
 const fs = require('fs-extra');
 const nativeFs = require('fs');
 const path = require('path');
-const { app, downloadManager, isCacheCleared, invalidateModCache } = require('../server');
+const { app, downloadManager, isCacheCleared, invalidateModCache, isSafeProfileName } = require('../server');
 
 const TEST_PROFILES_DIR = path.join(__dirname, '../test-profiles');
 const TEST_BACKUP_DIR = path.join(__dirname, '../test-backup');
@@ -364,7 +364,7 @@ describe('API Endpoints', () => {
       spy.mockRestore();
     });
 
-    it('should handle simultaneous concurrent writes to the same profile successfully', async () => {
+    it('should handle simultaneous concurrent writes to the same profile successfully and verify deep logical consistency', async () => {
       const promises = Array.from({ length: 5 }, (_, i) => 
         request(app)
           .post('/api/profiles/concurrent-profile')
@@ -376,21 +376,66 @@ describe('API Endpoints', () => {
         expect(res.statusCode).toEqual(200);
       });
 
-      // Confirm final state is valid JSON
+      // Confirm final state is valid JSON, has no duplicates, and contains expected keys
       const checkRes = await request(app).get('/api/profiles/concurrent-profile');
       expect(checkRes.statusCode).toEqual(200);
       expect(Array.isArray(checkRes.body)).toBe(true);
+
+      const names = checkRes.body.map(m => m.name);
+      expect(names).toContain('base');
+      
+      // Every name must be unique (no duplicate state corruption)
+      const uniqueNames = new Set(names);
+      expect(uniqueNames.size).toEqual(names.length);
+
+      // Verify that the final write is exactly one of the valid state results
+      const testModKeys = names.filter(n => n.startsWith('test-mod-'));
+      expect(testModKeys.length).toBe(1);
     });
 
-    it('should reject traversal and special Windows device names via profiles endpoints', async () => {
-      const evilNames = ['..%255c..', 'CON', 'aux', 'nul', 'PRN', 'LPT1', '..\\..\\test'];
+    it('should reject traversal, encoded traversal, and special Windows device names via profiles endpoints', async () => {
+      const evilNames = [
+        '..%255c..', 'CON', 'aux', 'nul', 'PRN', 'LPT1', '..\\..\\test',
+        '%2e%2e%2f', '..%c0%af', '%252e%252e%255c', 'CON.json', 'aux.json'
+      ];
       for (const name of evilNames) {
+        // Assert actual implementation validates it as unsafe
+        expect(isSafeProfileName(name)).toBe(false);
+
+        // Assert API endpoints reject it safely
         const resGet = await request(app).get(`/api/profiles/${name}`);
         expect([400, 404]).toContain(resGet.statusCode);
 
         const resPost = await request(app).post(`/api/profiles/${name}`).send([]);
         expect([400, 404]).toContain(resPost.statusCode);
       }
+    });
+
+    it('should reject malformed JSON body payloads safely at the middleware parser layer', async () => {
+      const res = await request(app)
+        .post('/api/profiles/bad-json-syntax')
+        .set('Content-Type', 'application/json')
+        .send('{"bad-json-payload"');
+      
+      // Express bodyParser rejects invalid JSON with 400
+      expect(res.statusCode).toEqual(400);
+    });
+
+    it('should handle large-scale payloads with 5,000+ mods without crashing or stack overflows', async () => {
+      const largePayload = Array.from({ length: 5000 }, (_, i) => ({
+        name: `stress-mod-${i}`,
+        enabled: i % 2 === 0
+      }));
+
+      const res = await request(app)
+        .post('/api/profiles/large-stress-profile')
+        .send(largePayload);
+
+      expect(res.statusCode).toEqual(200);
+
+      const checkRes = await request(app).get('/api/profiles/large-stress-profile');
+      expect(checkRes.statusCode).toEqual(200);
+      expect(checkRes.body.length).toBeGreaterThanOrEqual(5000);
     });
 
     it('should enforce strict schema and contract types for API responses', async () => {

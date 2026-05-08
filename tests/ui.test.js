@@ -252,30 +252,40 @@ describe('Frontend Application Logic and Helper Tests', () => {
   });
 
   describe('Simulated UI Workflows, Fuzzing, and Edge Case Tests', () => {
-    it('should handle simulated Downloader queue and cancel workflow seamlessly', () => {
-      expect(vueInstance.activeDownloads).toEqual([]);
+    it('should invoke actual cancelDownload logic, send cancel post request, and poll downloads on success', async () => {
+      // 1. Set up active downloads
+      vueInstance.activeDownloads = [{ id: 777, fileName: 'aircraft_2.0.3.zip', status: 'downloading' }];
 
-      // 1. Simulate starting downloads
-      const mockDl = { id: 777, fileName: 'aircraft_2.0.3.zip', status: 'downloading', progress: 0.1 };
-      vueInstance.activeDownloads.push(mockDl);
+      // 2. Spy on playSound and pollDownloads
+      const playSpy = jest.spyOn(vueInstance, 'playSound').mockImplementation();
+      const pollSpy = jest.spyOn(vueInstance, 'pollDownloads').mockImplementation();
 
-      expect(vueInstance.activeDownloads.length).toBe(1);
-      expect(vueInstance.activeDownloads[0].fileName).toBe('aircraft_2.0.3.zip');
-
-      // 2. Simulate canceling a download
-      const notifySpy = jest.spyOn(vueInstance, 'notify').mockImplementation();
-      const cancelSpy = jest.spyOn(vueInstance, 'cancelDownload').mockImplementation((id) => {
-        vueInstance.activeDownloads = vueInstance.activeDownloads.filter(d => d.id !== id);
-        vueInstance.notify('Download cancelled', 3);
+      // 3. Mock fetch specifically for cancel request
+      global.fetch = jest.fn().mockImplementation((url, options) => {
+        if (url.includes('/api/portal/download-cancel/777') && options.method === 'POST') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true })
+          });
+        }
+        return Promise.reject(new Error('Unexpected fetch in test'));
       });
 
-      vueInstance.cancelDownload(777);
+      // 4. Invoke the REAL cancelDownload method
+      await vueInstance.cancelDownload(777);
 
-      expect(vueInstance.activeDownloads.length).toBe(0);
-      expect(notifySpy).toHaveBeenCalledWith('Download cancelled', 3);
+      // Verify that fetch was called and sound effect played
+      expect(playSpy).toHaveBeenCalledWith('click');
+      expect(global.fetch).toHaveBeenCalledWith('/api/portal/download-cancel/777', { method: 'POST' });
 
-      notifySpy.mockRestore();
-      cancelSpy.mockRestore();
+      // Wait for promise microtasks to resolve so .then() executes
+      await new Promise(process.nextTick);
+
+      // Verify that real method chained to pollDownloads on success!
+      expect(pollSpy).toHaveBeenCalled();
+
+      playSpy.mockRestore();
+      pollSpy.mockRestore();
     });
 
     it('should fuzz dependency parser with random strings to verify zero crashes (property-style)', () => {
@@ -297,7 +307,8 @@ describe('Frontend Application Logic and Helper Tests', () => {
       });
     });
 
-    it('should sanitize profile names against injection, traversals and malformed names', () => {
+    it('should sanitize profile names using the real production isSafeProfileName implementation', () => {
+      const { isSafeProfileName } = require('../server');
       const inputs = [
         { name: 'normal-name', valid: true },
         { name: 'profile..name', valid: false },
@@ -310,12 +321,7 @@ describe('Frontend Application Logic and Helper Tests', () => {
       ];
 
       inputs.forEach((item) => {
-        // Mocking name validation helper check
-        const isValid = !item.name.includes('..') && 
-                        !item.name.includes('/') && 
-                        !item.name.includes('\\') && 
-                        !['CON', 'aux', 'nul', 'PRN', 'LPT1'].includes(item.name);
-        expect(isValid).toBe(item.valid);
+        expect(isSafeProfileName(item.name)).toBe(item.valid);
       });
     });
 
