@@ -101,12 +101,35 @@ function getModListPath() {
 function isSafeProfileName(name) {
   if (typeof name !== 'string') return false;
   if (!name || name.length > 64) return false;
-  // Windows-safe + no path traversal separators
-  if (!/^[A-Za-z0-9 _.-]+$/.test(name) || name.includes('..')) return false;
+
+  // Fully decode percent-encoded characters recursively to prevent nested URL encoding bypasses
+  let decoded = name;
+  let prev = '';
+  while (decoded !== prev) {
+    prev = decoded;
+    try {
+      decoded = decodeURIComponent(decoded);
+    } catch (e) {
+      try {
+        decoded = unescape(decoded);
+      } catch (err) {
+        return false; // Reject malformed encodings
+      }
+    }
+  }
+
+  // Must not contain Windows forbidden characters: \ / : * ? " < > |
+  // And must not contain path traversal indicators like '..'
+  if (/[\\/:*?"<>|]/.test(decoded) || decoded.includes('..')) return false;
+
+  // Must not start or end with spaces or dots (Windows automatically trims these)
+  if (decoded.startsWith(' ') || decoded.endsWith(' ') || decoded.startsWith('.') || decoded.endsWith('.')) return false;
+
   // Block Windows reserved names (CON, AUX, PRN, NUL, COM1-9, LPT1-9)
-  const baseName = name.split('.')[0].toUpperCase();
+  const baseName = decoded.split('.')[0].toUpperCase();
   const reserved = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/;
   if (reserved.test(baseName)) return false;
+
   return true;
 }
 
@@ -747,7 +770,7 @@ app.post('/api/open-mod-folder', (req, res) => {
   if (fs.existsSync(userModPath)) {
     const { spawn } = require('child_process');
     try {
-      const child = spawn('explorer.exe', [userModPath], { windowsHide: true, shell: false });
+      const child = spawn('explorer.exe', [userModPath], { windowsHide: false, shell: false });
       child.on('error', (err) => res.status(500).json({ error: err.message }));
       child.on('spawn', () => res.sendStatus(200));
     } catch (err) {

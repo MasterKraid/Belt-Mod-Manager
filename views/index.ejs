@@ -12,14 +12,14 @@
 <body spellcheck="false">
 
   <div id="app" v-cloak>
-    <div id="notifications" class="notifications">
-      <div class="notif" v-for="note in notifications" :key="note.id">
-        {{ note.message }}
-        <div class="bar" :style="{ animationDuration: note.duration + 's' }"></div>
-      </div>
-    </div>
-
     <div class="glass-container">
+      <div id="notifications" class="notifications">
+        <div class="notif" v-for="note in notifications" :key="note.id">
+          {{ note.message }}
+          <div class="bar" :style="{ animationDuration: note.duration + 's' }"></div>
+        </div>
+      </div>
+
       <!-- Custom Frameless Titlebar -->
       <div class="custom-titlebar">
         <div class="titlebar-drag-region"></div>

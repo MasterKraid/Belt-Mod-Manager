@@ -388,31 +388,32 @@ input:checked + .slider:before {
 
 .notifications {
   pointer-events: none;
-  position: fixed;
-  top: 1rem;
-  right: 1rem;
+  position: absolute;
+  top: 10.6rem;
+  right: 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.38rem;
   z-index: 9999;
 }
 .notifications .notif {
   pointer-events: auto;
   background-color: rgba(244, 211, 94, 0.12);
   color: #ffffff;
-  padding: 0.75rem 1rem;
+  padding: 0.56rem 0.75rem;
+  font-size: 0.75rem;
   font-weight: bold;
   border: 1px solid rgba(244, 211, 94, 0.3);
-  border-radius: 5px;
+  border-radius: 4px;
   position: relative;
   overflow: hidden;
-  min-width: 220px;
+  min-width: 165px;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 .notifications .notif .bar {
-  height: 3px;
+  height: 2px;
   background: #f4d35e;
   width: 100%;
   position: absolute;

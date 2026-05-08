@@ -385,8 +385,16 @@ const vueAppOptions = {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(this.mods)
-        }).then(() => {
+        })
+        .then(res => {
+          if (!res.ok) {
+            return res.text().then(text => { throw new Error(text); });
+          }
           this.notify('Mods saved!');
+        })
+        .catch(err => {
+          console.error('Save failed:', err);
+          this.notify(`Save failed: ${err.message}`, 5);
         });
       },
       autoSaveMods() {
@@ -395,6 +403,15 @@ const vueAppOptions = {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(this.mods)
+        })
+        .then(res => {
+          if (!res.ok) {
+            return res.text().then(text => { throw new Error(text); });
+          }
+        })
+        .catch(err => {
+          console.error('Auto-save failed:', err);
+          this.notify(`Auto-save failed: ${err.message}`, 5);
         });
       },
       toggleAll(state) {
