@@ -266,18 +266,22 @@ const vueAppOptions = {
           optional: false
         };
       },
-      enableDependenciesOf(mod) {
+      enableDependenciesOf(mod, visited = new Set()) {
+        if (!mod || !mod.name || visited.has(mod.name)) return;
+        visited.add(mod.name);
+
         const installed = this.installedMods.find(m => m.name === mod.name);
         if (!installed || !installed.dependencies) return;
 
         installed.dependencies.forEach(depStr => {
+          if (!depStr || typeof depStr !== 'string' || !depStr.trim()) return;
           const parsed = this.parseDependency(depStr);
           if (parsed && parsed.required) {
             const depMod = this.mods.find(m => m.name === parsed.name);
             if (depMod && !depMod.enabled) {
               depMod.enabled = true;
               this.notify(`Enabled required dependency: ${depMod.title || depMod.name}`);
-              this.enableDependenciesOf(depMod);
+              this.enableDependenciesOf(depMod, visited);
             }
           }
         });

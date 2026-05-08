@@ -492,14 +492,18 @@ app.get('/api/profiles/:name', (req, res) => {
   if (!isSafeProfileName(profileName)) return res.status(400).send('Invalid profile name');
   const file = path.join(PROFILES_DIR, `${profileName}.json`);
   if (fs.existsSync(file)) {
-    const raw = fs.readFileSync(file, 'utf-8');
-    const data = JSON.parse(raw);
-    if (!Array.isArray(data)) {
-      return res.status(500).json({ error: 'Profile file is not a mod list array' });
+    try {
+      const raw = fs.readFileSync(file, 'utf-8');
+      const data = JSON.parse(raw);
+      if (!Array.isArray(data)) {
+        return res.status(500).json({ error: 'Profile file is not a mod list array' });
+      }
+      const scanned = scanMods();
+      mergeNewMods(scanned, data);
+      res.json(data);
+    } catch (err) {
+      return res.status(400).send('Profile file is corrupted JSON');
     }
-    const scanned = scanMods();
-    mergeNewMods(scanned, data);
-    res.json(data);
   } else {
     const scanned = scanMods();
     const mods = scanned.map(m => ({ ...m, enabled: m.type === 'core' ? true : false }));
@@ -512,6 +516,22 @@ app.post('/api/profiles/:name', (req, res) => {
   const profileName = req.params.name;
   if (!isSafeProfileName(profileName)) return res.status(400).send('Invalid profile name');
   const mods = req.body;
+  
+  if (!Array.isArray(mods)) {
+    return res.status(400).send('Profile payload must be an array');
+  }
+
+  const seenNames = new Set();
+  for (const mod of mods) {
+    if (!mod || typeof mod.name !== 'string' || typeof mod.enabled !== 'boolean') {
+      return res.status(400).send('Malformed mod entry inside profile arrays');
+    }
+    if (seenNames.has(mod.name)) {
+      return res.status(400).send('Duplicate mod names in a profile payload');
+    }
+    seenNames.add(mod.name);
+  }
+
   const file = path.join(PROFILES_DIR, `${profileName}.json`);
   try {
     fs.writeFileSync(file, JSON.stringify(mods, null, 2));
@@ -938,7 +958,11 @@ app.get('/api/portal/downloads', (req, res) => {
 });
 
 app.post('/api/portal/download-cancel/:id', (req, res) => {
-  const ok = downloadManager.cancelDownload(parseInt(req.params.id));
+  const idNum = parseInt(req.params.id);
+  if (isNaN(idNum)) {
+    return res.status(400).send('Download ID must be a number');
+  }
+  const ok = downloadManager.cancelDownload(idNum);
   res.json({ success: ok });
 });
 

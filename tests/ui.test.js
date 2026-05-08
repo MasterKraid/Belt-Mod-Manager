@@ -278,14 +278,58 @@ describe('Frontend Application Logic and Helper Tests', () => {
       expect(playSpy).toHaveBeenCalledWith('click');
       expect(global.fetch).toHaveBeenCalledWith('/api/portal/download-cancel/777', { method: 'POST' });
 
-      // Wait for promise microtasks to resolve so .then() executes
-      await new Promise(process.nextTick);
+      // Wait for promise microtasks to resolve so .then() executes cleanly
+      await Promise.resolve();
 
       // Verify that real method chained to pollDownloads on success!
       expect(pollSpy).toHaveBeenCalled();
 
       playSpy.mockRestore();
       pollSpy.mockRestore();
+    });
+
+    it('should execute real pollDownloads logic, fetch download lists, and set dynamic polling timeout on active downloads', async () => {
+      // 1. Spies on dependent UI actions
+      const playSpy = jest.spyOn(vueInstance, 'playSound').mockImplementation();
+      const notifySpy = jest.spyOn(vueInstance, 'notify').mockImplementation();
+      const fetchModsSpy = jest.spyOn(vueInstance, 'fetchMods').mockImplementation();
+      const fetchInstalledModsSpy = jest.spyOn(vueInstance, 'fetchInstalledMods').mockImplementation();
+
+      // 2. Mock fetch with active download response
+      global.fetch = jest.fn().mockImplementation((url) => {
+        if (url === '/api/portal/downloads') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve([
+              { id: 101, modName: 'aircraft', status: 'downloading', downloadedBytes: 500, totalBytes: 1000 }
+            ])
+          });
+        }
+        return Promise.reject(new Error('Unexpected fetch in test'));
+      });
+
+      // 3. Run real pollDownloads
+      vueInstance.pollDownloads();
+
+      // Flush microtasks and pending macro tasks cleanly
+      await new Promise(resolve => setImmediate(resolve));
+
+      // Assert that activeDownloads got populated
+      expect(vueInstance.activeDownloads).toHaveLength(1);
+      expect(vueInstance.activeDownloads[0].modName).toBe('aircraft');
+
+      // Assert that adaptive timeout got scheduled since there is an active downloading job
+      expect(vueInstance.downloadPollTimer).toBeDefined();
+
+      // Cleanup
+      if (vueInstance.downloadPollTimer) {
+        clearTimeout(vueInstance.downloadPollTimer);
+        vueInstance.downloadPollTimer = null;
+      }
+      playSpy.mockRestore();
+      notifySpy.mockRestore();
+      fetchModsSpy.mockRestore();
+      fetchInstalledModsSpy.mockRestore();
     });
 
     it('should fuzz dependency parser with random strings to verify zero crashes (property-style)', () => {
@@ -333,6 +377,93 @@ describe('Frontend Application Logic and Helper Tests', () => {
 
       const dep = vueInstance.parseDependency('! base >= 2.0.0');
       expect(dep.incompatible).toBe(true);
+    });
+
+    it('should not enable already enabled dependencies twice', () => {
+      vueInstance.mods = [
+        { name: 'child-mod', enabled: true }
+      ];
+
+      vueInstance.installedMods = [
+        {
+          name: 'parent-mod',
+          dependencies: ['child-mod']
+        }
+      ];
+
+      const notifySpy = jest.spyOn(vueInstance, 'notify').mockImplementation();
+
+      vueInstance.enableDependenciesOf({ name: 'parent-mod' });
+
+      expect(notifySpy).not.toHaveBeenCalled();
+
+      notifySpy.mockRestore();
+    });
+
+    it('should safely handle missing dependency lists', () => {
+      vueInstance.installedMods = [
+        { name: 'mod-without-deps' }
+      ];
+
+      expect(() => {
+        vueInstance.getMissingDependencies({ name: 'mod-without-deps' });
+      }).not.toThrow();
+    });
+
+    it('should safely handle unknown mods in getMissingDependencies', () => {
+      expect(() => {
+        vueInstance.getMissingDependencies({ name: 'does-not-exist' });
+      }).not.toThrow();
+    });
+
+    it('should safely handle cyclic dependencies without causing infinite loops or call stack overflows', () => {
+      vueInstance.mods = [
+        { name: 'a', enabled: false },
+        { name: 'b', enabled: false }
+      ];
+
+      vueInstance.installedMods = [
+        { name: 'a', dependencies: ['b'] },
+        { name: 'b', dependencies: ['a'] }
+      ];
+
+      expect(() => {
+        vueInstance.enableDependenciesOf({ name: 'a' });
+      }).not.toThrow();
+    });
+
+    it('should handle failed download cancellation requests gracefully', async () => {
+      global.fetch = jest.fn().mockRejectedValue(new Error('network fail'));
+      const playSpy = jest.spyOn(vueInstance, 'playSound').mockImplementation();
+
+      expect(() => {
+        vueInstance.cancelDownload(123);
+      }).not.toThrow();
+
+      playSpy.mockRestore();
+    });
+
+    it('should handle failed pollDownloads fetch safely', async () => {
+      global.fetch = jest.fn().mockRejectedValue(new Error('network fail'));
+
+      expect(() => {
+        vueInstance.pollDownloads();
+      }).not.toThrow();
+    });
+
+    it('should ignore invalid dependency entries in enableDependenciesOf', () => {
+      vueInstance.mods = [];
+
+      vueInstance.installedMods = [
+        {
+          name: 'parent',
+          dependencies: [null, '', '   ']
+        }
+      ];
+
+      expect(() => {
+        vueInstance.enableDependenciesOf({ name: 'parent' });
+      }).not.toThrow();
     });
   });
 });

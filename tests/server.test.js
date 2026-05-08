@@ -433,6 +433,16 @@ describe('API Endpoints', () => {
 
       expect(res.statusCode).toEqual(200);
 
+      // Read and verify the exact written JSON structure on disk
+      const diskFilePath = path.join(TEST_PROFILES_DIR, 'large-stress-profile.json');
+      const diskContent = JSON.parse(nativeFs.readFileSync(diskFilePath, 'utf-8'));
+      
+      expect(diskContent).toHaveLength(5000);
+      
+      const uniqueNames = new Set(diskContent.map(m => m.name));
+      expect(uniqueNames.size).toBe(5000);
+
+      // Verify the GET response includes the merged scanned mods correctly
       const checkRes = await request(app).get('/api/profiles/large-stress-profile');
       expect(checkRes.statusCode).toEqual(200);
       expect(checkRes.body.length).toBeGreaterThanOrEqual(5000);
@@ -458,6 +468,69 @@ describe('API Endpoints', () => {
         expect(mod).toHaveProperty('enabled');
         expect(typeof mod.enabled).toBe('boolean');
       });
+    });
+
+    it('should return 404 when deleting a nonexistent profile', async () => {
+      const res = await request(app)
+        .post('/api/delete-profile')
+        .send({ name: 'does-not-exist' });
+
+      expect([400, 404]).toContain(res.statusCode);
+    });
+
+    it('should reject invalid rename payloads', async () => {
+      const res = await request(app)
+        .post('/api/rename-profile')
+        .send({ oldName: '', newName: '../evil' });
+
+      expect(res.statusCode).toBeGreaterThanOrEqual(400);
+    });
+
+    it('should reject malformed mod entries inside profile arrays', async () => {
+      const res = await request(app)
+        .post('/api/profiles/bad-mod-shape')
+        .send([
+          { enabled: true },
+          { name: 123, enabled: 'yes' }
+        ]);
+
+      expect(res.statusCode).toBeGreaterThanOrEqual(400);
+    });
+
+    it('should reject duplicate mod names in a profile payload', async () => {
+      const res = await request(app)
+        .post('/api/profiles/duplicate-mods')
+        .send([
+          { name: 'base', enabled: true },
+          { name: 'base', enabled: false }
+        ]);
+
+      expect(res.statusCode).toBeGreaterThanOrEqual(400);
+    });
+
+    it('should handle corrupted JSON profile files safely', async () => {
+      const badPath = path.join(TEST_PROFILES_DIR, 'corrupted.json');
+
+      fs.writeFileSync(badPath, '{"bad json"', 'utf-8');
+
+      const res = await request(app).get('/api/profiles/corrupted');
+
+      expect(res.statusCode).toBeGreaterThanOrEqual(400);
+    });
+
+    it('should reject non-numeric download cancel IDs', async () => {
+      const res = await request(app)
+        .post('/api/portal/download-cancel/not-a-number');
+
+      expect(res.statusCode).toBeGreaterThanOrEqual(400);
+    });
+
+    it('should survive repeated cache invalidation calls', () => {
+      expect(() => {
+        invalidateModCache();
+        invalidateModCache();
+        invalidateModCache();
+      }).not.toThrow();
     });
   });
 });
