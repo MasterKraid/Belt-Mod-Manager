@@ -102,7 +102,12 @@ function isSafeProfileName(name) {
   if (typeof name !== 'string') return false;
   if (!name || name.length > 64) return false;
   // Windows-safe + no path traversal separators
-  return /^[A-Za-z0-9 _.-]+$/.test(name) && !name.includes('..');
+  if (!/^[A-Za-z0-9 _.-]+$/.test(name) || name.includes('..')) return false;
+  // Block Windows reserved names (CON, AUX, PRN, NUL, COM1-9, LPT1-9)
+  const baseName = name.split('.')[0].toUpperCase();
+  const reserved = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/;
+  if (reserved.test(baseName)) return false;
+  return true;
 }
 
 function readModList() {
@@ -508,19 +513,27 @@ app.post('/api/profiles/:name', (req, res) => {
   if (!isSafeProfileName(profileName)) return res.status(400).send('Invalid profile name');
   const mods = req.body;
   const file = path.join(PROFILES_DIR, `${profileName}.json`);
-  fs.writeFileSync(file, JSON.stringify(mods, null, 2));
-  activeProfile = profileName;
-  saveConfig();
-  saveToModList(mods);
-  res.sendStatus(200);
+  try {
+    fs.writeFileSync(file, JSON.stringify(mods, null, 2));
+    activeProfile = profileName;
+    saveConfig();
+    saveToModList(mods);
+    res.sendStatus(200);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.put('/api/profiles/:name', (req, res) => {
   const profileName = req.params.name;
   if (!isSafeProfileName(profileName)) return res.status(400).send('Invalid profile name');
   const file = path.join(PROFILES_DIR, `${profileName}.json`);
-  fs.writeFileSync(file, JSON.stringify(req.body || [], null, 2));
-  res.sendStatus(201);
+  try {
+    fs.writeFileSync(file, JSON.stringify(req.body || [], null, 2));
+    res.sendStatus(201);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.post('/api/switch/:name', (req, res) => {
@@ -528,56 +541,74 @@ app.post('/api/switch/:name', (req, res) => {
   if (!isSafeProfileName(profileName)) return res.status(400).send('Invalid profile name');
   const file = path.join(PROFILES_DIR, `${profileName}.json`);
   if (!fs.existsSync(file)) return res.status(404).send('Not found');
-  const mods = JSON.parse(fs.readFileSync(file, 'utf-8'));
-  if (!Array.isArray(mods)) return res.status(500).send('Profile file is invalid');
-  activeProfile = profileName;
-  saveConfig();
-  saveToModList(mods);
-  res.sendStatus(200);
+  try {
+    const mods = JSON.parse(fs.readFileSync(file, 'utf-8'));
+    if (!Array.isArray(mods)) return res.status(500).send('Profile file is invalid');
+    activeProfile = profileName;
+    saveConfig();
+    saveToModList(mods);
+    res.sendStatus(200);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.post('/api/rename-profile', (req, res) => {
   const { oldName, newName } = req.body;
+  if (!isSafeProfileName(oldName) || !isSafeProfileName(newName)) {
+    return res.status(400).send('Invalid profile name');
+  }
   const oldPath = path.join(PROFILES_DIR, `${oldName}.json`);
   const newPath = path.join(PROFILES_DIR, `${newName}.json`);
   if (fs.existsSync(newPath)) return res.status(409).send('New name taken');
   
-  if (!fs.existsSync(oldPath)) {
-    const scanned = scanMods();
-    const mods = scanned.map(m => ({ name: m.name, enabled: m.type === 'core' ? true : false }));
-    fs.writeFileSync(newPath, JSON.stringify(mods, null, 2));
-    return res.sendStatus(200);
-  }
+  try {
+    if (!fs.existsSync(oldPath)) {
+      const scanned = scanMods();
+      const mods = scanned.map(m => ({ name: m.name, enabled: m.type === 'core' ? true : false }));
+      fs.writeFileSync(newPath, JSON.stringify(mods, null, 2));
+      return res.sendStatus(200);
+    }
 
-  fs.renameSync(oldPath, newPath);
-  if (activeProfile === oldName) {
-    activeProfile = newName;
-    saveConfig();
+    fs.renameSync(oldPath, newPath);
+    if (activeProfile === oldName) {
+      activeProfile = newName;
+      saveConfig();
+    }
+    res.sendStatus(200);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-  res.sendStatus(200);
 });
 
 app.post('/api/delete-profile', (req, res) => {
   const { name } = req.body;
+  if (!isSafeProfileName(name)) {
+    return res.status(400).send('Invalid profile name');
+  }
   if (!name || name === 'default') {
     return res.status(400).send('Cannot delete default profile');
   }
   const file = path.join(PROFILES_DIR, `${name}.json`);
-  if (fs.existsSync(file)) {
-    fs.unlinkSync(file);
-    if (activeProfile === name) {
-      activeProfile = 'default';
-      saveConfig();
-      const defaultFile = path.join(PROFILES_DIR, 'default.json');
-      if (fs.existsSync(defaultFile)) {
-        const mods = JSON.parse(fs.readFileSync(defaultFile, 'utf-8'));
-        if (!Array.isArray(mods)) return res.status(500).send('Default profile is invalid');
-        saveToModList(mods);
+  try {
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
+      if (activeProfile === name) {
+        activeProfile = 'default';
+        saveConfig();
+        const defaultFile = path.join(PROFILES_DIR, 'default.json');
+        if (fs.existsSync(defaultFile)) {
+          const mods = JSON.parse(fs.readFileSync(defaultFile, 'utf-8'));
+          if (!Array.isArray(mods)) return res.status(500).send('Default profile is invalid');
+          saveToModList(mods);
+        }
       }
+      res.sendStatus(200);
+    } else {
+      res.status(404).send('Profile not found');
     }
-    res.sendStatus(200);
-  } else {
-    res.status(404).send('Profile not found');
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 

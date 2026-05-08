@@ -2953,9 +2953,14 @@ input:checked + .slider:before {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  color: #f4d35e;
-  border-color: rgba(244, 211, 94, 0.3);
-  background: rgba(244, 211, 94, 0.05);
+  color: #f4a261;
+  border-color: rgba(244, 162, 97, 0.3);
+  background: rgba(244, 162, 97, 0.05);
+}
+.btn-delete-mod-deps-trigger:hover:not(:disabled) {
+  background: rgba(244, 162, 97, 0.2);
+  border-color: #f4a261;
+  box-shadow: 0 0 8px rgba(244, 162, 97, 0.2);
 }
 
 .btn-confirm-delete-action {

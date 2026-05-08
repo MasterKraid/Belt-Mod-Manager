@@ -2,6 +2,7 @@ process.env.NODE_ENV = 'test';
 
 const request = require('supertest');
 const fs = require('fs-extra');
+const nativeFs = require('fs');
 const path = require('path');
 const { app, downloadManager, isCacheCleared, invalidateModCache } = require('../server');
 
@@ -325,6 +326,93 @@ describe('API Endpoints', () => {
         .post('/api/profiles/bad-payload-profile')
         .send({ invalid: true });
       expect(res.statusCode).toBeGreaterThanOrEqual(400);
+    });
+  });
+
+  describe('Filesystem Failure, Concurrency, and Contract Fuzzing Tests', () => {
+    it('should handle EACCES filesystem permissions failure gracefully during profile write', async () => {
+      const spy = jest.spyOn(nativeFs, 'writeFileSync').mockImplementation(() => {
+        const err = new Error('Permission denied');
+        err.code = 'EACCES';
+        throw err;
+      });
+
+      const res = await request(app)
+        .post('/api/profiles/permission-fail')
+        .send(makeProfileMods());
+
+      expect(res.statusCode).toEqual(500);
+      expect(res.body).toHaveProperty('error');
+      
+      spy.mockRestore();
+    });
+
+    it('should handle ENOSPC disk full failure gracefully during profile write', async () => {
+      const spy = jest.spyOn(nativeFs, 'writeFileSync').mockImplementation(() => {
+        const err = new Error('No space left on device');
+        err.code = 'ENOSPC';
+        throw err;
+      });
+
+      const res = await request(app)
+        .post('/api/profiles/disk-full-fail')
+        .send(makeProfileMods());
+
+      expect(res.statusCode).toEqual(500);
+      expect(res.body).toHaveProperty('error');
+
+      spy.mockRestore();
+    });
+
+    it('should handle simultaneous concurrent writes to the same profile successfully', async () => {
+      const promises = Array.from({ length: 5 }, (_, i) => 
+        request(app)
+          .post('/api/profiles/concurrent-profile')
+          .send([{ name: 'base', enabled: true }, { name: `test-mod-${i}`, enabled: true }])
+      );
+
+      const results = await Promise.all(promises);
+      results.forEach((res) => {
+        expect(res.statusCode).toEqual(200);
+      });
+
+      // Confirm final state is valid JSON
+      const checkRes = await request(app).get('/api/profiles/concurrent-profile');
+      expect(checkRes.statusCode).toEqual(200);
+      expect(Array.isArray(checkRes.body)).toBe(true);
+    });
+
+    it('should reject traversal and special Windows device names via profiles endpoints', async () => {
+      const evilNames = ['..%255c..', 'CON', 'aux', 'nul', 'PRN', 'LPT1', '..\\..\\test'];
+      for (const name of evilNames) {
+        const resGet = await request(app).get(`/api/profiles/${name}`);
+        expect([400, 404]).toContain(resGet.statusCode);
+
+        const resPost = await request(app).post(`/api/profiles/${name}`).send([]);
+        expect([400, 404]).toContain(resPost.statusCode);
+      }
+    });
+
+    it('should enforce strict schema and contract types for API responses', async () => {
+      // 1. GET /api/profiles response contract check
+      const profilesRes = await request(app).get('/api/profiles');
+      expect(profilesRes.statusCode).toEqual(200);
+      expect(Array.isArray(profilesRes.body)).toBe(true);
+      profilesRes.body.forEach((item) => {
+        expect(typeof item).toBe('string');
+      });
+
+      // 2. GET /api/profiles/:name response contract check
+      await request(app).post('/api/profiles/contract-test').send(makeProfileMods());
+      const modsRes = await request(app).get('/api/profiles/contract-test');
+      expect(modsRes.statusCode).toEqual(200);
+      expect(Array.isArray(modsRes.body)).toBe(true);
+      modsRes.body.forEach((mod) => {
+        expect(mod).toHaveProperty('name');
+        expect(typeof mod.name).toBe('string');
+        expect(mod).toHaveProperty('enabled');
+        expect(typeof mod.enabled).toBe('boolean');
+      });
     });
   });
 });
