@@ -1,3 +1,14 @@
+const sfx = {
+  click: new Audio('/Assets/sound/button-click.ogg'),
+  exit: new Audio('/Assets/sound/exit.ogg'),
+  contract: new Audio('/Assets/sound/item-contract.ogg'),
+  expand: new Audio('/Assets/sound/item-expand.ogg'),
+  runGame: new Audio('/Assets/sound/run-game.ogg'),
+  sliderOff: new Audio('/Assets/sound/slider-off.ogg'),
+  sliderOn: new Audio('/Assets/sound/slider-on.ogg'),
+  tabSwitch: new Audio('/Assets/sound/tab-switch.ogg')
+};
+
 document.addEventListener('DOMContentLoaded', () => {
   new Vue({
     el: '#app',
@@ -92,6 +103,26 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     },
     methods: {
+      playSound(name) {
+        if (sfx[name]) {
+          sfx[name].currentTime = 0;
+          sfx[name].play().catch(() => {});
+        }
+      },
+      switchTab(tab) {
+        if (this.currentTab !== tab) {
+          this.currentTab = tab;
+          this.playSound('tabSwitch');
+        }
+      },
+      toggleModStatus(mod) {
+        if (mod.enabled) {
+          this.playSound('sliderOn');
+        } else {
+          this.playSound('sliderOff');
+        }
+        this.autoSaveMods();
+      },
       notify(message, duration = 5) {
         const id = ++this.notifId;
         this.notifications.push({ id, message, duration });
@@ -100,19 +131,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }, duration * 1000);
       },
       minimizeWindow() {
+        this.playSound('click');
         if (window.electronAPI && window.electronAPI.minimizeWindow) {
           window.electronAPI.minimizeWindow();
         }
       },
       maximizeWindow() {
+        this.playSound('click');
         if (window.electronAPI && window.electronAPI.maximizeWindow) {
           window.electronAPI.maximizeWindow();
         }
       },
       closeWindow() {
-        if (window.electronAPI && window.electronAPI.closeWindow) {
-          window.electronAPI.closeWindow();
-        }
+        this.playSound('exit');
+        setTimeout(() => {
+          if (window.electronAPI && window.electronAPI.closeWindow) {
+            window.electronAPI.closeWindow();
+          }
+        }, 300);
       },
       fetchMods() {
         fetch(`/api/profiles/${this.selectedProfile}`)
@@ -133,6 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
       },
 
       saveMods() {
+        this.playSound('click');
         fetch(`/api/profiles/${this.selectedProfile}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -150,6 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       },
       toggleAll(state) {
+        this.playSound('click');
         this.mods.forEach(m => {
           if (m.name === 'base') {
             m.enabled = true;
@@ -173,6 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       },
       createProfile() {
+        this.playSound('click');
         const temp = '___new_profile_' + Date.now();
         this.profiles.push(temp);
         this.editingProfile = temp;
@@ -187,6 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       activateProfile(profileName) {
         if (profileName.startsWith('___new_profile_')) return;
+        this.playSound('sliderOn');
         this.selectedProfile = profileName;
         fetch(`/api/switch/${profileName}`, { method: 'POST' })
           .then(() => {
@@ -195,6 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
           });
       },
       startRename(profileName) {
+        this.playSound('click');
         this.editingProfile = profileName;
         this.renameInput = profileName;
         this.$nextTick(() => {
@@ -209,6 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       },
       cancelRename() {
+        this.playSound('click');
         if (this.editingProfile && this.editingProfile.startsWith('___new_profile_')) {
           this.profiles = this.profiles.filter(p => p !== this.editingProfile);
         }
@@ -216,6 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
         this.renameInput = '';
       },
       submitRename(oldName) {
+        this.playSound('click');
         const newName = this.renameInput.trim();
         if (oldName.startsWith('___new_profile_') && !newName) {
           this.profiles = this.profiles.filter(p => p !== oldName);
@@ -235,9 +278,13 @@ document.addEventListener('DOMContentLoaded', () => {
           this.editingProfile = null;
           this.renameInput = '';
           this.loadProfiles();
+          if (oldName.startsWith('___new_profile_')) {
+            this.activateProfile(newName);
+          }
         });
       },
       setGamePath() {
+        this.playSound('click');
         window.electronAPI.selectFolder().then(folder => {
           if (!folder) return;
           fetch('/api/set-game-path', {
@@ -253,6 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       detectSteamPath() {
         if (this.isGameRunning) return;
+        this.playSound('click');
         this.notify('Searching Steam for Factorio installation...');
         fetch('/api/detect-steam-game', { method: 'POST' })
           .then(res => res.json())
@@ -271,6 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
           });
       },
       setModPath() {
+        this.playSound('click');
         window.electronAPI.selectFolder().then(folder => {
           if (!folder) return;
           fetch('/api/set-mod-path', {
@@ -286,11 +335,17 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       toggleExpand(name) {
         const i = this.expandedMods.indexOf(name);
-        if (i >= 0) this.expandedMods.splice(i, 1);
-        else this.expandedMods.push(name);
+        if (i >= 0) {
+          this.expandedMods.splice(i, 1);
+          this.playSound('contract');
+        } else {
+          this.expandedMods.push(name);
+          this.playSound('expand');
+        }
       },
       launchGame() {
         if (this.isGameRunning || !this.gamePath) return;
+        this.playSound('runGame');
         this.notify('Starting Factorio...');
         fetch('/api/launch-game', { method: 'POST' })
           .then(res => res.json())
@@ -308,6 +363,7 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       toggleDropdown() {
         if (this.isGameRunning) return;
+        this.playSound('click');
         this.dropdownOpen = !this.dropdownOpen;
         if (this.dropdownOpen) {
           this.profileSearchQuery = '';
@@ -326,6 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       confirmDeleteProfile(p) {
         if (this.isGameRunning || p === 'default') return;
+        this.playSound('click');
 
         // If it's a temporary unsaved profile, cancel it on the frontend directly
         if (p.startsWith('___new_profile_')) {
@@ -357,6 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       },
       openModFolder() {
+        this.playSound('click');
         fetch('/api/open-mod-folder', { method: 'POST' })
           .then(res => {
             if (res.ok) {

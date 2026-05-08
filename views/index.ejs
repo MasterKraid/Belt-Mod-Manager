@@ -75,11 +75,11 @@
         </div>
 
         <nav class="tabs" style="margin-bottom: 0.25rem;">
-          <button :class="{active: currentTab==='profiles'}" @click="currentTab='profiles'">Profiles</button>
-          <button :class="{active: currentTab==='manager'}" @click="currentTab='manager'">Manager</button>
-          <button :class="{active: currentTab==='installed'}" @click="currentTab='installed'">Installed Mods</button>
-          <button :class="{active: currentTab==='settings'}" @click="currentTab='settings'">Settings</button>
-          <button :class="{active: currentTab==='downloader'}" @click="currentTab='downloader'">Downloader</button>
+          <button :class="{active: currentTab==='profiles'}" @click="switchTab('profiles')">Profiles</button>
+          <button :class="{active: currentTab==='manager'}" @click="switchTab('manager')">Manager</button>
+          <button :class="{active: currentTab==='installed'}" @click="switchTab('installed')">Installed Mods</button>
+          <button :class="{active: currentTab==='settings'}" @click="switchTab('settings')">Settings</button>
+          <button :class="{active: currentTab==='downloader'}" @click="switchTab('downloader')">Downloader</button>
         </nav>
 
         <p class="status" v-show="status"
@@ -138,7 +138,7 @@
                 </svg>
                 <input type="text" v-model="profileSearchQueryPage" placeholder="Search profiles..."
                   class="premium-search-input" />
-                <button v-if="profileSearchQueryPage" class="search-clear-btn" @click="profileSearchQueryPage = ''">
+                <button v-if="profileSearchQueryPage" class="search-clear-btn" @click="profileSearchQueryPage = ''; playSound('click')">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -169,12 +169,12 @@
                   <div v-else-if="deletingProfileName === p" style="display: flex; align-items: center; gap: 0.4rem;">
                     <button @click.stop="confirmDeleteProfile(p)"
                       style="background: #d62246; border: 1px solid #d62246; color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 0.8rem; cursor: pointer; font-weight: bold;">Delete?</button>
-                    <button @click.stop="deletingProfileName = null"
+                    <button @click.stop="deletingProfileName = null; playSound('click')"
                       style="background: #333; border: 1px solid #555; color: #ccc; padding: 0.2rem 0.5rem; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 0.8rem; cursor: pointer;">Cancel</button>
                   </div>
 
                   <template v-else>
-                    <span v-if="p !== 'default'" @click.stop="deletingProfileName = p" title="Delete Profile"
+                    <span v-if="p !== 'default'" @click.stop="deletingProfileName = p; playSound('click')" title="Delete Profile"
                       style="cursor: pointer; display: flex; align-items: center; margin-right: 0.25rem;">
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none"
                         stroke="#d62246" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -264,7 +264,7 @@
                   </svg>
                   <input type="text" v-model="searchQueryManager" placeholder="Search mods..."
                     class="premium-search-input" />
-                  <button v-if="searchQueryManager" class="search-clear-btn" @click="searchQueryManager = ''">
+                  <button v-if="searchQueryManager" class="search-clear-btn" @click="searchQueryManager = ''; playSound('click')">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                       stroke-linecap="round" stroke-linejoin="round">
                       <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -287,7 +287,7 @@
                   </div>
                 </div>
                 <label class="switch" :class="{ disabled: isGameRunning || mod.name === 'base' }">
-                  <input type="checkbox" v-model="mod.enabled" @change="autoSaveMods"
+                  <input type="checkbox" v-model="mod.enabled" @change="toggleModStatus(mod)"
                     :disabled="isGameRunning || mod.name === 'base'">
                   <span class="slider"></span>
                 </label>
@@ -318,7 +318,7 @@
                 </svg>
                 <input type="text" v-model="searchQueryInstalled" placeholder="Search installed mods..."
                   class="premium-search-input" />
-                <button v-if="searchQueryInstalled" class="search-clear-btn" @click="searchQueryInstalled = ''">
+                <button v-if="searchQueryInstalled" class="search-clear-btn" @click="searchQueryInstalled = ''; playSound('click')">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
