@@ -80,6 +80,21 @@
           <button :class="{active: currentTab==='installed'}" @click="switchTab('installed')">Installed Mods</button>
           <button :class="{active: currentTab==='settings'}" @click="switchTab('settings')">Settings</button>
           <button :class="{active: currentTab==='downloader'}" @click="switchTab('downloader')">Downloader</button>
+
+          <!-- Tab bar separator -->
+          <span style="margin-left: auto; align-self: center; height: 16px; border-left: 1px solid rgba(244, 211, 94, 0.3); margin-right: 0.28rem; margin-bottom: 4px;"></span>
+
+          <!-- Auth profile button on the far right of the tab bar -->
+          <button class="dl-auth-btn has-tooltip tooltip-below" @click="showAuthPopup = true; playSound('click')"
+            :class="{ authenticated: portalAuth.authenticated }"
+            :data-tooltip="portalAuth.authenticated ? 'Logged in as ' + portalAuth.username : 'Set Factorio credentials'"
+            style="align-self: center; margin-bottom: 4px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </button>
         </nav>
 
         <p class="status" v-show="status"
@@ -396,16 +411,22 @@
               Search
             </button>
 
-            <!-- Auth profile button -->
-            <button class="dl-auth-btn has-tooltip" @click="showAuthPopup = true; playSound('click')"
-              :class="{ authenticated: portalAuth.authenticated }"
-              :data-tooltip="portalAuth.authenticated ? 'Logged in as ' + portalAuth.username : 'Set Factorio credentials'">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
+            <!-- Optional deps toggle beside search bar -->
+            <label class="dl-checkbox-label has-tooltip" @click.prevent="includeOptionalDeps = !includeOptionalDeps; playSound('click')" data-tooltip="Include optional dependencies when downloading mods with +deps" style="margin-left: auto; padding-left: 0.5rem; flex-shrink: 0; white-space: nowrap;">
+              <span class="dl-checkbox" :class="{ checked: includeOptionalDeps }">
+                <svg v-if="includeOptionalDeps" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f4a261" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
               </svg>
-            </button>
+              <span>Optional deps</span>
+            </label>
           </div>
 
           <!-- Filters row -->
@@ -461,22 +482,7 @@
               </div>
             </div>
 
-            <!-- Optional deps toggle -->
-            <label class="dl-checkbox-label" @click.prevent="includeOptionalDeps = !includeOptionalDeps; playSound('click')">
-              <span class="dl-checkbox" :class="{ checked: includeOptionalDeps }">
-                <svg v-if="includeOptionalDeps" width="12" height="12" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-              </span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f4a261" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                <line x1="12" y1="9" x2="12" y2="13"></line>
-                <line x1="12" y1="17" x2="12.01" y2="17"></line>
-              </svg>
-              <span>Optional deps</span>
-            </label>
+
           </div>
 
           <!-- Auth Popup Modal -->

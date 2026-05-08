@@ -761,8 +761,9 @@ document.addEventListener('DOMContentLoaded', () => {
         let tooltipTop = targetRect.top - tooltipHeight - 8; // 8px space above
         let isBelow = false;
 
-        // 5. Collision check: Top edge viewport boundaries
-        if (tooltipTop < 10) {
+        // 5. Force below if target has tooltip-below class or data-tooltip-position="below"
+        const forceBelow = target.classList.contains('tooltip-below') || target.getAttribute('data-tooltip-position') === 'below';
+        if (forceBelow || tooltipTop < 10) {
           tooltipTop = targetRect.bottom + 8; // display below instead
           isBelow = true;
         }

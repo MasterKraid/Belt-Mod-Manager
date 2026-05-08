@@ -154,7 +154,7 @@ body {
   border-bottom: 1px solid rgba(244, 211, 94, 0.15);
   padding-bottom: 0;
 }
-.tabs button {
+.tabs button:not(.dl-auth-btn) {
   background: transparent !important;
   border: none !important;
   border-bottom: 2px solid transparent !important;
@@ -169,11 +169,11 @@ body {
   box-shadow: none !important;
   transition: all 0.2s ease;
 }
-.tabs button:hover {
+.tabs button:not(.dl-auth-btn):hover {
   color: #ffe66d !important;
   border-bottom-color: rgba(244, 211, 94, 0.4) !important;
 }
-.tabs button.active {
+.tabs button:not(.dl-auth-btn).active {
   color: #f4d35e !important;
   border-bottom: 2px solid #f4d35e !important;
   text-shadow: 0 0 10px rgba(244, 211, 94, 0.3);
