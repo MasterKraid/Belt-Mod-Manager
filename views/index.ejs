@@ -1,51 +1,55 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="UTF-8">
   <title>Belt Mod Manager</title>
   <link rel="icon" type="image/png" href="/Assets/Belt.png">
   <link rel="stylesheet" href="/styles/main.css">
   <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
-  <style>[v-cloak] { display: none; }</style>
+  <style>
+    [v-cloak] {
+      display: none;
+    }
+  </style>
 </head>
+
 <body spellcheck="false">
-  
+
   <div id="notifications" class="notifications" v-cloak>
-     <div class="notif" v-for="note in notifications" :key="note.id">
-       {{ note.message }}
-       <div class="bar" :style="{ animationDuration: note.duration + 's' }"></div>
-     </div>
+    <div class="notif" v-for="note in notifications" :key="note.id">
+      {{ note.message }}
+      <div class="bar" :style="{ animationDuration: note.duration + 's' }"></div>
+    </div>
   </div>
 
   <div id="app" v-cloak>
-    <div class="glass-container"> 
+    <div class="glass-container">
       <!-- Custom Frameless Titlebar -->
       <div class="custom-titlebar">
         <div class="titlebar-drag-region"></div>
         <div class="titlebar-logo-title">
           <img src="/Assets/Belt.png" alt="Logo" class="titlebar-logo">
-          <span class="titlebar-title">Belt Mod Manager</span>
+          <span class="titlebar-title" style="margin-right: 0.5rem;">Belt Mod Manager</span>
         </div>
+        <div class="drag-ridges"></div>
         <div class="titlebar-controls">
           <button class="titlebar-btn minimize" @click="minimizeWindow" title="Minimize">
-            <svg viewBox="0 0 10.2 1" width="10" height="10"><rect y="0" width="10.2" height="1"></rect></svg>
-          </button>
-          <button class="titlebar-btn close" @click="closeWindow" title="Close">
-            <svg viewBox="0 0 10 10" width="10" height="10"><polygon points="10.2,0.7 9.5,0 5.1,4.4 0.7,0 0,0.7 4.4,5.1 0,9.5 0.7,10.2 5.1,5.8 9.5,10.2 10.2,9.5 5.8,5.1"></polygon></svg>
+            <svg viewBox="0 0 10.2 1" width="10" height="10">
+              <rect y="0" width="10.2" height="1"></rect>
+            </svg>
           </button>
         </div>
-      </div> 
+      </div>
       <div class="header-area">
         <div class="header-title-container" style="display: flex; align-items: center;">
           <img src="/Assets/Belt.png" class="thumbnail" style="margin: 0 1.25rem 0 0; object-fit: contain;" />
-          <h1>Belt Mod Manager <span style="font-size: 0.85rem; color: rgba(244, 211, 94, 0.7); font-family: 'Consolas', monospace; vertical-align: middle; margin-left: 0.5rem; background: rgba(244, 211, 94, 0.1); padding: 0.15rem 0.4rem; border: 1px solid rgba(244, 211, 94, 0.25); border-radius: 4px; letter-spacing: 0.5px;">v0.8.0</span></h1>
+          <h1>Belt Mod Manager <span
+              style="font-size: 0.85rem; color: rgba(244, 211, 94, 0.7); font-family: 'Consolas', monospace; vertical-align: middle; margin-left: 0.5rem; background: rgba(244, 211, 94, 0.1); padding: 0.15rem 0.4rem; border: 1px solid rgba(244, 211, 94, 0.25); border-radius: 4px; letter-spacing: 0.5px;">v0.8.5</span>
+          </h1>
         </div>
-        <button 
-          class="launch-btn" 
-          :class="{ running: isGameRunning }" 
-          @click="launchGame" 
-          :disabled="isGameRunning || !gamePath"
-        >
+        <button class="launch-btn" :class="{ running: isGameRunning }" @click="launchGame"
+          :disabled="isGameRunning || !gamePath">
           <svg v-if="!isGameRunning" class="launch-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
             <polygon points="5 3 19 12 5 21 5 3"></polygon>
           </svg>
@@ -56,293 +60,327 @@
           <span>{{ isGameRunning ? 'Game Running...' : 'Run Game' }}</span>
         </button>
       </div>
-      
+
       <div class="app-content-scrollable scroll-locked-layout">
 
-    <div v-if="isGameRunning" class="running-banner">
-      <svg class="warning-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.5rem; vertical-align: middle;">
-        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-        <line x1="12" y1="9" x2="12" y2="13"></line>
-        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-      </svg>
-      Factorio is currently running. Editing features are disabled to prevent file conflicts.
-    </div>
-
-    <nav class="tabs" style="margin-bottom: 0.25rem;">
-      <button :class="{active: currentTab==='profiles'}" @click="currentTab='profiles'">Profiles</button>
-      <button :class="{active: currentTab==='manager'}" @click="currentTab='manager'">Manager</button>
-      <button :class="{active: currentTab==='installed'}" @click="currentTab='installed'">Installed Mods</button>
-      <button :class="{active: currentTab==='settings'}" @click="currentTab='settings'">Settings</button>
-      <button :class="{active: currentTab==='downloader'}" @click="currentTab='downloader'">Downloader</button>
-    </nav>
-
-    <p class="status" v-show="status" style="margin: 0.15rem 0 0.4rem 0; font-size: 0.8rem; line-height: 1; color: rgba(244, 211, 94, 0.7);">{{ status }}</p>
-
-    <div v-show="currentTab==='profiles'" class="tab-content-wrapper">
-      <div class="profiles-section-box" style="margin-bottom: 9px; padding: 0.6rem 1.2rem;">
-        <h3 style="margin: 0; border: none; padding: 0; border-bottom: 1px solid rgba(244, 211, 94, 0.15); padding-bottom: 0.3rem; margin-bottom: 0.8rem; font-size: 1.1rem;">Paths</h3>
-        
-        <div class="path-setting-row" style="margin-bottom: calc(0.6rem + 3px); display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
-          <div style="font-weight: bold; color: #f4d35e; font-size: 0.85rem; flex-shrink: 0; min-width: 100px;">Mods Folder:</div>
-          <span style="font-family: 'Consolas', monospace; color: #ccc; word-break: break-all; font-size: 0.85rem; flex-grow: 1; text-align: left;">{{ currentModPath || '(default)' }}</span>
-          <button @click="setModPath" :disabled="isGameRunning" style="flex-shrink: 0; padding: 0.3rem 0.6rem; font-size: 0.8rem; margin: 0;">Set Path</button>
+        <div v-if="isGameRunning" class="running-banner">
+          <svg class="warning-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            style="margin-right: 0.5rem; vertical-align: middle;">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          Factorio is currently running. Editing features are disabled to prevent file conflicts.
         </div>
 
-        <div class="path-setting-row" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
-          <div style="font-weight: bold; color: #f4d35e; font-size: 0.85rem; flex-shrink: 0; min-width: 100px;">Game Folder:</div>
-          <span style="font-family: 'Consolas', monospace; color: #ccc; word-break: break-all; font-size: 0.85rem; flex-grow: 1; text-align: left;">{{ gamePath || '(not set)' }}</span>
-          <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
-            <button 
-              @click="detectSteamPath" 
-              :disabled="isGameRunning" 
-              class="steam-detect-btn" 
-              title="Auto-detect from Steam" 
-              style="display: flex; align-items: center; justify-content: center; padding: 0; margin: 0; background: rgba(25, 25, 25, 0.85); border: 1px solid rgba(244, 211, 94, 0.3); border-radius: 4px; cursor: pointer; color: #f4d35e; transition: all 0.2s ease; height: 29px; width: 29px;"
-            >
-              <svg width="24" height="24" viewBox="0 0 32 32" fill="currentColor">
-                <path d="M 22 6 C 18.745659 6 16.09469 8.6041857 16.007812 11.837891 L 12.337891 17.083984 C 12.065931 17.032464 11.786701 17 11.5 17 C 10.551677 17 9.673638 17.297769 8.9472656 17.800781 L 4 15.84375 L 4 21.220703 L 7.1054688 22.449219 C 7.5429388 24.475474 9.3449541 26 11.5 26 C 13.703628 26 15.534282 24.405137 15.917969 22.310547 L 21.691406 17.984375 C 21.794183 17.989633 21.895937 18 22 18 C 25.309 18 28 15.309 28 12 C 28 8.691 25.309 6 22 6 z M 22 8 C 24.206 8 26 9.794 26 12 C 26 14.206 24.206 16 22 16 C 19.794 16 18 14.206 18 12 C 18 9.794 19.794 8 22 8 z M 22 9 A 3 3 0 0 0 22 15 A 3 3 0 0 0 22 9 z M 11.5 18 C 13.43 18 15 19.57 15 21.5 C 15 23.43 13.43 25 11.5 25 C 10.078718 25 8.8581368 24.145398 8.3105469 22.925781 L 10.580078 23.824219 C 10.882078 23.944219 11.192047 24.001953 11.498047 24.001953 C 12.494047 24.001953 13.436219 23.403875 13.824219 22.421875 C 14.333219 21.137875 13.703922 19.683781 12.419922 19.175781 L 10.142578 18.273438 C 10.560118 18.097145 11.019013 18 11.5 18 z"/>
-              </svg>
-            </button>
-            <button @click="setGamePath" :disabled="isGameRunning" style="flex-shrink: 0; padding: 0.3rem 0.6rem; font-size: 0.8rem; margin: 0; height: 29px; display: flex; align-items: center; justify-content: center;">Set Game Path</button>
-          </div>
-        </div>
-      </div>
+        <nav class="tabs" style="margin-bottom: 0.25rem;">
+          <button :class="{active: currentTab==='profiles'}" @click="currentTab='profiles'">Profiles</button>
+          <button :class="{active: currentTab==='manager'}" @click="currentTab='manager'">Manager</button>
+          <button :class="{active: currentTab==='installed'}" @click="currentTab='installed'">Installed Mods</button>
+          <button :class="{active: currentTab==='settings'}" @click="currentTab='settings'">Settings</button>
+          <button :class="{active: currentTab==='downloader'}" @click="currentTab='downloader'">Downloader</button>
+        </nav>
 
-      <div class="profiles-section-box flex-fill" style="margin-top: 0px !important;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; border-bottom: 1px solid rgba(244, 211, 94, 0.15); padding-bottom: 0.5rem;">
-          <h3 style="margin: 0; border: none; padding: 0;">Profiles</h3>
-          <div class="search-wrapper" style="width: 250px; margin: 0;">
-            <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-            <input 
-              type="text" 
-              v-model="profileSearchQueryPage" 
-              placeholder="Search profiles..." 
-              class="premium-search-input"
-            />
-            <button v-if="profileSearchQueryPage" class="search-clear-btn" @click="profileSearchQueryPage = ''">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-          </div>
-        </div>
-        <div class="profile-list scrollable-list-box" :style="{ pointerEvents: isGameRunning ? 'none' : 'auto', opacity: isGameRunning ? 0.6 : 1 }">
-          <div class="mod-item profile-item" v-for="p in filteredProfilesList" :key="p" @click="activateProfile(p)">
-            <div class="profile-name" style="flex-grow: 1; max-width: calc(100% - 150px);">
-              <input
-                  v-if="editingProfile === p"
-                  v-model="renameInput"
-                  ref="renameInputRef"
-                  @keyup.enter="submitRename(p)"
-                  @keyup.esc="cancelRename"
-                  @click.stop
-                  style="background: #111; border: 1px solid #f4d35e; color: #f4d35e; padding: 0.3rem 0.5rem; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 0.9rem; outline: none; width: 100%; box-sizing: border-box;"
-                />
-              <strong v-else>{{ p }}</strong>
+        <p class="status" v-show="status"
+          style="margin: 0.15rem 0 0.4rem 0; font-size: 0.8rem; line-height: 1; color: rgba(244, 211, 94, 0.7);">{{
+          status }}</p>
+
+        <div v-show="currentTab==='profiles'" class="tab-content-wrapper">
+          <div class="profiles-section-box" style="margin-top: 10px; margin-bottom: 9px; padding: 0.6rem 1.2rem;">
+            <h3
+              style="margin: 0; border: none; padding: 0; border-bottom: 1px solid rgba(244, 211, 94, 0.15); padding-bottom: 0.3rem; margin-bottom: 0.8rem; font-size: 1.1rem;">
+              Paths</h3>
+
+            <div class="path-setting-row"
+              style="margin-bottom: calc(0.6rem + 3px); display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+              <div style="font-weight: bold; color: #f4d35e; font-size: 0.85rem; flex-shrink: 0; min-width: 100px;">Mods
+                Folder:</div>
+              <span
+                style="font-family: 'Consolas', monospace; color: #ccc; word-break: break-all; font-size: 0.85rem; flex-grow: 1; text-align: left;">{{
+                currentModPath || '(default)' }}</span>
+              <button @click="setModPath" :disabled="isGameRunning"
+                style="flex-shrink: 0; padding: 0.3rem 0.6rem; font-size: 0.8rem; margin: 0;">Set Path</button>
             </div>
-            <div style="display: flex; align-items: center; gap: 0.75rem;" @click.stop>
-              <!-- Editing Prompts -->
-              <div v-if="editingProfile === p" style="display: flex; align-items: center; gap: 0.4rem;">
-                <button @click.stop="submitRename(p)" style="background: rgba(244, 211, 94, 0.2); border: 1px solid #f4d35e; color: #f4d35e; padding: 0.2rem 0.5rem; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 0.8rem; cursor: pointer; font-weight: bold;">Accept</button>
-                <button @click.stop="cancelRename" style="background: #333; border: 1px solid #555; color: #ccc; padding: 0.2rem 0.5rem; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 0.8rem; cursor: pointer;">Cancel</button>
-              </div>
 
-              <!-- Two-Step Delete Prompts -->
-              <div v-else-if="deletingProfileName === p" style="display: flex; align-items: center; gap: 0.4rem;">
-                <button @click.stop="confirmDeleteProfile(p)" style="background: #d62246; border: 1px solid #d62246; color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 0.8rem; cursor: pointer; font-weight: bold;">Delete?</button>
-                <button @click.stop="deletingProfileName = null" style="background: #333; border: 1px solid #555; color: #ccc; padding: 0.2rem 0.5rem; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 0.8rem; cursor: pointer;">Cancel</button>
-              </div>
-
-              <template v-else>
-                <span v-if="p !== 'default'" @click.stop="deletingProfileName = p" title="Delete Profile" style="cursor: pointer; display: flex; align-items: center; margin-right: 0.25rem;">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#d62246" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.8; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.8'">
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    <line x1="10" y1="11" x2="10" y2="17"></line>
-                    <line x1="14" y1="11" x2="14" y2="17"></line>
+            <div class="path-setting-row"
+              style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+              <div style="font-weight: bold; color: #f4d35e; font-size: 0.85rem; flex-shrink: 0; min-width: 100px;">Game
+                Folder:</div>
+              <span
+                style="font-family: 'Consolas', monospace; color: #ccc; word-break: break-all; font-size: 0.85rem; flex-grow: 1; text-align: left;">{{
+                gamePath || '(not set)' }}</span>
+              <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
+                <button @click="detectSteamPath" :disabled="isGameRunning" class="steam-detect-btn"
+                  title="Auto-detect from Steam"
+                  style="display: flex; align-items: center; justify-content: center; padding: 0; margin: 0; background: rgba(25, 25, 25, 0.85); border: 1px solid rgba(244, 211, 94, 0.3); border-radius: 4px; cursor: pointer; color: #f4d35e; transition: all 0.2s ease; height: 29px; width: 29px;">
+                  <svg width="24" height="24" viewBox="0 0 32 32" fill="currentColor">
+                    <path
+                      d="M 22 6 C 18.745659 6 16.09469 8.6041857 16.007812 11.837891 L 12.337891 17.083984 C 12.065931 17.032464 11.786701 17 11.5 17 C 10.551677 17 9.673638 17.297769 8.9472656 17.800781 L 4 15.84375 L 4 21.220703 L 7.1054688 22.449219 C 7.5429388 24.475474 9.3449541 26 11.5 26 C 13.703628 26 15.534282 24.405137 15.917969 22.310547 L 21.691406 17.984375 C 21.794183 17.989633 21.895937 18 22 18 C 25.309 18 28 15.309 28 12 C 28 8.691 25.309 6 22 6 z M 22 8 C 24.206 8 26 9.794 26 12 C 26 14.206 24.206 16 22 16 C 19.794 16 18 14.206 18 12 C 18 9.794 19.794 8 22 8 z M 22 9 A 3 3 0 0 0 22 15 A 3 3 0 0 0 22 9 z M 11.5 18 C 13.43 18 15 19.57 15 21.5 C 15 23.43 13.43 25 11.5 25 C 10.078718 25 8.8581368 24.145398 8.3105469 22.925781 L 10.580078 23.824219 C 10.882078 23.944219 11.192047 24.001953 11.498047 24.001953 C 12.494047 24.001953 13.436219 23.403875 13.824219 22.421875 C 14.333219 21.137875 13.703922 19.683781 12.419922 19.175781 L 10.142578 18.273438 C 10.560118 18.097145 11.019013 18 11.5 18 z" />
                   </svg>
-                </span>
-                <span class="pencil" @click.stop="startRename(p)" title="Rename Profile">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
-                    <path d="M4 21v-3.586l11.293-11.293 3.586 3.586L7.586 21H4zm14.707-14.707l-1.414-1.414a1 1 0 00-1.414 0l-1.293 1.293 3.586 3.586 1.293-1.293a1 1 0 000-1.414z"/>
-                  </svg>
-                </span>
-              </template>
-              <label v-if="editingProfile !== p && deletingProfileName !== p" class="switch" style="margin-left: 0.25rem;">
-                <input type="checkbox" :checked="p === selectedProfile" @change="activateProfile(p)" :disabled="isGameRunning">
-                <span class="slider"></span>
-              </label>
+                </button>
+                <button @click="setGamePath" :disabled="isGameRunning"
+                  style="flex-shrink: 0; padding: 0.3rem 0.6rem; font-size: 0.8rem; margin: 0; height: 29px; display: flex; align-items: center; justify-content: center;">Set
+                  Game Path</button>
+              </div>
             </div>
           </div>
-        </div>
-        <button @click="createProfile" :disabled="isGameRunning" style="margin-top: 1rem; align-self: flex-start;">New Profile</button>
-      </div>
-    </div>
 
-    <div v-show="currentTab==='manager'" class="tab-content-wrapper">
-      <div class="active-profile-row" style="display: flex; align-items: center; gap: 0.75rem; margin-top: 1.25rem; margin-bottom: 1.5rem; position: relative; z-index: 10;">
-        <h3 style="margin: 0;">Active Profile:</h3>
-        <div class="custom-dropdown" :class="{ disabled: isGameRunning }">
-          <div class="dropdown-trigger" @click.stop="toggleDropdown">
-            <span class="profile-highlight">{{ selectedProfile }}</span>
-            <svg class="dropdown-arrow" :class="{ open: dropdownOpen }" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="6 9 12 15 18 9"></polyline>
-            </svg>
-          </div>
-          <div v-show="dropdownOpen" class="dropdown-menu">
-            <div v-if="profiles.length >= 10" class="dropdown-search-wrapper" @click.stop>
-              <input 
-                type="text" 
-                v-model="profileSearchQuery" 
-                placeholder="Search profiles..." 
-                class="dropdown-search-input"
-                ref="profileSearch"
-              />
-            </div>
-            <div class="dropdown-items-list" style="max-height: 250px; overflow-y: auto;">
-              <div 
-                v-for="p in filteredDropdownProfiles" 
-                :key="p" 
-                class="dropdown-item" 
-                :class="{ active: p === selectedProfile }"
-                @click.stop="activateProfileFromDropdown(p)"
-              >
-                <svg v-if="p === selectedProfile" class="check-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="20 6 9 17 4 12"></polyline>
+          <div class="profiles-section-box flex-fill" style="margin-top: 0px !important;">
+            <div
+              style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; border-bottom: 1px solid rgba(244, 211, 94, 0.15); padding-bottom: 0.5rem;">
+              <h3 style="margin: 0; border: none; padding: 0;">Profiles</h3>
+              <div class="search-wrapper" style="width: 250px; margin: 0;">
+                <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                 </svg>
-                <span>{{ p }}</span>
+                <input type="text" v-model="profileSearchQueryPage" placeholder="Search profiles..."
+                  class="premium-search-input" />
+                <button v-if="profileSearchQueryPage" class="search-clear-btn" @click="profileSearchQueryPage = ''">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="profile-list scrollable-list-box"
+              :style="{ pointerEvents: isGameRunning ? 'none' : 'auto', opacity: isGameRunning ? 0.6 : 1 }">
+              <div class="mod-item profile-item" v-for="p in filteredProfilesList" :key="p" @click="activateProfile(p)">
+                <div class="profile-name" style="flex-grow: 1; max-width: calc(100% - 150px);">
+                  <input v-if="editingProfile === p" v-model="renameInput" ref="renameInputRef"
+                    @keyup.enter="submitRename(p)" @keyup.esc="cancelRename" @click.stop
+                    style="background: #111; border: 1px solid #f4d35e; color: #f4d35e; padding: 0.3rem 0.5rem; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 0.9rem; outline: none; width: 100%; box-sizing: border-box;" />
+                  <strong v-else>{{ p }}</strong>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.75rem;" @click.stop>
+                  <!-- Editing Prompts -->
+                  <div v-if="editingProfile === p" style="display: flex; align-items: center; gap: 0.4rem;">
+                    <button @click.stop="submitRename(p)"
+                      style="background: rgba(244, 211, 94, 0.2); border: 1px solid #f4d35e; color: #f4d35e; padding: 0.2rem 0.5rem; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 0.8rem; cursor: pointer; font-weight: bold;">Accept</button>
+                    <button @click.stop="cancelRename"
+                      style="background: #333; border: 1px solid #555; color: #ccc; padding: 0.2rem 0.5rem; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 0.8rem; cursor: pointer;">Cancel</button>
+                  </div>
+
+                  <!-- Two-Step Delete Prompts -->
+                  <div v-else-if="deletingProfileName === p" style="display: flex; align-items: center; gap: 0.4rem;">
+                    <button @click.stop="confirmDeleteProfile(p)"
+                      style="background: #d62246; border: 1px solid #d62246; color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 0.8rem; cursor: pointer; font-weight: bold;">Delete?</button>
+                    <button @click.stop="deletingProfileName = null"
+                      style="background: #333; border: 1px solid #555; color: #ccc; padding: 0.2rem 0.5rem; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 0.8rem; cursor: pointer;">Cancel</button>
+                  </div>
+
+                  <template v-else>
+                    <span v-if="p !== 'default'" @click.stop="deletingProfileName = p" title="Delete Profile"
+                      style="cursor: pointer; display: flex; align-items: center; margin-right: 0.25rem;">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none"
+                        stroke="#d62246" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        style="opacity: 0.8; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'"
+                        onmouseout="this.style.opacity='0.8'">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                      </svg>
+                    </span>
+                    <span class="pencil" @click.stop="startRename(p)" title="Rename Profile">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+                        <path
+                          d="M4 21v-3.586l11.293-11.293 3.586 3.586L7.586 21H4zm14.707-14.707l-1.414-1.414a1 1 0 00-1.414 0l-1.293 1.293 3.586 3.586 1.293-1.293a1 1 0 000-1.414z" />
+                      </svg>
+                    </span>
+                  </template>
+                  <label v-if="editingProfile !== p && deletingProfileName !== p" class="switch"
+                    style="margin-left: 0.25rem;">
+                    <input type="checkbox" :checked="p === selectedProfile" @change="activateProfile(p)"
+                      :disabled="isGameRunning">
+                    <span class="slider"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <button @click="createProfile" :disabled="isGameRunning"
+              style="margin-top: 1rem; align-self: flex-start;">New Profile</button>
+          </div>
+        </div>
+
+        <div v-show="currentTab==='manager'" class="tab-content-wrapper">
+          <div class="active-profile-row"
+            style="display: flex; align-items: center; gap: 0.75rem; margin-top: calc(1.25rem - 5px); margin-bottom: 0.75rem; position: relative; z-index: 10;">
+            <h3 style="margin: 0;">Active Profile:</h3>
+            <div class="custom-dropdown" :class="{ disabled: isGameRunning }">
+              <div class="dropdown-trigger" @click.stop="toggleDropdown">
+                <span class="profile-highlight">{{ selectedProfile }}</span>
+                <svg class="dropdown-arrow" :class="{ open: dropdownOpen }" width="18" height="18" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
+              <div v-show="dropdownOpen" class="dropdown-menu">
+                <div v-if="profiles.length >= 10" class="dropdown-search-wrapper" @click.stop>
+                  <input type="text" v-model="profileSearchQuery" placeholder="Search profiles..."
+                    class="dropdown-search-input" ref="profileSearch" />
+                </div>
+                <div class="dropdown-items-list" style="max-height: 250px; overflow-y: auto;">
+                  <div v-for="p in filteredDropdownProfiles" :key="p" class="dropdown-item"
+                    :class="{ active: p === selectedProfile }" @click.stop="activateProfileFromDropdown(p)">
+                    <svg v-if="p === selectedProfile" class="check-icon" width="14" height="14" viewBox="0 0 24 24"
+                      fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    <span>{{ p }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="profiles-section-box flex-fill" style="margin-top: 0.5rem;">
+            <div class="manager-controls-row"
+              style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem;">
+              <div class="btn-group" style="display: flex; gap: 0.5rem; flex-shrink: 0;">
+                <button @click="toggleAll(true)" :disabled="isGameRunning">Enable All</button>
+                <button @click="toggleAll(false)" :disabled="isGameRunning">Disable All</button>
+                <button @click="saveMods" :disabled="isGameRunning">Save</button>
+              </div>
+
+              <div
+                style="display: flex; align-items: center; gap: 0.5rem; flex-grow: 1; max-width: 390px; justify-content: flex-end;">
+                <button class="folder-open-btn" @click="openModFolder" title="Open Mods Folder"
+                  style="background: rgba(25, 25, 25, 0.85); border: 1px solid rgba(244, 211, 94, 0.3); border-radius: 4px; padding: 0.45rem; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #f4d35e; transition: all 0.2s ease;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                </button>
+                <div class="search-wrapper" style="flex-grow: 1; max-width: 350px; margin: 0;">
+                  <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  </svg>
+                  <input type="text" v-model="searchQueryManager" placeholder="Search mods..."
+                    class="premium-search-input" />
+                  <button v-if="searchQueryManager" class="search-clear-btn" @click="searchQueryManager = ''">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="mod-list scrollable-list-box" :style="{ opacity: isGameRunning ? 0.75 : 1 }">
+              <div class="mod-item" v-for="mod in filteredMods" :key="mod.name">
+                <div class="mod-info-container" style="display: flex; align-items: center; gap: 0.75rem;">
+                  <img v-if="mod.thumbnail" :src="mod.thumbnail" class="thumbnail manager-thumbnail"
+                    :class="{ 'base-mod-logo': mod.name === 'base' }"
+                    style="width: 32px; height: 32px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(244, 211, 94, 0.2);" />
+                  <div class="mod-meta">
+                    <strong>{{ mod.title }}</strong> <small>({{ mod.name }})</small>
+                    <div class="version">v{{ mod.version }}</div>
+                  </div>
+                </div>
+                <label class="switch" :class="{ disabled: isGameRunning || mod.name === 'base' }">
+                  <input type="checkbox" v-model="mod.enabled" @change="autoSaveMods"
+                    :disabled="isGameRunning || mod.name === 'base'">
+                  <span class="slider"></span>
+                </label>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="profiles-section-box flex-fill" style="margin-top: 0.5rem;">
-        <div class="manager-controls-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem;">
-          <div class="btn-group" style="display: flex; gap: 0.5rem; flex-shrink: 0;">
-            <button @click="toggleAll(true)" :disabled="isGameRunning">Enable All</button>
-            <button @click="toggleAll(false)" :disabled="isGameRunning">Disable All</button>
-            <button @click="saveMods" :disabled="isGameRunning">Save</button>
-          </div>
+        <div v-show="currentTab==='installed'" class="installed-page-container tab-content-wrapper">
+          <div class="installed-title-row"
+            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; gap: 1rem;">
+            <h3 style="margin: 0;">Installed Mods</h3>
 
-          <div style="display: flex; align-items: center; gap: 0.5rem; flex-grow: 1; max-width: 390px; justify-content: flex-end;">
-            <button class="folder-open-btn" @click="openModFolder" title="Open Mods Folder" style="background: rgba(25, 25, 25, 0.85); border: 1px solid rgba(244, 211, 94, 0.3); border-radius: 4px; padding: 0.45rem; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #f4d35e; transition: all 0.2s ease;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-              </svg>
-            </button>
-            <div class="search-wrapper" style="flex-grow: 1; max-width: 350px; margin: 0;">
-              <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
-              <input 
-                type="text" 
-                v-model="searchQueryManager" 
-                placeholder="Search mods..." 
-                class="premium-search-input"
-              />
-              <button v-if="searchQueryManager" class="search-clear-btn" @click="searchQueryManager = ''">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
+            <div
+              style="display: flex; align-items: center; gap: 0.5rem; flex-grow: 1; max-width: 390px; justify-content: flex-end;">
+              <button class="folder-open-btn" @click="openModFolder" title="Open Mods Folder"
+                style="background: rgba(25, 25, 25, 0.85); border: 1px solid rgba(244, 211, 94, 0.3); border-radius: 4px; padding: 0.45rem; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #f4d35e; transition: all 0.2s ease;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                 </svg>
               </button>
-            </div>
-          </div>
-        </div>
-
-        <div class="mod-list scrollable-list-box" :style="{ opacity: isGameRunning ? 0.75 : 1 }">
-          <div class="mod-item" v-for="mod in filteredMods" :key="mod.name">
-            <div class="mod-info-container" style="display: flex; align-items: center; gap: 0.75rem;">
-              <img v-if="mod.thumbnail" :src="mod.thumbnail" class="thumbnail manager-thumbnail" :class="{ 'base-mod-logo': mod.name === 'base' }" style="width: 32px; height: 32px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(244, 211, 94, 0.2);" />
-              <div class="mod-meta">
-                <strong>{{ mod.title }}</strong> <small>({{ mod.name }})</small>
-                <div class="version">v{{ mod.version }}</div>
+              <div class="search-wrapper" style="flex-grow: 1; max-width: 350px; margin: 0;">
+                <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" v-model="searchQueryInstalled" placeholder="Search installed mods..."
+                  class="premium-search-input" />
+                <button v-if="searchQueryInstalled" class="search-clear-btn" @click="searchQueryInstalled = ''">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
               </div>
             </div>
-            <label class="switch" :class="{ disabled: isGameRunning || mod.name === 'base' }">
-              <input type="checkbox" v-model="mod.enabled" @change="autoSaveMods" :disabled="isGameRunning || mod.name === 'base'">
-              <span class="slider"></span>
-            </label>
           </div>
-        </div>
-      </div>
-    </div>
 
-    <div v-show="currentTab==='installed'" class="installed-page-container tab-content-wrapper">
-      <div class="installed-title-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 1rem;">
-        <h3 style="margin: 0;">Installed Mods</h3>
+          <div class="mod-list">
+            <div class="mod-item installed-item" v-for="mod in filteredInstalledMods" :key="mod.name">
+              <div class="installed-header" @click="toggleExpand(mod.name)">
+                <div class="installed-title-area">
+                  <img v-if="mod.thumbnail" :src="mod.thumbnail" class="thumbnail"
+                    :class="{ 'base-mod-logo': mod.name === 'base' }" />
+                  <div class="title-meta">
+                    <strong>{{ mod.title }}</strong> <small>({{ mod.name }})</small>
+                    <div class="version">v{{ mod.version }}</div>
+                  </div>
+                </div>
+                <div class="expand-arrow" :class="{ expanded: expandedMods.includes(mod.name) }">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+              </div>
 
-        <div style="display: flex; align-items: center; gap: 0.5rem; flex-grow: 1; max-width: 390px; justify-content: flex-end;">
-          <button class="folder-open-btn" @click="openModFolder" title="Open Mods Folder" style="background: rgba(25, 25, 25, 0.85); border: 1px solid rgba(244, 211, 94, 0.3); border-radius: 4px; padding: 0.45rem; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #f4d35e; transition: all 0.2s ease;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-            </svg>
-          </button>
-          <div class="search-wrapper" style="flex-grow: 1; max-width: 350px; margin: 0;">
-            <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-            <input 
-              type="text" 
-              v-model="searchQueryInstalled" 
-              placeholder="Search installed mods..." 
-              class="premium-search-input"
-            />
-            <button v-if="searchQueryInstalled" class="search-clear-btn" @click="searchQueryInstalled = ''">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div class="mod-list">
-        <div class="mod-item installed-item" v-for="mod in filteredInstalledMods" :key="mod.name">
-          <div class="installed-header" @click="toggleExpand(mod.name)">
-            <div class="installed-title-area">
-              <img v-if="mod.thumbnail" :src="mod.thumbnail" class="thumbnail" :class="{ 'base-mod-logo': mod.name === 'base' }" />
-              <div class="title-meta">
-                <strong>{{ mod.title }}</strong> <small>({{ mod.name }})</small>
-                <div class="version">v{{ mod.version }}</div>
+              <div v-show="expandedMods.includes(mod.name)" class="mod-details">
+                <p><strong>Author:</strong> {{ mod.author || 'Unknown' }}</p>
+                <p><strong>Description:</strong> {{ mod.description || 'No description.' }}</p>
+                <p><strong>Dependencies:</strong>
+                  <span class="dependency-list">
+                    {{ Array.isArray(mod.dependencies) && mod.dependencies.length ? mod.dependencies.join(', ') : 'None'
+                    }}
+                  </span>
+                </p>
               </div>
             </div>
-            <div class="expand-arrow" :class="{ expanded: expandedMods.includes(mod.name) }">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
-            </div>
-          </div>
-        
-          <div v-show="expandedMods.includes(mod.name)" class="mod-details">
-            <p><strong>Author:</strong> {{ mod.author || 'Unknown' }}</p>
-            <p><strong>Description:</strong> {{ mod.description || 'No description.' }}</p>
-            <p><strong>Dependencies:</strong> 
-              <span class="dependency-list">
-                {{ Array.isArray(mod.dependencies) && mod.dependencies.length ? mod.dependencies.join(', ') : 'None' }}
-              </span>
-            </p>
           </div>
         </div>
-      </div>
-    </div>
 
-  <!-- Placeholder Tabs -->
-    <div v-show="currentTab==='settings'"><p>Coming soon...</p></div>
-    <div v-show="currentTab==='downloader'"><p>Coming soon...</p></div>
-  </div>
-  </div>
+        <!-- Placeholder Tabs -->
+        <div v-show="currentTab==='settings'">
+          <p>Coming soon...</p>
+        </div>
+        <div v-show="currentTab==='downloader'">
+          <p>Coming soon...</p>
+        </div>
+      </div>
+
+      <div class="app-footer">
+        <button class="exit-btn" @click="closeWindow">Exit</button>
+        <div class="drag-ridges"></div>
+      </div>
+
+    </div>
   </div>
 
 
   <script src="/scripts/main.js"></script>
 </body>
+
 </html>

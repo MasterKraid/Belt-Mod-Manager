@@ -11,6 +11,9 @@ A desktop application to manage mod profiles for Factorio. Switch mods on/off us
 
 ## Version History
 
+- **v0.8.5**
+  - Fine-tuned layout spacing and vertical gaps across all tabs
+  - Updated footer gap enforcement and recompiled styles
 - **v0.8.0**
   - Rebranded application to "Belt Mod Manager" ("Belt MM")
   - Added custom application icons using Assets/Belt.ico and Belt.png

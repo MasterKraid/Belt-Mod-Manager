@@ -11,7 +11,13 @@
   -webkit-user-select: none;
 }
 
-input, textarea, [contenteditable=true], .profile-item, .profile-item *, .installed-page-container, .installed-page-container * {
+input,
+textarea,
+[contenteditable=true],
+.profile-item,
+.profile-item *,
+.installed-page-container,
+.installed-page-container * {
   user-select: text;
   -webkit-user-select: text;
 }
@@ -22,7 +28,8 @@ img {
   -webkit-user-drag: none !important;
 }
 
-.installed-title-row, .installed-title-row * {
+.installed-title-row,
+.installed-title-row * {
   user-select: none !important;
   -webkit-user-select: none !important;
 }
@@ -112,6 +119,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  margin-bottom: 8px;
 }
 .app-content-scrollable.scroll-locked-layout {
   overflow: hidden !important;
@@ -215,7 +223,7 @@ button:disabled {
 
 .mod-list {
   flex: 1;
-  margin-top: 1.5rem;
+  margin-top: 0.5rem;
   overflow-y: auto;
   min-height: 0;
   padding-right: 0.25rem;
@@ -507,11 +515,15 @@ input:checked + .slider:before {
   align-items: center;
   margin-bottom: 0.75rem;
   border-bottom: 1px solid rgba(244, 211, 94, 0.2);
+  padding-top: 0.75rem;
   padding-bottom: 0.7rem;
   margin-left: -1.5rem;
   margin-right: -1.5rem;
   padding-left: 1.5rem;
   padding-right: 1.5rem;
+  background-color: rgba(18, 18, 18, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 .header-area h1 {
   margin: 0;
@@ -611,7 +623,8 @@ input:checked + .slider:before {
   position: relative;
   cursor: pointer;
   user-select: none;
-  width: 240px; /* Static fixed width to prevent shifting */
+  width: 240px;
+  /* Static fixed width to prevent shifting */
 }
 .custom-dropdown.disabled {
   pointer-events: none;
@@ -625,7 +638,8 @@ input:checked + .slider:before {
 .custom-dropdown .dropdown-trigger {
   display: flex;
   align-items: center;
-  justify-content: space-between; /* Space profile text on left, chevron on right */
+  justify-content: space-between;
+  /* Space profile text on left, chevron on right */
   width: 100%;
   box-sizing: border-box;
   gap: 0.75rem;
@@ -663,7 +677,8 @@ input:checked + .slider:before {
   top: calc(100% + 5px);
   right: 0;
   left: auto;
-  width: 100%; /* Match trigger box width perfectly */
+  width: 100%;
+  /* Match trigger box width perfectly */
   background-color: #1a1a1a;
   border: 1px solid #f4d35e;
   border-radius: 4px;
@@ -809,14 +824,16 @@ input:checked + .slider:before {
   padding-bottom: 0.5rem;
 }
 
-.folder-open-btn:hover:not(:disabled), .steam-detect-btn:hover:not(:disabled) {
+.folder-open-btn:hover:not(:disabled),
+.steam-detect-btn:hover:not(:disabled) {
   border-color: #f4d35e !important;
   background-color: rgba(35, 35, 35, 0.95) !important;
   color: #ffe66d !important;
   box-shadow: 0 0 12px rgba(244, 211, 94, 0.25);
   transform: scale(1.05);
 }
-.folder-open-btn:active:not(:disabled), .steam-detect-btn:active:not(:disabled) {
+.folder-open-btn:active:not(:disabled),
+.steam-detect-btn:active:not(:disabled) {
   transform: scale(0.95);
 }
 
@@ -825,7 +842,7 @@ input:checked + .slider:before {
   margin-top: -1.5rem;
   margin-left: -1.5rem;
   margin-right: -1.5rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0;
   height: 36px;
   background-color: rgba(18, 18, 18, 0.95);
   border-bottom: 1px solid rgba(244, 211, 94, 0.15);
@@ -897,6 +914,65 @@ input:checked + .slider:before {
   border-top-right-radius: 11px;
   background-color: #d62246 !important;
   color: #ffffff !important;
+}
+
+.drag-ridges {
+  /* To edit the top ridges height, change this value! */
+  flex-grow: 1;
+  height: 24px;
+  background-image: repeating-linear-gradient(to right, rgba(255, 255, 255, 0) 0px, rgba(255, 255, 255, 0) 3px, rgba(100, 100, 100, 0.4) 3px, rgba(100, 100, 100, 0.4) 4px, rgba(0, 0, 0, 0.9) 4px, rgba(0, 0, 0, 0.9) 6px);
+  margin: 0 10px;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.app-footer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 36px;
+  margin-top: auto;
+  margin-left: -1.5rem;
+  margin-right: -1.5rem;
+  margin-bottom: -1.5rem;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  background-color: rgba(18, 18, 18, 0.95);
+  border-top: 1px solid rgba(244, 211, 94, 0.15);
+  border-radius: 0 0 11px 11px;
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+}
+.app-footer .drag-ridges {
+  /* To edit the bottom ridges height, change this value! */
+  height: 30px;
+}
+.app-footer .exit-btn {
+  -webkit-app-region: no-drag;
+  background-color: #ff5555;
+  border: none;
+  color: #1a1a1a;
+  font-weight: bold;
+  text-align: left;
+  padding: 0.3rem 2rem 0.3rem 1rem;
+  margin: 0;
+  cursor: pointer;
+  border-radius: 4px;
+  z-index: 1;
+  font-family: "Consolas", monospace;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  clip-path: polygon(8px 0%, 100% 0%, 100% 100%, 8px 100%, 0% 50%);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+.app-footer .exit-btn:hover:not(:disabled) {
+  background-color: #ff7777;
+  filter: drop-shadow(0 4px 12px rgba(255, 85, 85, 0.35));
+  transform: translateY(-1px);
+}
+.app-footer .exit-btn:active:not(:disabled) {
+  transform: scale(0.94) translateY(0);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15)) brightness(0.9);
 }
 
 /*# sourceMappingURL=main.css.map */
