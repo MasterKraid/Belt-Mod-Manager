@@ -463,9 +463,9 @@ document.addEventListener('DOMContentLoaded', () => {
       },
 
       // --- Downloader Tab ---
-      portalSearch(page) {
+      portalSearch(page, silent = false) {
         if (this.portalLoading) return;
-        this.playSound('click');
+        if (!silent) this.playSound('click');
         this.portalLoading = true;
         this.portalSearched = true;
         const q = this.portalQuery.trim();
@@ -687,6 +687,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(data => this.gamePath = data.path);
       this.fetchInstalledMods();
       this.fetchAuthStatus();
+      this.portalSearch(1, true);
 
       // Dismiss the custom dropdown on click-away
       document.addEventListener('click', () => {
