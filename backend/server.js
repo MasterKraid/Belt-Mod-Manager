@@ -8,6 +8,7 @@ const { DownloadManager } = require('./download-manager');
 const credStore = require('./credential-store');
 const https = require('https');
 const { Worker } = require('worker_threads');
+const ejs = require('ejs');
 
 const app = express();
 const isDev = process.argv.includes('--dev');
@@ -78,6 +79,7 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use('/Assets', express.static(path.join(__dirname, '..', 'Assets')));
 app.use('/js/vue.js', express.static(path.join(__dirname, '..', 'node_modules/vue/dist/vue.min.js')));
 app.use(express.json({ limit: '20mb' }));
+app.engine('ejs', ejs.renderFile);
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, '..', 'views'));
 
