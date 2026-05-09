@@ -10,9 +10,10 @@ const https = require('https');
 const { Worker } = require('worker_threads');
 
 const app = express();
+const isDev = process.argv.includes('--dev');
 const PORT = process.env.NODE_ENV === 'test' 
   ? 0 
-  : Number.parseInt(process.env.BELTMM_PORT || '14155', 10);
+  : (isDev ? 14155 : Number.parseInt(process.env.BELTMM_PORT || '0', 10));
 const HOST = '127.0.0.1';
 const SERVER_START_MS = Date.now();
 

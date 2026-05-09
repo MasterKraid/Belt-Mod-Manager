@@ -2,16 +2,41 @@ use tauri::Manager;
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
 
+fn find_backend_dir() -> Option<std::path::PathBuf> {
+    // 1. Check current working directory first
+    if std::path::Path::new("backend/server.js").exists() {
+        return Some(std::path::PathBuf::from("."));
+    }
+
+    // 2. Climb up from current executable to find the project root containing backend/server.js
+    if let Ok(exe_path) = std::env::current_exe() {
+        let mut dir = exe_path.parent();
+        while let Some(path) = dir {
+            if path.join("backend/server.js").exists() {
+                return Some(path.to_path_buf());
+            }
+            dir = path.parent();
+        }
+    }
+
+    None
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
             let shell = app.shell();
-            // Spawns "node backend/server.js" in the background
-            let (mut rx, _child) = shell.command("node")
-                .args(["backend/server.js"])
-                .spawn()
+            // Spawns "node backend/server.js" in the background with dynamically resolved working directory
+            let mut cmd = shell.command("node")
+                .args(["backend/server.js"]);
+
+            if let Some(backend_dir) = find_backend_dir() {
+                cmd = cmd.current_dir(backend_dir);
+            }
+
+            let (mut rx, _child) = cmd.spawn()
                 .expect("failed to spawn node server");
 
             let app_handle = app.handle().clone();
