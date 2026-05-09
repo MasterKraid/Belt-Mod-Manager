@@ -268,27 +268,34 @@ const vueAppOptions = {
           optional: false
         };
       },
-      enableDependenciesOf(mod, visited = new Set()) {
-        if (!mod || !mod.name || visited.has(mod.name)) return;
-        visited.add(mod.name);
+      enableDependenciesOf(mod) {
+        if (!mod || !mod.name) return;
+        const visited = new Set();
+        const stack = [mod];
 
-        const installed = this.installedMods.find(m => m.name === mod.name);
-        if (!installed || !installed.dependencies) return;
+        while (stack.length > 0) {
+          const current = stack.pop();
+          if (visited.has(current.name)) continue;
+          visited.add(current.name);
 
-        installed.dependencies.forEach(depStr => {
-          if (!depStr || typeof depStr !== 'string' || !depStr.trim()) return;
-          const parsed = this.parseDependency(depStr);
-          if (parsed && parsed.required) {
-            if (visited.has(parsed.name)) return; // Prevent traversing/entering visited nodes entirely!
+          const installed = this.installedMods.find(m => m.name === current.name);
+          if (!installed || !installed.dependencies) continue;
 
-            const depMod = this.mods.find(m => m.name === parsed.name);
-            if (depMod && !depMod.enabled) {
-              depMod.enabled = true;
-              this.notify(`Enabled required dependency: ${depMod.title || depMod.name}`);
-              this.enableDependenciesOf(depMod, visited);
+          installed.dependencies.forEach(depStr => {
+            if (!depStr || typeof depStr !== 'string' || !depStr.trim()) return;
+            const parsed = this.parseDependency(depStr);
+            if (parsed && parsed.required) {
+              if (visited.has(parsed.name)) return;
+
+              const depMod = this.mods.find(m => m.name === parsed.name);
+              if (depMod && !depMod.enabled) {
+                depMod.enabled = true;
+                this.notify(`Enabled required dependency: ${depMod.title || depMod.name}`);
+                stack.push(depMod);
+              }
             }
-          }
-        });
+          });
+        }
       },
       getMissingDependencies(mod) {
         const installed = this.installedMods.find(m => m.name === mod.name);

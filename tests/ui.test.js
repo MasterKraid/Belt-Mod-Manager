@@ -6,7 +6,20 @@ describe('Frontend Application Logic and Helper Tests', () => {
   let vueAppOptions;
   let sfx;
 
+  let originalWindow;
+  let originalAudio;
+  let originalDocument;
+  let originalVue;
+  let originalFetch;
+
   beforeEach(() => {
+    // Keep absolute holds on the original globals to eliminate parallelization interference
+    originalWindow = global.window;
+    originalAudio = global.Audio;
+    originalDocument = global.document;
+    originalVue = global.Vue;
+    originalFetch = global.fetch;
+
     // 1. Mock global window, document and Audio synchronously in Node context
     global.window = {
       Audio: class {
@@ -90,12 +103,12 @@ describe('Frontend Application Logic and Helper Tests', () => {
   });
 
   afterEach(async () => {
-    // Rigid global and mock teardowns to prevent any leakages
-    delete global.window;
-    delete global.Audio;
-    delete global.document;
-    delete global.Vue;
-    delete global.fetch;
+    // Revert global environment mutations strictly to their original references
+    global.window = originalWindow;
+    global.Audio = originalAudio;
+    global.document = originalDocument;
+    global.Vue = originalVue;
+    global.fetch = originalFetch;
 
     jest.clearAllTimers();
     jest.useRealTimers();
@@ -126,7 +139,7 @@ describe('Frontend Application Logic and Helper Tests', () => {
     playSpy.mockRestore();
   });
 
-  it('should create and remove notifications correctly on notify()', () => {
+  it('should create and remove notifications correctly on notify()', async () => {
     jest.useFakeTimers();
 
     vueInstance.notify('Test notification message', 5);
@@ -136,6 +149,7 @@ describe('Frontend Application Logic and Helper Tests', () => {
 
     // Fast-forward 5 seconds
     jest.advanceTimersByTime(5000);
+    await Promise.resolve(); // Flush pending microtasks/promises triggered within advanced timers
 
     expect(vueInstance.notifications.length).toBe(0);
   });
@@ -304,8 +318,8 @@ describe('Frontend Application Logic and Helper Tests', () => {
       // 3. Run real pollDownloads
       vueInstance.pollDownloads();
 
-      // Flush microtasks and pending macro tasks cleanly
-      await new Promise(resolve => setImmediate(resolve));
+      // Portable, standard microtask promise flushes in Node/Jest contexts
+      await new Promise(resolve => process.nextTick(resolve));
 
       // Assert that activeDownloads got populated
       expect(vueInstance.activeDownloads).toHaveLength(1);
@@ -325,10 +339,24 @@ describe('Frontend Application Logic and Helper Tests', () => {
       fetchInstalledModsSpy.mockRestore();
     });
 
-    it('should fuzz dependency parser with 1,000 truly randomized random-byte and Unicode strings to verify zero crashes', () => {
+    it('should fuzz dependency parser with 1,000 truly randomized random-byte and structurally diverse Unicode strings to verify zero crashes', () => {
       const crypto = require('crypto');
+      const structuralPool = [
+        '   ', '\n\t\r \u200B', 'Arabic \u0627\u0644\u0639\u0631\u0628\u064a\u0629', '🔥 \uD83D\uDE00', 'base >= <= != ? ! 1.0.0',
+        '? ! ~ (?) (!)', 'space-age <', 'quality = 1.0.0', 'a'.repeat(2000), '\u202D\u202E\u200B\uFEFF', 'name ===!?',
+        'quality >= 1.0.0 <= 2.0.0', '(?!) !!abc', 'base >=\n2.0'
+      ];
+
       for (let i = 0; i < 1000; i++) {
-        const input = crypto.randomBytes(32).toString('utf8');
+        let input;
+        if (i < 500) {
+          input = crypto.randomBytes(32).toString('utf8');
+        } else {
+          const baseStr = structuralPool[i % structuralPool.length];
+          const randomSuffix = crypto.randomBytes(8).toString('utf8');
+          input = baseStr + randomSuffix;
+        }
+
         expect(() => {
           const res = vueInstance.parseDependency(input);
           if (res !== null) {
@@ -427,8 +455,8 @@ describe('Frontend Application Logic and Helper Tests', () => {
       const bMod = vueInstance.mods.find(m => m.name === 'b');
       expect(bMod.enabled).toBe(true);
 
-      // Verify recursion terminated cleanly without re-entry (exactly 2 calls: a and b)
-      expect(enableSpy).toHaveBeenCalledTimes(2);
+      // Verify iterative resolution completed cleanly with exactly 1 outer invocation
+      expect(enableSpy).toHaveBeenCalledTimes(1);
 
       // Verify decoupled notification state outcome
       const notifyMessages = notifySpy.mock.calls.map(call => call[0]);
@@ -436,6 +464,32 @@ describe('Frontend Application Logic and Helper Tests', () => {
 
       notifySpy.mockRestore();
       enableSpy.mockRestore();
+    });
+
+    it('should handle deeply nested dependency chains (1,000 levels) without stack overflow or performance lag using iterative resolution', () => {
+      const numMods = 1000;
+      vueInstance.mods = [];
+      vueInstance.installedMods = [];
+
+      for (let i = 0; i < numMods; i++) {
+        vueInstance.mods.push({ name: `mod-${i}`, enabled: i === 0 });
+        vueInstance.installedMods.push({
+          name: `mod-${i}`,
+          dependencies: i < numMods - 1 ? [`mod-${i + 1}`] : []
+        });
+      }
+
+      const notifySpy = jest.spyOn(vueInstance, 'notify').mockImplementation();
+
+      // Trigger iterative resolution on mod-0
+      vueInstance.enableDependenciesOf({ name: 'mod-0' });
+
+      // All 1000 mods in the chain should resolve and enable cleanly with zero stack overflows!
+      const allEnabled = vueInstance.mods.every(m => m.enabled === true);
+      expect(allEnabled).toBe(true);
+      expect(notifySpy).toHaveBeenCalledTimes(999);
+
+      notifySpy.mockRestore();
     });
 
     it('should handle failed download cancellation requests gracefully', async () => {
