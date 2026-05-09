@@ -836,7 +836,7 @@ const vueAppOptions = {
           clearTimeout(this.downloadPollTimer);
           this.downloadPollTimer = null;
         }
-        fetch('/api/portal/downloads')
+        return fetch('/api/portal/downloads')
           .then(res => res.json())
           .then(data => {
             this.activeDownloads = data || [];
@@ -918,14 +918,14 @@ const vueAppOptions = {
 
       cancelDownload(id) {
         this.playSound('click');
-        fetch(`/api/portal/download-cancel/${id}`, { method: 'POST' })
+        return fetch(`/api/portal/download-cancel/${id}`, { method: 'POST' })
           .then(() => this.pollDownloads())
           .catch(() => {});
       },
 
       clearDownloads() {
         this.playSound('click');
-        fetch('/api/portal/downloads-clear', { method: 'POST' })
+        return fetch('/api/portal/downloads-clear', { method: 'POST' })
           .then(() => {
             this.activeDownloads = [];
             this.stopDownloadPolling();

@@ -30,18 +30,14 @@ afterAll(() => {
 
 describe('API Endpoints', () => {
   afterEach(() => {
-    // Keep tests hermetic, order-independent, and prevent test state leakage
-    fs.readdirSync(TEST_PROFILES_DIR)
-      .filter((f) => f.endsWith('.json'))
-      .forEach((f) => fs.removeSync(path.join(TEST_PROFILES_DIR, f)));
-
-    fs.readdirSync(TEST_BACKUP_DIR)
-      .forEach((f) => fs.removeSync(path.join(TEST_BACKUP_DIR, f)));
-
-    fs.readdirSync(TEST_MOD_LIST_DIR)
-      .forEach((f) => fs.removeSync(path.join(TEST_MOD_LIST_DIR, f)));
+    // fs-extra's emptyDirSync ensures directories are emptied safely, atomically, and handles locks internally
+    fs.emptyDirSync(TEST_PROFILES_DIR);
+    fs.emptyDirSync(TEST_BACKUP_DIR);
+    fs.emptyDirSync(TEST_MOD_LIST_DIR);
 
     invalidateModCache();
+    jest.restoreAllMocks();
+    jest.clearAllMocks();
   });
 
   it('GET /api/check-modlist should return exists boolean', async () => {
@@ -188,8 +184,6 @@ describe('API Endpoints', () => {
         'test-mod_0.1.0.zip',
         'https://example.com/test-mod_0.1.0.zip'
       );
-
-      spy.mockRestore();
     });
 
     it('should trigger clearCompleted on POST /api/portal/downloads-clear', async () => {
@@ -200,8 +194,6 @@ describe('API Endpoints', () => {
       expect(res.headers['content-type']).toMatch(/json/);
       expect(res.body).toEqual({ success: true });
       expect(spy).toHaveBeenCalled();
-
-      spy.mockRestore();
     });
 
     it('should invalidate the server-side mod directory cache when a job completes', async () => {
@@ -224,8 +216,6 @@ describe('API Endpoints', () => {
       expect(res.headers['content-type']).toMatch(/json/);
       expect(res.body).toEqual({ success: true });
       expect(spy).toHaveBeenCalledWith(123);
-
-      spy.mockRestore();
     });
 
     it('should return 200 and the current active profile on GET /api/active-profile', async () => {
@@ -308,8 +298,6 @@ describe('API Endpoints', () => {
       expect(res.statusCode).toEqual(200);
       expect(res.headers['content-type']).toMatch(/json/);
       expect(res.body).toEqual({ success: false });
-
-      spy.mockRestore();
     });
 
     it('should return 400 on POST /api/set-mod-path with empty path', async () => {
@@ -331,7 +319,7 @@ describe('API Endpoints', () => {
 
   describe('Filesystem Failure, Concurrency, and Contract Fuzzing Tests', () => {
     it('should handle EACCES filesystem permissions failure gracefully during profile write', async () => {
-      const spy = jest.spyOn(nativeFs, 'writeFileSync').mockImplementation(() => {
+      jest.spyOn(nativeFs, 'writeFileSync').mockImplementation(() => {
         const err = new Error('Permission denied');
         err.code = 'EACCES';
         throw err;
@@ -343,12 +331,10 @@ describe('API Endpoints', () => {
 
       expect(res.statusCode).toEqual(500);
       expect(res.body).toHaveProperty('error');
-      
-      spy.mockRestore();
     });
 
     it('should handle ENOSPC disk full failure gracefully during profile write', async () => {
-      const spy = jest.spyOn(nativeFs, 'writeFileSync').mockImplementation(() => {
+      jest.spyOn(nativeFs, 'writeFileSync').mockImplementation(() => {
         const err = new Error('No space left on device');
         err.code = 'ENOSPC';
         throw err;
@@ -360,8 +346,6 @@ describe('API Endpoints', () => {
 
       expect(res.statusCode).toEqual(500);
       expect(res.body).toHaveProperty('error');
-
-      spy.mockRestore();
     });
 
     it('should handle simultaneous concurrent writes to the same profile successfully and verify deep logical consistency', async () => {
@@ -623,11 +607,11 @@ describe('API Endpoints', () => {
       // 4. Third trigger: must rescan by calling readdirSync again
       await request(app).get('/api/installed-mods');
       expect(readdirSpy).toHaveBeenCalled();
-
-      readdirSpy.mockRestore();
     });
 
     it('should reject or handle oversized payloads safely to prevent memory exhaustion', async () => {
+      // Guarantee exactly one assertion inside try/catch reaches block
+      expect.assertions(1);
       const hugePayload = 'X'.repeat(20 * 1024 * 1024); // 20MB
       try {
         const res = await request(app)

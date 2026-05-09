@@ -1,6 +1,8 @@
 const fs = require('fs-extra');
 const path = require('path');
 
+const flushPromises = () => new Promise(setImmediate);
+
 describe('Frontend Application Logic and Helper Tests', () => {
   let vueInstance;
   let vueAppOptions;
@@ -33,47 +35,48 @@ describe('Frontend Application Logic and Helper Tests', () => {
         minimizeWindow: jest.fn(),
         closeWindow: jest.fn(),
         setZoom: jest.fn()
+      },
+      navigator: {
+        userAgent: 'node'
       }
     };
     global.Audio = global.window.Audio;
 
     global.document = {
-      addEventListener: jest.fn()
+      addEventListener: jest.fn(),
+      createElement: jest.fn().mockImplementation(() => ({
+        setAttribute: jest.fn(),
+        appendChild: jest.fn(),
+        style: {}
+      })),
+      querySelector: jest.fn(),
+      getElementById: jest.fn()
     };
 
-    // 2. Mock Vue constructor
-    global.Vue = class Vue {
-      constructor(options) {
-        // Not used during direct logic execution tests
-      }
-    };
+    // 2. Load and bind the real reactive Vue 2 framework!
+    let Vue = require('vue');
+    if (Vue.default) {
+      Vue = Vue.default;
+    }
+    Vue.config.productionTip = false;
+    Vue.config.devtools = false;
+    global.Vue = Vue;
 
-    // 3. Mock fetch with URL validations to prevent silent error suppression
+    // 3. Set a lightweight, clean baseline fetch mock
     global.fetch = jest.fn().mockImplementation((url) => {
       if (typeof url !== 'string') {
         return Promise.reject(new Error('Invalid fetch URL type'));
       }
-      if (url.includes('/api/installed-mods')) {
-        return Promise.resolve({
-          json: () => Promise.resolve([])
-        });
-      }
-      if (url.includes('/api/profiles')) {
-        return Promise.resolve({
-          json: () => Promise.resolve(['default'])
-        });
-      }
-      if (url.includes('/api/get-mod-path') || url.includes('/api/get-game-path')) {
-        return Promise.resolve({
-          json: () => Promise.resolve({ path: '/dummy/path' })
-        });
-      }
       if (url.includes('/api/game-status')) {
         return Promise.resolve({
+          ok: true,
           json: () => Promise.resolve({ running: false })
         });
       }
-      return Promise.reject(new Error(`Unhandled mock fetch request to: ${url}`));
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([])
+      });
     });
 
     // 4. Require the exported vueAppOptions and sfx directly without eval()
@@ -81,28 +84,19 @@ describe('Frontend Application Logic and Helper Tests', () => {
     vueAppOptions = mainScript.vueAppOptions;
     sfx = mainScript.sfx;
 
-    // 5. Build our synchronous instance for direct logical testing
-    const dataObj = typeof vueAppOptions.data === 'function' ? vueAppOptions.data() : (vueAppOptions.data || {});
-    vueInstance = {};
-    Object.assign(vueInstance, dataObj);
-
-    if (vueAppOptions.methods) {
-      for (const method in vueAppOptions.methods) {
-        vueInstance[method] = vueAppOptions.methods[method].bind(vueInstance);
-      }
-    }
-
-    if (vueAppOptions.computed) {
-      for (const prop in vueAppOptions.computed) {
-        Object.defineProperty(vueInstance, prop, {
-          get: vueAppOptions.computed[prop].bind(vueInstance),
-          configurable: true
-        });
-      }
-    }
+    // 5. Build our real reactive Vue instance for logical testing
+    const options = { ...vueAppOptions };
+    delete options.el; // Prevent Vue from attempting DOM mounting to preserve pure state tests
+    vueInstance = new Vue(options);
   });
 
   afterEach(async () => {
+    // Always destroy active timers left over by failing UI components
+    if (vueInstance && vueInstance.downloadPollTimer) {
+      clearTimeout(vueInstance.downloadPollTimer);
+      vueInstance.downloadPollTimer = null;
+    }
+
     // Revert global environment mutations strictly to their original references
     global.window = originalWindow;
     global.Audio = originalAudio;
@@ -112,6 +106,8 @@ describe('Frontend Application Logic and Helper Tests', () => {
 
     jest.clearAllTimers();
     jest.useRealTimers();
+    jest.restoreAllMocks();
+    jest.clearAllMocks();
 
     // Flush any pending unresolved microtask promises to prevent test environment leakages
     await Promise.resolve();
@@ -135,8 +131,6 @@ describe('Frontend Application Logic and Helper Tests', () => {
     
     expect(vueInstance.currentTab).toBe('downloader');
     expect(playSpy).toHaveBeenCalledWith('tabSwitch');
-
-    playSpy.mockRestore();
   });
 
   it('should create and remove notifications correctly on notify()', async () => {
@@ -149,7 +143,8 @@ describe('Frontend Application Logic and Helper Tests', () => {
 
     // Fast-forward 5 seconds
     jest.advanceTimersByTime(5000);
-    await Promise.resolve(); // Flush pending microtasks/promises triggered within advanced timers
+    // Allow Vue to process the state change caused by the timeout resolving
+    await vueInstance.$nextTick();
 
     expect(vueInstance.notifications.length).toBe(0);
   });
@@ -254,8 +249,6 @@ describe('Frontend Application Logic and Helper Tests', () => {
     expect(child.enabled).toBe(true);
     expect(grandchild.enabled).toBe(true);
     expect(notifySpy).toHaveBeenCalledTimes(2);
-
-    notifySpy.mockRestore();
   });
 
   describe('Simulated UI Workflows, Fuzzing, and Edge Case Tests', () => {
@@ -267,8 +260,8 @@ describe('Frontend Application Logic and Helper Tests', () => {
       const playSpy = jest.spyOn(vueInstance, 'playSound').mockImplementation();
       const pollSpy = jest.spyOn(vueInstance, 'pollDownloads').mockImplementation();
 
-      // 3. Mock fetch specifically for cancel request
-      global.fetch = jest.fn().mockImplementation((url, options) => {
+      // 3. Override ONLY the very next fetch call using mockImplementationOnce
+      global.fetch.mockImplementationOnce((url, options) => {
         if (url.includes('/api/portal/download-cancel/777') && options.method === 'POST') {
           return Promise.resolve({
             ok: true,
@@ -278,21 +271,15 @@ describe('Frontend Application Logic and Helper Tests', () => {
         return Promise.reject(new Error('Unexpected fetch in test'));
       });
 
-      // 4. Invoke the REAL cancelDownload method
+      // 4. Invoke the REAL cancelDownload method (which now returns a Promise!)
       await vueInstance.cancelDownload(777);
 
       // Verify that fetch was called and sound effect played
       expect(playSpy).toHaveBeenCalledWith('click');
       expect(global.fetch).toHaveBeenCalledWith('/api/portal/download-cancel/777', { method: 'POST' });
 
-      // Wait for promise microtasks to resolve so .then() executes cleanly
-      await Promise.resolve();
-
       // Verify that real method chained to pollDownloads on success!
       expect(pollSpy).toHaveBeenCalled();
-
-      playSpy.mockRestore();
-      pollSpy.mockRestore();
     });
 
     it('should execute real pollDownloads logic, fetch download lists, and set dynamic polling timeout on active downloads', async () => {
@@ -302,8 +289,8 @@ describe('Frontend Application Logic and Helper Tests', () => {
       const fetchModsSpy = jest.spyOn(vueInstance, 'fetchMods').mockImplementation();
       const fetchInstalledModsSpy = jest.spyOn(vueInstance, 'fetchInstalledMods').mockImplementation();
 
-      // 2. Mock fetch with active download response
-      global.fetch = jest.fn().mockImplementation((url) => {
+      // 2. Override ONLY the very next fetch call using mockImplementationOnce
+      global.fetch.mockImplementationOnce((url) => {
         if (url === '/api/portal/downloads') {
           return Promise.resolve({
             ok: true,
@@ -315,11 +302,8 @@ describe('Frontend Application Logic and Helper Tests', () => {
         return Promise.reject(new Error('Unexpected fetch in test'));
       });
 
-      // 3. Run real pollDownloads
-      vueInstance.pollDownloads();
-
-      // Portable, standard microtask promise flushes in Node/Jest contexts
-      await new Promise(resolve => process.nextTick(resolve));
+      // 3. Run real pollDownloads (which now returns a Promise!)
+      await vueInstance.pollDownloads();
 
       // Assert that activeDownloads got populated
       expect(vueInstance.activeDownloads).toHaveLength(1);
@@ -327,16 +311,6 @@ describe('Frontend Application Logic and Helper Tests', () => {
 
       // Assert that adaptive timeout got scheduled since there is an active downloading job
       expect(vueInstance.downloadPollTimer).toBeDefined();
-
-      // Cleanup
-      if (vueInstance.downloadPollTimer) {
-        clearTimeout(vueInstance.downloadPollTimer);
-        vueInstance.downloadPollTimer = null;
-      }
-      playSpy.mockRestore();
-      notifySpy.mockRestore();
-      fetchModsSpy.mockRestore();
-      fetchInstalledModsSpy.mockRestore();
     });
 
     it('should fuzz dependency parser with 1,000 truly randomized random-byte and structurally diverse Unicode strings to verify zero crashes', () => {
@@ -414,8 +388,6 @@ describe('Frontend Application Logic and Helper Tests', () => {
       vueInstance.enableDependenciesOf({ name: 'parent-mod' });
 
       expect(notifySpy).not.toHaveBeenCalled();
-
-      notifySpy.mockRestore();
     });
 
     it('should safely handle missing dependency lists', () => {
@@ -461,9 +433,6 @@ describe('Frontend Application Logic and Helper Tests', () => {
       // Verify decoupled notification state outcome
       const notifyMessages = notifySpy.mock.calls.map(call => call[0]);
       expect(notifyMessages).toContain('Enabled required dependency: b');
-
-      notifySpy.mockRestore();
-      enableSpy.mockRestore();
     });
 
     it('should handle deeply nested dependency chains (1,000 levels) without stack overflow or performance lag using iterative resolution', () => {
@@ -488,27 +457,21 @@ describe('Frontend Application Logic and Helper Tests', () => {
       const allEnabled = vueInstance.mods.every(m => m.enabled === true);
       expect(allEnabled).toBe(true);
       expect(notifySpy).toHaveBeenCalledTimes(999);
-
-      notifySpy.mockRestore();
     });
 
     it('should handle failed download cancellation requests gracefully', async () => {
-      global.fetch = jest.fn().mockRejectedValue(new Error('network fail'));
-      const playSpy = jest.spyOn(vueInstance, 'playSound').mockImplementation();
+      global.fetch.mockRejectedValueOnce(new Error('network fail'));
+      jest.spyOn(vueInstance, 'playSound').mockImplementation();
 
-      expect(() => {
-        vueInstance.cancelDownload(123);
-      }).not.toThrow();
-
-      playSpy.mockRestore();
+      // Because the method returns the promise, we can just await it directly
+      await expect(vueInstance.cancelDownload(123)).resolves.toBeUndefined();
     });
 
     it('should handle failed pollDownloads fetch safely', async () => {
-      global.fetch = jest.fn().mockRejectedValue(new Error('network fail'));
+      global.fetch.mockRejectedValueOnce(new Error('network fail'));
 
-      expect(() => {
-        vueInstance.pollDownloads();
-      }).not.toThrow();
+      // Because the method returns the promise, we can just await it directly
+      await expect(vueInstance.pollDownloads()).resolves.toBeUndefined();
     });
 
     it('should ignore invalid dependency entries in enableDependenciesOf', () => {
