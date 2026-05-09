@@ -3,10 +3,6 @@ const fs = require('fs');
 const path = require('path');
 const AdmZip = require('adm-zip');
 
-function findInfoJson(zip) {
-  return zip.getEntries().find((e) => e.entryName.endsWith('/info.json') || e.entryName === 'info.json');
-}
-
 function parseGameInfoMods(gamePath) {
   const names = ['base', 'elevated-rails', 'quality', 'space-age'];
   const parsed = [];
@@ -59,7 +55,9 @@ function scanModsMetadata(modsDir, gamePath) {
     try {
       const stats = fs.statSync(zipPath);
       const zip = new AdmZip(zipPath);
-      const infoEntry = findInfoJson(zip);
+      
+      const entries = zip.getEntries();
+      const infoEntry = entries.find((e) => e.entryName.endsWith('/info.json') || e.entryName === 'info.json');
       if (!infoEntry) continue;
 
       const infoContent = zip.readAsText(infoEntry);
@@ -67,13 +65,11 @@ function scanModsMetadata(modsDir, gamePath) {
 
       modZipCache[info.name] = zipPath;
 
-      const hasThumbnail = zip
-        .getEntries()
-        .some(
-          (e) =>
-            e.entryName.toLowerCase().endsWith('/thumbnail.png') ||
-            e.entryName.toLowerCase() === 'thumbnail.png'
-        );
+      const hasThumbnail = entries.some(
+        (e) =>
+          e.entryName.toLowerCase().endsWith('/thumbnail.png') ||
+          e.entryName.toLowerCase() === 'thumbnail.png'
+      );
 
       results.push({
         name: info.name,

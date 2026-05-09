@@ -97,6 +97,12 @@ describe('Frontend Application Logic and Helper Tests', () => {
       vueInstance.downloadPollTimer = null;
     }
 
+    // EXPLICITLY destroy the Vue instance to free up reactive graphs from RAM
+    if (vueInstance) {
+      vueInstance.$destroy();
+      vueInstance = null;
+    }
+
     // Revert global environment mutations strictly to their original references
     global.window = originalWindow;
     global.Audio = originalAudio;
@@ -331,15 +337,17 @@ describe('Frontend Application Logic and Helper Tests', () => {
           input = baseStr + randomSuffix;
         }
 
+        let res;
         expect(() => {
-          const res = vueInstance.parseDependency(input);
-          if (res !== null) {
-            expect(typeof res.name).toBe('string');
-            expect(typeof res.required).toBe('boolean');
-            expect(typeof res.incompatible).toBe('boolean');
-            expect(typeof res.optional).toBe('boolean');
-          }
+          res = vueInstance.parseDependency(input);
         }).not.toThrow();
+
+        if (res !== null) {
+          expect(typeof res.name).toBe('string');
+          expect(typeof res.required).toBe('boolean');
+          expect(typeof res.incompatible).toBe('boolean');
+          expect(typeof res.optional).toBe('boolean');
+        }
       }
     });
 

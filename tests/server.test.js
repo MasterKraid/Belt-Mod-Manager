@@ -30,14 +30,16 @@ afterAll(() => {
 
 describe('API Endpoints', () => {
   afterEach(() => {
-    // fs-extra's emptyDirSync ensures directories are emptied safely, atomically, and handles locks internally
+    // 1. ALWAYS release mocks first so the environment is pure again
+    jest.restoreAllMocks();
+    jest.clearAllMocks();
+
+    // 2. NOW perform physical side-effects using the real, unmocked filesystem
     fs.emptyDirSync(TEST_PROFILES_DIR);
     fs.emptyDirSync(TEST_BACKUP_DIR);
     fs.emptyDirSync(TEST_MOD_LIST_DIR);
 
     invalidateModCache();
-    jest.restoreAllMocks();
-    jest.clearAllMocks();
   });
 
   it('GET /api/check-modlist should return exists boolean', async () => {

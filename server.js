@@ -180,6 +180,23 @@ let modZipCache = {}; // maps modName to zipPath on disk
 let cachedScannedMods = null; // in-memory cache of scanned mod metadata results
 let lastModDirMtime = 0; // Tracks directory modified time to auto-invalidate cache
 let modScanInFlight = false;
+let pendingScanResolvers = [];
+
+function getScannedMods(reason = 'unknown') {
+  if (cachedScannedMods) {
+    return Promise.resolve(cachedScannedMods);
+  }
+  if (process.env.NODE_ENV === 'test') {
+    cachedScannedMods = scanMods();
+    return Promise.resolve(cachedScannedMods);
+  }
+  return new Promise((resolve) => {
+    pendingScanResolvers.push(resolve);
+    if (!modScanInFlight) {
+      startBackgroundModScan(reason);
+    }
+  });
+}
 
 function startBackgroundModScan(reason = 'unknown') {
   if (modScanInFlight) return;
@@ -213,6 +230,10 @@ function startBackgroundModScan(reason = 'unknown') {
 
   worker.once('exit', () => {
     modScanInFlight = false;
+    // Resolve all waiting requests with the newly scanned mods
+    const resolvers = pendingScanResolvers;
+    pendingScanResolvers = [];
+    resolvers.forEach(resolve => resolve(cachedScannedMods || []));
   });
 }
 
@@ -477,29 +498,19 @@ app.get('/api/check-modlist', (req, res) => {
   res.json({ exists: fs.existsSync(getModListPath()) });
 });
 
-app.get('/api/installed-mods', (req, res) => {
-  // Serve cached results immediately when available; keep a safe fallback.
-  if (cachedScannedMods) {
+app.get('/api/installed-mods', async (req, res) => {
+  try {
+    const scanned = await getScannedMods('installed-mods-request');
     const statusMap = readModList();
-    return res.json(
-      cachedScannedMods.map((m) => ({
+    res.json(
+      scanned.map((m) => ({
         ...m,
         enabled: m.type === 'core' ? true : (statusMap[m.name] ?? false),
       }))
     );
+  } catch (err) {
+    res.status(500).send(err.message);
   }
-
-  // Kick off a background scan so subsequent calls are fast.
-  startBackgroundModScan('installed-mods-request');
-
-  // Fallback to the existing synchronous scan to avoid changing UX on first load.
-  const t0 = Date.now();
-  const mods = scanMods();
-  const dt = Date.now() - t0;
-  if (process.env.NODE_ENV !== 'test' && dt > 100) {
-    console.log(`[Perf] Sync scanMods() fallback took ${dt}ms`);
-  }
-  res.json(mods);
 });
 
 
