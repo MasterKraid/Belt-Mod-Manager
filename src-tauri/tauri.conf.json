@@ -3,9 +3,8 @@
   "version": "0.9.6",
   "identifier": "com.belt.modmanager",
   "build": {
-    "beforeDevCommand": "node backend/build-css-conditional.js && node backend/server.js --dev",
+    "beforeDevCommand": "node backend/build-css-conditional.js",
     "beforeBuildCommand": "node backend/build-css-conditional.js",
-    "devUrl": "http://localhost:14155",
     "frontendDist": "../public"
   },
   "app": {
@@ -13,19 +12,7 @@
     "security": {
       "csp": null
     },
-    "windows": [
-      {
-        "label": "main",
-        "title": "Belt Mod Manager",
-        "width": 720,
-        "height": 840,
-        "resizable": false,
-        "fullscreen": false,
-        "transparent": true,
-        "decorations": false,
-        "shadow": false
-      }
-    ]
+    "windows": []
   },
   "bundle": {
     "active": true,

@@ -3,6 +3,12 @@
   "identifier": "default-capability",
   "description": "Default capabilities for Factorio Mod Manager",
   "windows": ["main"],
+  "remote": {
+    "urls": [
+      "http://localhost:*/**",
+      "http://127.0.0.1:*/**"
+    ]
+  },
   "permissions": [
     "core:event:default",
     "core:window:default",
@@ -10,6 +16,8 @@
     "core:window:allow-minimize",
     "core:window:allow-maximize",
     "shell:default",
+    "shell:allow-open",
+    "dialog:default",
     {
       "identifier": "shell:allow-execute",
       "allow": [

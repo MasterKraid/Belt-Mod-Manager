@@ -475,10 +475,10 @@ const vueAppOptions = {
         });
       },
       activateProfile(profileName) {
-        if (profileName.startsWith('___new_profile_')) return;
+        if (profileName.startsWith('___new_profile_')) return Promise.resolve();
         this.playSound('sliderOn');
         this.selectedProfile = profileName;
-        fetch(`/api/switch/${profileName}`, { method: 'POST' })
+        return fetch(`/api/switch/${profileName}`, { method: 'POST' })
           .then(() => {
             this.fetchMods();
             this.notify(`Switched to ${profileName}`);
@@ -524,12 +524,14 @@ const vueAppOptions = {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ oldName, newName })
         }).then(() => {
-          this.selectedProfile = newName;
           this.editingProfile = null;
           this.renameInput = '';
-          this.loadProfiles();
           if (oldName.startsWith('___new_profile_')) {
-            this.activateProfile(newName);
+            this.activateProfile(newName).then(() => {
+              this.loadProfiles();
+            });
+          } else {
+            this.loadProfiles();
           }
         });
       },
@@ -561,7 +563,12 @@ const vueAppOptions = {
               this.fetchInstalledMods(); // refresh to pick up DLCs
             } else {
               this.notify('Game not found on Steam. Opening store page...');
-              window.electronAPI.openExternal(data.openUrl);
+              const url = 'https://store.steampowered.com/app/427520/Factorio/';
+              if (window.electronAPI && window.electronAPI.openExternal) {
+                window.electronAPI.openExternal(url);
+              } else {
+                window.open(url, '_blank');
+              }
             }
           })
           .catch(err => {
@@ -1111,33 +1118,41 @@ const vueAppOptions = {
         const tooltipWidth = tooltipEl.offsetWidth;
         const tooltipHeight = tooltipEl.offsetHeight;
 
-        // 3. Measure target element position
+        // 3. Measure target element position and get current body zoom factor
+        const zoom = parseFloat(getComputedStyle(document.body).zoom) || 1;
         const targetRect = target.getBoundingClientRect();
-        const targetCenter = targetRect.left + (targetRect.width / 2);
+        
+        // Convert all viewport coordinates to zoomed coordinates by dividing by the zoom factor
+        const targetLeftZoomed = targetRect.left / zoom;
+        const targetWidthZoomed = targetRect.width / zoom;
+        const targetCenterZoomed = targetLeftZoomed + (targetWidthZoomed / 2);
+        const targetTopZoomed = targetRect.top / zoom;
+        const targetBottomZoomed = targetRect.bottom / zoom;
 
-        // 4. Calculate coordinates relative to viewport
-        let tooltipLeft = targetCenter - (tooltipWidth / 2);
-        let tooltipTop = targetRect.top - tooltipHeight - 8; // 8px space above
+        // 4. Calculate coordinates relative to viewport scaled by zoom
+        let tooltipLeft = targetCenterZoomed - (tooltipWidth / 2);
+        let tooltipTop = targetTopZoomed - tooltipHeight - 8; // 8px space above
         let isBelow = false;
 
         // 5. Force below if target has tooltip-below class or data-tooltip-position="below"
         const forceBelow = target.classList.contains('tooltip-below') || target.getAttribute('data-tooltip-position') === 'below';
         if (forceBelow || tooltipTop < 10) {
-          tooltipTop = targetRect.bottom + 8; // display below instead
+          tooltipTop = targetBottomZoomed + 8; // display below instead
           isBelow = true;
         }
 
         // 6. Collision check: Left/Right edge viewport boundaries
         const padding = 12; // margin safety padding from window edge
-        if (tooltipLeft + tooltipWidth > window.innerWidth - padding) {
-          tooltipLeft = window.innerWidth - padding - tooltipWidth;
+        const viewportWidthZoomed = window.innerWidth / zoom;
+        if (tooltipLeft + tooltipWidth > viewportWidthZoomed - padding) {
+          tooltipLeft = viewportWidthZoomed - padding - tooltipWidth;
         }
         if (tooltipLeft < padding) {
           tooltipLeft = padding;
         }
 
         // 7. Calculate pointer arrow position relative to the tooltip box
-        let arrowLeft = targetCenter - tooltipLeft;
+        let arrowLeft = targetCenterZoomed - tooltipLeft;
         const minArrowPadding = 16;
         if (arrowLeft < minArrowPadding) arrowLeft = minArrowPadding;
         if (arrowLeft > tooltipWidth - minArrowPadding) arrowLeft = tooltipWidth - minArrowPadding;

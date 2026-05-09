@@ -891,6 +891,76 @@
   </div>
 
 
+  <script>
+    // Polyfill window.electronAPI under Tauri so all frontend folder picking, external URLs,
+    // and window controls work seamlessly and unmodified!
+    if (window.__TAURI__) {
+      // Use direct safe references to avoid any destructuring or scope errors
+      const tauriWebview = window.__TAURI__.webviewWindow;
+      const tauriDialog = window.__TAURI__.dialog;
+      const tauriShell = window.__TAURI__.shell;
+
+      window.electronAPI = {
+        selectFolder: async () => {
+          try {
+            if (tauriDialog && tauriDialog.open) {
+              const selected = await tauriDialog.open({
+                directory: true,
+                multiple: false,
+                title: "Select Folder"
+              });
+              return selected || null;
+            }
+            return null;
+          } catch (err) {
+            console.error("Folder selection failed:", err);
+            return null;
+          }
+        },
+        openExternal: async (url) => {
+          try {
+            if (tauriShell && tauriShell.open) {
+              await tauriShell.open(url);
+            }
+          } catch (err) {
+            console.error("Failed to open external link:", err);
+          }
+        },
+        minimizeWindow: () => {
+          try {
+            if (tauriWebview && tauriWebview.getCurrentWebviewWindow) {
+              tauriWebview.getCurrentWebviewWindow().minimize();
+            }
+          } catch (err) {
+            console.error("Minimize failed:", err);
+          }
+        },
+        maximizeWindow: () => {
+          try {
+            if (tauriWebview && tauriWebview.getCurrentWebviewWindow) {
+              const win = tauriWebview.getCurrentWebviewWindow();
+              win.isMaximized().then(max => {
+                if (max) win.unmaximize();
+                else win.maximize();
+              });
+            }
+          } catch (err) {
+            console.error("Maximize failed:", err);
+          }
+        },
+        closeWindow: () => {
+          try {
+            if (tauriWebview && tauriWebview.getCurrentWebviewWindow) {
+              tauriWebview.getCurrentWebviewWindow().close();
+            }
+          } catch (err) {
+            console.error("Close failed:", err);
+          }
+        }
+      };
+    }
+  </script>
+
   <script src="/scripts/main.js"></script>
 </body>
 

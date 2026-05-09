@@ -1476,8 +1476,9 @@ input:checked + .slider:before {
   color: #aaa;
   white-space: nowrap;
   flex-shrink: 0;
-  min-width: 80px;
+  min-width: 40px;
   text-align: right;
+  margin-right: 1.25rem;
 }
 
 .dl-download-sub {
