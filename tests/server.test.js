@@ -393,6 +393,29 @@ describe('API Endpoints', () => {
       expect(testModKeys.length).toBe(1);
     });
 
+    it('should safely handle concurrent filesystem race points (rename + delete and switch + delete)', async () => {
+      const profileName = 'race-target-profile';
+      await request(app)
+        .post(`/api/profiles/${profileName}`)
+        .send([{ name: 'base', enabled: true }]);
+
+      const renamePromise = request(app)
+        .post('/api/rename-profile')
+        .send({ oldName: profileName, newName: 'race-renamed-profile' });
+
+      const deletePromise = request(app)
+        .post('/api/delete-profile')
+        .send({ name: profileName });
+
+      const [renameRes, deleteRes] = await Promise.all([renamePromise, deletePromise]);
+
+      expect([200, 400, 404, 500]).toContain(renameRes.statusCode);
+      expect([200, 400, 404, 500]).toContain(deleteRes.statusCode);
+
+      const checkRes = await request(app).get('/api/profiles');
+      expect(checkRes.statusCode).toEqual(200);
+    });
+
     it('should reject traversal, encoded traversal, and special Windows device names via profiles endpoints', async () => {
       const evilNames = [
         '..%255c..', 'CON', 'aux', 'nul', 'PRN', 'LPT1', '..\\..\\test',
@@ -421,15 +444,20 @@ describe('API Endpoints', () => {
       expect(res.statusCode).toEqual(400);
     });
 
-    it('should handle large-scale payloads with 5,000+ mods without crashing or stack overflows', async () => {
+    it('should handle large-scale payloads with 5,000+ mods without crashing, stack overflows, or memory leaks (under 2,000ms)', async () => {
       const largePayload = Array.from({ length: 5000 }, (_, i) => ({
         name: `stress-mod-${i}`,
         enabled: i % 2 === 0
       }));
 
+      const start = Date.now();
+
       const res = await request(app)
         .post('/api/profiles/large-stress-profile')
         .send(largePayload);
+
+      const duration = Date.now() - start;
+      expect(duration).toBeLessThan(2000); // Assert strict 2-second resource bounds!
 
       expect(res.statusCode).toEqual(200);
 

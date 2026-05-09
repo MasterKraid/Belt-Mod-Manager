@@ -279,6 +279,8 @@ const vueAppOptions = {
           if (!depStr || typeof depStr !== 'string' || !depStr.trim()) return;
           const parsed = this.parseDependency(depStr);
           if (parsed && parsed.required) {
+            if (visited.has(parsed.name)) return; // Prevent traversing/entering visited nodes entirely!
+
             const depMod = this.mods.find(m => m.name === parsed.name);
             if (depMod && !depMod.enabled) {
               depMod.enabled = true;
