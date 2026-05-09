@@ -23,9 +23,7 @@ A desktop application to manage mod profiles for Factorio. Switch mods on/off us
   - **Tauri 2.0 & Bun Migration**: Upgraded native shell from Electron to Tauri 2.0, achieving a tiny build footprint.
   - **Bun Integration**: Replaced Jest with the Bun test runner, dropping test suite runtime by over 88% (~1.18s).
   - **Clean Subdirectory Structure**: Consolidated background processes, configurations, and worker engines into the `backend/` directory.
-  - **Premium UI Borders**: Disabled OS-level drop shadows inside Webview2 configurations to remove transparent border outlines.
   - **Restored Window Actions**: Fully wired Tauri client-side APIs for frameless window minimize and exit events with matching sound effects.
-  - **Clean Assets**: Removed redundant `.png` and `.icns` binary files, pinning the resource compiler to the required `icon.ico` to keep the Git workspace pristine.
 - **v0.9.1**
   - Secure credential storage (AES-256-GCM, machine-bound key via PBKDF2)
   - Auth profile button with encrypted username/token popup
