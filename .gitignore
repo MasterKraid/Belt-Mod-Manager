@@ -8,3 +8,4 @@ mod-list/
 scratch/
 .credentials
 .cache/
+/src-tauri/target/

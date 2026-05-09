@@ -113,13 +113,17 @@ describe('Frontend Application Logic and Helper Tests', () => {
     global.fetch = originalFetch;
 
     // 5. Restore testing framework state
-    jest.clearAllTimers();
-    jest.useRealTimers();
+    try {
+      jest.clearAllTimers();
+      jest.useRealTimers();
+    } catch (err) {}
     jest.restoreAllMocks();
     jest.clearAllMocks();
 
     // 6. Clear cache for the next test
-    jest.resetModules();
+    if (typeof jest.resetModules === 'function') {
+      jest.resetModules();
+    }
   });
 
   it('should instantiate Vue with all default state properties', () => {
@@ -352,7 +356,7 @@ describe('Frontend Application Logic and Helper Tests', () => {
     });
 
     it('should sanitize profile names using the real production isSafeProfileName implementation', () => {
-      const { isSafeProfileName } = require('../server');
+      const { isSafeProfileName } = require('../backend/server');
       const inputs = [
         { name: 'normal-name', valid: true },
         { name: 'profile..name', valid: false },

@@ -1,13 +1,14 @@
 {
   "name": "belt-mod-manager",
-  "version": "0.9.3",
+  "version": "0.9.6",
+  "author": "Kraid | Tathagata S.",
   "main": "electron/main.js",
   "scripts": {
-    "start": "npm run build-css && electron .",
-    "electron": "npm run build-css && electron .",
-    "build-css": "node build-css-conditional.js",
+    "start": "tauri dev",
+    "tauri": "tauri",
+    "build-css": "node backend/build-css-conditional.js",
     "watch-css": "sass --watch public/styles/main.scss public/styles/main.css",
-    "test": "jest"
+    "test": "bun test"
   },
   "dependencies": {
     "adm-zip": "^0.5.10",
@@ -16,7 +17,8 @@
     "fs-extra": "^11.1.1"
   },
   "devDependencies": {
-    "electron": "^42.0.1",
+    "@tauri-apps/api": "2.0.0",
+    "@tauri-apps/cli": "2.0.0",
     "jest": "^30.4.0",
     "sass": "^1.89.2",
     "supertest": "^7.2.2",

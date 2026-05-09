@@ -1,3 +1,4 @@
+// Copyright (c) 2026 Kraid | Tathagata S. under Kivx.in. Licensed under the MIT License.
 const sfx = {
   click: new Audio('/Assets/sound/button-click.ogg'),
   exit: new Audio('/Assets/sound/exit.ogg'),
@@ -352,22 +353,32 @@ const vueAppOptions = {
           this.notifications = this.notifications.filter(n => n.id !== id);
         }, duration * 1000);
       },
-      minimizeWindow() {
+       minimizeWindow() {
         this.playSound('click');
-        if (window.electronAPI && window.electronAPI.minimizeWindow) {
+        if (window.__TAURI__) {
+          window.__TAURI__.window.getCurrentWindow().minimize();
+        } else if (window.electronAPI && window.electronAPI.minimizeWindow) {
           window.electronAPI.minimizeWindow();
         }
       },
       maximizeWindow() {
         this.playSound('click');
-        if (window.electronAPI && window.electronAPI.maximizeWindow) {
+        if (window.__TAURI__) {
+          const win = window.__TAURI__.window.getCurrentWindow();
+          win.isMaximized().then(maximized => {
+            if (maximized) win.unmaximize();
+            else win.maximize();
+          });
+        } else if (window.electronAPI && window.electronAPI.maximizeWindow) {
           window.electronAPI.maximizeWindow();
         }
       },
       closeWindow() {
         this.playSound('exit');
         setTimeout(() => {
-          if (window.electronAPI && window.electronAPI.closeWindow) {
+          if (window.__TAURI__) {
+            window.__TAURI__.window.getCurrentWindow().close();
+          } else if (window.electronAPI && window.electronAPI.closeWindow) {
             window.electronAPI.closeWindow();
           }
         }, 300);

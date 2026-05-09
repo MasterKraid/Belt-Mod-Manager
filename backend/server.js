@@ -1,3 +1,4 @@
+// Copyright (c) 2026 Kraid | Tathagata S. under Kivx.in. Licensed under the MIT License.
 const express = require('express');
 const fs = require('fs');
 const fse = require('fs-extra');
@@ -9,7 +10,9 @@ const https = require('https');
 const { Worker } = require('worker_threads');
 
 const app = express();
-const PORT = Number.parseInt(process.env.BELTMM_PORT || '0', 10);
+const PORT = process.env.NODE_ENV === 'test' 
+  ? 0 
+  : Number.parseInt(process.env.BELTMM_PORT || '14155', 10);
 const HOST = '127.0.0.1';
 const SERVER_START_MS = Date.now();
 
@@ -20,8 +23,8 @@ let activeProfile = 'default';
 
 const CONFIG_FILE = path.join(__dirname, 'config.json');
 const METADATA_CACHE_FILE = process.env.NODE_ENV === 'test' 
-  ? path.join(__dirname, '.cache', 'test-metadata-cache.json') 
-  : path.join(__dirname, '.cache', 'mod-metadata-cache.json');
+  ? path.join(__dirname, '..', '.cache', 'test-metadata-cache.json') 
+  : path.join(__dirname, '..', '.cache', 'mod-metadata-cache.json');
 
 function loadConfig() {
   try {
@@ -60,9 +63,9 @@ downloadManager.onJobComplete = (job) => {
   startBackgroundModScan('download-complete');
 };
 
-const BACKUP_DIR = process.env.NODE_ENV === 'test' ? path.join(__dirname, 'test-backup') : path.join(__dirname, 'backup');
-const PROFILES_DIR = process.env.NODE_ENV === 'test' ? path.join(__dirname, 'test-profiles') : path.join(__dirname, 'profiles');
-const LOCAL_MOD_LIST = process.env.NODE_ENV === 'test' ? path.join(__dirname, 'test-mod-list', 'mod-list.json') : path.join(__dirname, 'mod-list', 'mod-list.json');
+const BACKUP_DIR = process.env.NODE_ENV === 'test' ? path.join(__dirname, '..', 'test-backup') : path.join(__dirname, '..', 'backup');
+const PROFILES_DIR = process.env.NODE_ENV === 'test' ? path.join(__dirname, '..', 'test-profiles') : path.join(__dirname, '..', 'profiles');
+const LOCAL_MOD_LIST = process.env.NODE_ENV === 'test' ? path.join(__dirname, '..', 'test-mod-list', 'mod-list.json') : path.join(__dirname, '..', 'mod-list', 'mod-list.json');
 
 // === Ensure folders ===
 fse.ensureDirSync(PROFILES_DIR);
@@ -70,12 +73,12 @@ fse.ensureDirSync(BACKUP_DIR);
 fse.ensureDirSync(path.dirname(LOCAL_MOD_LIST));
 fse.ensureDirSync(path.dirname(METADATA_CACHE_FILE));
 
-app.use(express.static('public'));
-app.use('/Assets', express.static(path.join(__dirname, 'Assets')));
-app.use('/js/vue.js', express.static(path.join(__dirname, 'node_modules/vue/dist/vue.min.js')));
+app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use('/Assets', express.static(path.join(__dirname, '..', 'Assets')));
+app.use('/js/vue.js', express.static(path.join(__dirname, '..', 'node_modules/vue/dist/vue.min.js')));
 app.use(express.json({ limit: '20mb' }));
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
+app.set('views', path.join(__dirname, '..', 'views'));
 
 // === Serve index ===
 app.get('/', (req, res) => res.render('index'));

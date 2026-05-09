@@ -4,7 +4,7 @@ const request = require('supertest');
 const fs = require('fs-extra');
 const nativeFs = require('fs');
 const path = require('path');
-const { app, downloadManager, isCacheCleared, invalidateModCache, isSafeProfileName } = require('../server');
+const { app, downloadManager, isCacheCleared, invalidateModCache, isSafeProfileName } = require('../backend/server');
 
 const TEST_PROFILES_DIR = path.join(__dirname, '../test-profiles');
 const TEST_BACKUP_DIR = path.join(__dirname, '../test-backup');
