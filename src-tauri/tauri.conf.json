@@ -3,8 +3,9 @@
   "version": "0.9.6",
   "identifier": "com.belt.modmanager",
   "build": {
-    "beforeDevCommand": "node backend/build-css-conditional.js",
+    "beforeDevCommand": "node backend/build-css-conditional.js && node backend/server.js",
     "beforeBuildCommand": "node backend/build-css-conditional.js",
+    "devUrl": "http://localhost:14155",
     "frontendDist": "../public"
   },
   "app": {
