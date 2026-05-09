@@ -1,8 +1,6 @@
 const fs = require('fs-extra');
 const path = require('path');
 
-const flushPromises = () => new Promise(setImmediate);
-
 describe('Frontend Application Logic and Helper Tests', () => {
   let vueInstance;
   let vueAppOptions;
@@ -91,34 +89,36 @@ describe('Frontend Application Logic and Helper Tests', () => {
   });
 
   afterEach(async () => {
-    // Always destroy active timers left over by failing UI components
+    // 1. Clear timers to stop recurring loops
     if (vueInstance && vueInstance.downloadPollTimer) {
       clearTimeout(vueInstance.downloadPollTimer);
       vueInstance.downloadPollTimer = null;
     }
 
-    // EXPLICITLY destroy the Vue instance to free up reactive graphs from RAM
+    // 2. Destroy the Vue instance to free up RAM
     if (vueInstance) {
       vueInstance.$destroy();
       vueInstance = null;
     }
 
-    // Revert global environment mutations strictly to their original references
+    // 3. FLUSH MICROTASKS NOW. 
+    // Let any lingering floating promises resolve while `window` and `document` still exist!
+    await Promise.resolve();
+
+    // 4. NOW it is safe to rip out the global environment
     global.window = originalWindow;
     global.Audio = originalAudio;
     global.document = originalDocument;
     global.Vue = originalVue;
     global.fetch = originalFetch;
 
+    // 5. Restore testing framework state
     jest.clearAllTimers();
     jest.useRealTimers();
     jest.restoreAllMocks();
     jest.clearAllMocks();
 
-    // Flush any pending unresolved microtask promises to prevent test environment leakages
-    await Promise.resolve();
-
-    // Clear module cache to guarantee hermetic test setups
+    // 6. Clear cache for the next test
     jest.resetModules();
   });
 

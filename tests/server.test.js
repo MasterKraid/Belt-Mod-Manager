@@ -622,6 +622,9 @@ describe('API Endpoints', () => {
 
         expect([400, 413]).toContain(res.statusCode);
       } catch (err) {
+        // DO NOT SWALLOW JEST ERRORS! If the expect() above failed, re-throw it.
+        if (err.matcherResult) throw err;
+
         // If connection is abruptly closed to reject oversized streaming (ECONNRESET/EPIPE), that is a valid defense!
         const isConnectionError = err.code === 'ECONNRESET' || err.code === 'EPIPE' || err.message.includes('ECONNRESET') || err.message.includes('EPIPE');
         expect(isConnectionError).toBe(true);

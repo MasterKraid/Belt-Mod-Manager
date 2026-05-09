@@ -19,6 +19,9 @@ let userGamePath = ''; // global
 let activeProfile = 'default';
 
 const CONFIG_FILE = path.join(__dirname, 'config.json');
+const METADATA_CACHE_FILE = process.env.NODE_ENV === 'test' 
+  ? path.join(__dirname, '.cache', 'test-metadata-cache.json') 
+  : path.join(__dirname, '.cache', 'mod-metadata-cache.json');
 
 function loadConfig() {
   try {
@@ -65,9 +68,11 @@ const LOCAL_MOD_LIST = process.env.NODE_ENV === 'test' ? path.join(__dirname, 't
 fse.ensureDirSync(PROFILES_DIR);
 fse.ensureDirSync(BACKUP_DIR);
 fse.ensureDirSync(path.dirname(LOCAL_MOD_LIST));
+fse.ensureDirSync(path.dirname(METADATA_CACHE_FILE));
 
 app.use(express.static('public'));
 app.use('/Assets', express.static(path.join(__dirname, 'Assets')));
+app.use('/js/vue.js', express.static(path.join(__dirname, 'node_modules/vue/dist/vue.min.js')));
 app.use(express.json({ limit: '20mb' }));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -207,7 +212,7 @@ function startBackgroundModScan(reason = 'unknown') {
   const modsDir = userModPath;
   const gamePath = userGamePath;
 
-  const worker = new Worker(workerPath, { workerData: { modsDir, gamePath } });
+  const worker = new Worker(workerPath, { workerData: { modsDir, gamePath, cacheFilePath: METADATA_CACHE_FILE } });
 
   worker.once('message', (msg) => {
     if (msg && msg.ok) {
@@ -326,28 +331,58 @@ function scanMods() {
     results.push(...baseAndDLC);
   }
 
+  // Load persistent metadata cache
+  let persistentCache = {};
+  try {
+    if (fs.existsSync(METADATA_CACHE_FILE)) {
+      persistentCache = JSON.parse(fs.readFileSync(METADATA_CACHE_FILE, 'utf-8'));
+    }
+  } catch {}
+
+  let cacheUpdated = false;
+
   for (const file of files) {
     if (!file.endsWith('.zip')) continue;
     const zipPath = path.join(userModPath, file);
     try {
       const stats = fs.statSync(zipPath);
+      const cacheKey = file;
+
+      if (persistentCache[cacheKey] && 
+          persistentCache[cacheKey].mtime === stats.mtimeMs && 
+          persistentCache[cacheKey].size === stats.size) {
+        const cached = persistentCache[cacheKey].metadata;
+        modZipCache[cached.name] = zipPath;
+        results.push({
+          name: cached.name,
+          title: cached.title,
+          version: cached.version,
+          author: cached.author,
+          description: cached.description,
+          dependencies: cached.dependencies,
+          homepage: cached.homepage,
+          thumbnail: cached.hasThumbnail ? `/api/mods/thumbnail/${cached.name}` : null,
+          mtime: stats.mtimeMs,
+        });
+        continue;
+      }
+
+      // Cache miss: parse the ZIP file
       const zip = new AdmZip(zipPath);
       const infoEntry = findInfoJson(zip);
       if (!infoEntry) continue;
 
       const infoContent = zip.readAsText(infoEntry);
       const info = JSON.parse(infoContent);
-      
-      // Store in cache
+
       modZipCache[info.name] = zipPath;
 
-      // Check for thumbnail.png inside the zip
       const hasThumbnail = zip.getEntries().some(e => 
         e.entryName.toLowerCase().endsWith('/thumbnail.png') || 
         e.entryName.toLowerCase() === 'thumbnail.png'
       );
 
-      results.push({
+      const metadata = {
         name: info.name,
         title: info.title || info.name,
         version: info.version || '0.0.0',
@@ -355,12 +390,31 @@ function scanMods() {
         description: info.description || '(no description)',
         dependencies: info.dependencies || [],
         homepage: info.homepage || '',
+        hasThumbnail,
+      };
+
+      persistentCache[cacheKey] = {
+        mtime: stats.mtimeMs,
+        size: stats.size,
+        metadata,
+      };
+      cacheUpdated = true;
+
+      results.push({
+        ...metadata,
         thumbnail: hasThumbnail ? `/api/mods/thumbnail/${info.name}` : null,
-        mtime: stats.mtimeMs
+        mtime: stats.mtimeMs,
       });
     } catch (err) {
       console.warn('Bad zip:', zipPath);
     }
+  }
+
+  // Save updated cache
+  if (cacheUpdated) {
+    try {
+      fs.writeFileSync(METADATA_CACHE_FILE, JSON.stringify(persistentCache, null, 2), 'utf-8');
+    } catch {}
   }
 
   function parseGameInfoMods(gamePath) {

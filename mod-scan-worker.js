@@ -31,7 +31,7 @@ function parseGameInfoMods(gamePath) {
   return parsed;
 }
 
-function scanModsMetadata(modsDir, gamePath) {
+function scanModsMetadata(modsDir, gamePath, cacheFilePath) {
   const modZipCache = {}; // modName -> zipPath
   const results = [];
 
@@ -48,12 +48,46 @@ function scanModsMetadata(modsDir, gamePath) {
     results.push(...parseGameInfoMods(gamePath));
   }
 
+  // Load persistent metadata cache
+  let persistentCache = {};
+  if (cacheFilePath) {
+    try {
+      if (fs.existsSync(cacheFilePath)) {
+        persistentCache = JSON.parse(fs.readFileSync(cacheFilePath, 'utf-8'));
+      }
+    } catch {}
+  }
+
+  let cacheUpdated = false;
+
   const files = fs.readdirSync(modsDir);
   for (const file of files) {
     if (!file.endsWith('.zip')) continue;
     const zipPath = path.join(modsDir, file);
     try {
       const stats = fs.statSync(zipPath);
+      const cacheKey = file;
+
+      if (persistentCache[cacheKey] && 
+          persistentCache[cacheKey].mtime === stats.mtimeMs && 
+          persistentCache[cacheKey].size === stats.size) {
+        const cached = persistentCache[cacheKey].metadata;
+        modZipCache[cached.name] = zipPath;
+        results.push({
+          name: cached.name,
+          title: cached.title,
+          version: cached.version,
+          author: cached.author,
+          description: cached.description,
+          dependencies: cached.dependencies,
+          homepage: cached.homepage,
+          thumbnail: cached.hasThumbnail ? `/api/mods/thumbnail/${cached.name}` : null,
+          mtime: stats.mtimeMs,
+        });
+        continue;
+      }
+
+      // Cache miss: parse the ZIP file
       const zip = new AdmZip(zipPath);
       
       const entries = zip.getEntries();
@@ -71,7 +105,7 @@ function scanModsMetadata(modsDir, gamePath) {
           e.entryName.toLowerCase() === 'thumbnail.png'
       );
 
-      results.push({
+      const metadata = {
         name: info.name,
         title: info.title || info.name,
         version: info.version || '0.0.0',
@@ -79,6 +113,18 @@ function scanModsMetadata(modsDir, gamePath) {
         description: info.description || '(no description)',
         dependencies: info.dependencies || [],
         homepage: info.homepage || '',
+        hasThumbnail,
+      };
+
+      persistentCache[cacheKey] = {
+        mtime: stats.mtimeMs,
+        size: stats.size,
+        metadata,
+      };
+      cacheUpdated = true;
+
+      results.push({
+        ...metadata,
         thumbnail: hasThumbnail ? `/api/mods/thumbnail/${info.name}` : null,
         mtime: stats.mtimeMs,
       });
@@ -87,12 +133,19 @@ function scanModsMetadata(modsDir, gamePath) {
     }
   }
 
+  // Save updated cache
+  if (cacheFilePath && cacheUpdated) {
+    try {
+      fs.writeFileSync(cacheFilePath, JSON.stringify(persistentCache, null, 2), 'utf-8');
+    } catch {}
+  }
+
   return { results, modZipCache, modDirMtime };
 }
 
 try {
-  const { modsDir, gamePath } = workerData || {};
-  const payload = scanModsMetadata(modsDir, gamePath);
+  const { modsDir, gamePath, cacheFilePath } = workerData || {};
+  const payload = scanModsMetadata(modsDir, gamePath, cacheFilePath);
   parentPort.postMessage({ ok: true, ...payload });
 } catch (err) {
   parentPort.postMessage({ ok: false, error: err && err.message ? err.message : String(err) });

@@ -5,7 +5,7 @@
   "scripts": {
     "start": "npm run build-css && electron .",
     "electron": "npm run build-css && electron .",
-    "build-css": "sass public/styles/main.scss public/styles/main.css",
+    "build-css": "node build-css-conditional.js",
     "watch-css": "sass --watch public/styles/main.scss public/styles/main.css",
     "test": "jest"
   },
