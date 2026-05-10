@@ -61,6 +61,8 @@ const vueAppOptions = {
       dlVersionOpen: false,
       dlSpaceAgeOpen: false,
       showAuthPopup: false,
+      showModSettingsPopup: false,
+      selectedSettingsMod: null,
       portalAuth: { authenticated: false, username: null },
       authUsername: '',
       authPassword: '',
@@ -1040,6 +1042,11 @@ const vueAppOptions = {
         } else {
           window.open(url, '_blank');
         }
+      },
+
+      openModSettings(mod) {
+        this.selectedSettingsMod = mod;
+        this.showModSettingsPopup = true;
       }
     },
     mounted() {

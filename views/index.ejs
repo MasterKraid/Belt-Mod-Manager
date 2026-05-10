@@ -69,9 +69,10 @@
         <nav class="tabs">
           <button :class="{active: currentTab==='profiles'}" @click="switchTab('profiles')">Profiles</button>
           <button :class="{active: currentTab==='manager'}" @click="switchTab('manager')">Manager</button>
+          <button :class="{active: currentTab==='config'}" @click="switchTab('config')">Config</button>
           <button :class="{active: currentTab==='installed'}" @click="switchTab('installed')">Installed Mods</button>
-          <button :class="{active: currentTab==='settings'}" @click="switchTab('settings')">Settings</button>
           <button :class="{active: currentTab==='downloader'}" @click="switchTab('downloader')">Downloader</button>
+          <button :class="{active: currentTab==='settings'}" @click="switchTab('settings')">Settings</button>
 
           <!-- Tab bar separator -->
           <span class="tabs-separator"></span>
@@ -362,11 +363,19 @@
                     <div class="version">v{{ mod.version }}</div>
                   </div>
                 </div>
-                <div class="expand-arrow" :class="{ expanded: expandedMods.includes(mod.name) }">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                  </svg>
+                <div class="installed-header-right">
+                  <button class="mod-settings-btn has-tooltip" data-tooltip="Mod Settings" @click.stop="openModSettings(mod); playSound('click')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="3"></circle>
+                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                  </button>
+                  <div class="expand-arrow" :class="{ expanded: expandedMods.includes(mod.name) }">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                  </div>
                 </div>
               </div>
 
@@ -438,8 +447,15 @@
         </div>
 
         <!-- Placeholder Tabs -->
-        <div v-show="currentTab==='settings'">
-          <p>Coming soon...</p>
+        <div v-show="currentTab==='config'" class="tab-content-wrapper">
+          <div class="dl-empty-state">
+            <p>Coming soon...</p>
+          </div>
+        </div>
+        <div v-show="currentTab==='settings'" class="tab-content-wrapper">
+          <div class="dl-empty-state">
+            <p>Coming soon...</p>
+          </div>
         </div>
         <div v-show="currentTab==='downloader'" class="tab-content-wrapper">
           <!-- Search Controls -->
@@ -886,6 +902,39 @@
           </div>
         </div>
       </div>
+
+      <!-- Mod Settings Popup Modal -->
+      <div v-if="showModSettingsPopup" class="dl-modal-overlay" @click.self="showModSettingsPopup = false">
+        <div class="dl-modal">
+          <div class="dl-modal-header">
+            <h3>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" class="dl-modal-header-icon">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+              Settings: {{ selectedSettingsMod ? selectedSettingsMod.title : '' }}
+            </h3>
+            <button class="dl-modal-close" @click="showModSettingsPopup = false; playSound('click')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+
+          <div class="dl-modal-body">
+            <div class="dl-empty-state">
+              <p>Coming soon...</p>
+            </div>
+
+            <div class="dl-modal-actions">
+              <button class="dl-btn dl-btn-deps" @click="showModSettingsPopup = false; playSound('click')">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
 
     </div>
   </div>

@@ -3028,4 +3028,39 @@ input:checked + .slider:before {
   margin-right: 0.4rem;
 }
 
+.installed-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mod-settings-btn {
+  background: transparent !important;
+  border: none !important;
+  color: rgba(244, 211, 94, 0.65) !important;
+  padding: 0.4rem !important;
+  margin: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50% !important;
+  cursor: pointer;
+  box-shadow: none !important;
+  transform: none !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+.mod-settings-btn:hover {
+  color: #f4d35e !important;
+  background-color: rgba(244, 211, 94, 0.1) !important;
+}
+.mod-settings-btn:hover svg {
+  transform: rotate(45deg);
+}
+.mod-settings-btn:active {
+  transform: scale(0.9) !important;
+}
+.mod-settings-btn svg {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 /*# sourceMappingURL=main.css.map */
