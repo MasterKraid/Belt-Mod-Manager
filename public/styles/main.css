@@ -1064,6 +1064,9 @@ input:checked + .slider:before {
   gap: 0.5rem;
   margin-top: 0.75rem;
   margin-bottom: 0.5rem;
+  flex-wrap: nowrap !important;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .dl-search-btn {
@@ -2341,7 +2344,8 @@ input:checked + .slider:before {
 
 .search-wrapper-downloader {
   flex-grow: 1;
-  max-width: 250px;
+  max-width: none !important;
+  min-width: 150px;
   margin: 0;
 }
 

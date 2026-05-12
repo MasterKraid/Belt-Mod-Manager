@@ -505,6 +505,7 @@ function mergeNewMods(scanned, current) {
   // Add brand new scanned mods
   scanned.forEach(mod => {
     if (!known.has(mod.name)) {
+      known.add(mod.name);
       // Keep the scanned enabled state (e.g. true for core/DLCs), but force base to true
       const state = mod.name === 'base' ? true : !!mod.enabled;
       current.push({ ...mod, enabled: state });

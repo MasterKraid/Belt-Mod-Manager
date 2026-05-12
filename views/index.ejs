@@ -353,7 +353,7 @@
           </div>
 
           <div class="mod-list">
-            <div class="mod-item installed-item" v-for="mod in filteredInstalledMods" :key="mod.name">
+            <div class="mod-item installed-item" v-for="mod in filteredInstalledMods" :key="mod.name + '@' + mod.version">
               <div class="installed-header" @click="toggleExpand(mod.name)">
                 <div class="installed-title-area">
                   <img v-if="mod.thumbnail" :src="mod.thumbnail" class="thumbnail installed-mod-thumbnail"
