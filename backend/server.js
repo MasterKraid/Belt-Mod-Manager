@@ -22,6 +22,12 @@ const MODS_DIR_DEFAULT = path.join(process.env.APPDATA || '', 'Factorio', 'mods'
 let userModPath = MODS_DIR_DEFAULT;
 let userGamePath = ''; // global
 let activeProfile = 'default';
+let uiScale = 85;
+let gameArgs = '';
+let maxConcurrent = 3;
+let enableSoundEffects = true;
+let soundVolume = 80;
+let enableBackgroundAnimation = false;
 
 const CONFIG_FILE = path.join(__dirname, 'config.json');
 const METADATA_CACHE_FILE = process.env.NODE_ENV === 'test' 
@@ -41,6 +47,24 @@ function loadConfig() {
       if (config.activeProfile) {
         activeProfile = config.activeProfile;
       }
+      if (config.uiScale !== undefined) {
+        uiScale = config.uiScale;
+      }
+      if (config.gameArgs !== undefined) {
+        gameArgs = config.gameArgs;
+      }
+      if (config.maxConcurrent !== undefined) {
+        maxConcurrent = config.maxConcurrent;
+      }
+      if (config.enableSoundEffects !== undefined) {
+        enableSoundEffects = config.enableSoundEffects;
+      }
+      if (config.soundVolume !== undefined) {
+        soundVolume = config.soundVolume;
+      }
+      if (config.enableBackgroundAnimation !== undefined) {
+        enableBackgroundAnimation = config.enableBackgroundAnimation;
+      }
     }
   } catch (err) {
     console.warn('Could not load config.json:', err.message);
@@ -49,7 +73,17 @@ function loadConfig() {
 
 function saveConfig() {
   try {
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify({ userModPath, userGamePath, activeProfile }, null, 2));
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify({ 
+      userModPath, 
+      userGamePath, 
+      activeProfile,
+      uiScale,
+      gameArgs,
+      maxConcurrent,
+      enableSoundEffects,
+      soundVolume,
+      enableBackgroundAnimation
+    }, null, 2));
   } catch (err) {
     console.warn('Could not save config.json:', err.message);
   }
@@ -60,8 +94,38 @@ loadConfig();
 
 // === Download Manager (singleton) ===
 const downloadManager = new DownloadManager(() => userModPath);
+downloadManager.maxConcurrent = maxConcurrent;
+
+function addDownloadedModToActiveProfile(modName) {
+  if (!activeProfile) return;
+  const profileFile = path.join(PROFILES_DIR, `${activeProfile}.json`);
+  if (!fs.existsSync(profileFile)) return;
+  try {
+    const profileMods = JSON.parse(fs.readFileSync(profileFile, 'utf-8'));
+    if (!Array.isArray(profileMods)) return;
+    
+    const existing = profileMods.find(m => m.name === modName);
+    if (!existing) {
+      profileMods.push({
+        name: modName,
+        enabled: false
+      });
+      fs.writeFileSync(profileFile, JSON.stringify(profileMods, null, 2));
+      saveToModList(profileMods);
+      if (process.env.NODE_ENV !== 'test') {
+        console.log(`[Item 5 Fix] Added downloaded mod "${modName}" as disabled to active profile "${activeProfile}" and mod-list.json.`);
+      }
+    }
+  } catch (err) {
+    console.warn('[Item 5 Fix] Failed to add downloaded mod to active profile:', err.message);
+  }
+}
+
 downloadManager.onJobComplete = (job) => {
   invalidateModCache();
+  if (job && job.modName) {
+    addDownloadedModToActiveProfile(job.modName);
+  }
   startBackgroundModScan('download-complete');
 };
 
@@ -358,7 +422,6 @@ function scanMods() {
           persistentCache[cacheKey].mtime === stats.mtimeMs && 
           persistentCache[cacheKey].size === stats.size) {
         const cached = persistentCache[cacheKey].metadata;
-        modZipCache[cached.name] = zipPath;
         results.push({
           name: cached.name,
           title: cached.title,
@@ -369,6 +432,7 @@ function scanMods() {
           homepage: cached.homepage,
           thumbnail: cached.hasThumbnail ? `/api/mods/thumbnail/${cached.name}` : null,
           mtime: stats.mtimeMs,
+          _zipPath: zipPath,
         });
         continue;
       }
@@ -380,8 +444,6 @@ function scanMods() {
 
       const infoContent = zip.readAsText(infoEntry);
       const info = JSON.parse(infoContent);
-
-      modZipCache[info.name] = zipPath;
 
       const hasThumbnail = zip.getEntries().some(e => 
         e.entryName.toLowerCase().endsWith('/thumbnail.png') || 
@@ -410,6 +472,7 @@ function scanMods() {
         ...metadata,
         thumbnail: hasThumbnail ? `/api/mods/thumbnail/${info.name}` : null,
         mtime: stats.mtimeMs,
+        _zipPath: zipPath,
       });
     } catch (err) {
       console.warn('Bad zip:', zipPath);
@@ -451,6 +514,46 @@ function scanMods() {
     return parsed;
   }
 
+  // Deduplicate and only keep highest semantic version of each mod
+  const grouped = {};
+  for (const m of results) {
+    if (!grouped[m.name]) {
+      grouped[m.name] = [];
+    }
+    grouped[m.name].push(m);
+  }
+
+  const dedupedResults = [];
+  const finalModZipCache = {};
+
+  for (const [name, list] of Object.entries(grouped)) {
+    let selected;
+    if (list.length === 1) {
+      selected = list[0];
+    } else {
+      list.sort((a, b) => {
+        const partsA = (a.version || '0.0.0').split('.').map(x => parseInt(x) || 0);
+        const partsB = (b.version || '0.0.0').split('.').map(x => parseInt(x) || 0);
+        const maxLen = Math.max(partsA.length, partsB.length);
+        for (let i = 0; i < maxLen; i++) {
+          const pa = partsA[i] || 0;
+          const pb = partsB[i] || 0;
+          if (pb !== pa) return pb - pa;
+        }
+        return (b.mtime || 0) - (a.mtime || 0);
+      });
+      selected = list[0];
+    }
+
+    if (selected._zipPath) {
+      finalModZipCache[name] = selected._zipPath;
+    }
+    delete selected._zipPath;
+    dedupedResults.push(selected);
+  }
+
+  results = dedupedResults;
+  modZipCache = finalModZipCache;
   cachedScannedMods = results;
 
   return results.map(m => ({
@@ -954,6 +1057,119 @@ function syncProfileWithActualModList() {
   }
 }
 
+app.get('/api/config', (req, res) => {
+  res.json({
+    userModPath,
+    userGamePath,
+    activeProfile,
+    uiScale,
+    gameArgs,
+    maxConcurrent,
+    enableSoundEffects,
+    soundVolume,
+    enableBackgroundAnimation
+  });
+});
+
+app.post('/api/config', (req, res) => {
+  const { 
+    userModPath: newModPath, 
+    userGamePath: newGamePath, 
+    activeProfile: newProfile, 
+    uiScale: newScale,
+    gameArgs: newArgs,
+    maxConcurrent: newMaxConcurrent,
+    enableSoundEffects: newEnableSound,
+    soundVolume: newVolume,
+    enableBackgroundAnimation: newEnableBgAnimate
+  } = req.body;
+
+  if (newModPath !== undefined && newModPath !== userModPath) {
+    userModPath = newModPath;
+    invalidateModCache();
+    startBackgroundModScan('config-update-mods');
+  }
+  if (newGamePath !== undefined && newGamePath !== userGamePath) {
+    userGamePath = newGamePath;
+    invalidateModCache();
+    startBackgroundModScan('config-update-game');
+  }
+  if (newProfile !== undefined) activeProfile = newProfile;
+  if (newScale !== undefined && typeof newScale === 'number') uiScale = newScale;
+  if (newArgs !== undefined && typeof newArgs === 'string') gameArgs = newArgs;
+  if (newMaxConcurrent !== undefined && typeof newMaxConcurrent === 'number') {
+    maxConcurrent = newMaxConcurrent;
+    downloadManager.maxConcurrent = maxConcurrent;
+  }
+  if (newEnableSound !== undefined && typeof newEnableSound === 'boolean') {
+    enableSoundEffects = newEnableSound;
+  }
+  if (newVolume !== undefined && typeof newVolume === 'number') {
+    soundVolume = newVolume;
+  }
+  if (newEnableBgAnimate !== undefined && typeof newEnableBgAnimate === 'boolean') {
+    enableBackgroundAnimation = newEnableBgAnimate;
+  }
+
+  saveConfig();
+  res.json({
+    userModPath,
+    userGamePath,
+    activeProfile,
+    uiScale,
+    gameArgs,
+    maxConcurrent,
+    enableSoundEffects,
+    soundVolume,
+    enableBackgroundAnimation
+  });
+});
+
+app.get('/api/mods/check-updates', async (req, res) => {
+  try {
+    const scanned = await getScannedMods('check-updates');
+    const nonCoreMods = scanned.filter(m => m.type !== 'core');
+    if (nonCoreMods.length === 0) {
+      return res.json({});
+    }
+
+    const names = nonCoreMods.map(m => m.name).join(',');
+    const url = `https://mods.factorio.com/api/mods?namelist=${encodeURIComponent(names)}`;
+    
+    const { fetchJson } = require('./download-manager');
+    const data = await fetchJson(url);
+    
+    function isNewerVersion(v1, v2) {
+      const parts1 = (v1 || '0.0.0').split('.').map(x => parseInt(x) || 0);
+      const parts2 = (v2 || '0.0.0').split('.').map(x => parseInt(x) || 0);
+      const maxLen = Math.max(parts1.length, parts2.length);
+      for (let i = 0; i < maxLen; i++) {
+        const p1 = parts1[i] || 0;
+        const p2 = parts2[i] || 0;
+        if (p2 > p1) return true;
+        if (p1 > p2) return false;
+      }
+      return false;
+    }
+
+    const updates = {};
+    if (data && Array.isArray(data.results)) {
+      data.results.forEach(m => {
+        const lr = m.latest_release || (m.releases ? m.releases[m.releases.length - 1] : null);
+        if (lr) {
+          const installed = nonCoreMods.find(inst => inst.name === m.name);
+          if (installed && isNewerVersion(installed.version, lr.version)) {
+            updates[m.name] = lr.version;
+          }
+        }
+      });
+    }
+    res.json(updates);
+  } catch (err) {
+    res.status(502).json({ error: 'Failed to check updates: ' + err.message });
+  }
+});
+
 app.post('/api/launch-game', (req, res) => {
   if (!userGamePath) {
     return res.status(400).json({ error: 'Game path not set' });
@@ -968,7 +1184,8 @@ app.post('/api/launch-game', (req, res) => {
   }
 
   try {
-    gameProcess = spawn(exePath, [], {
+    const args = gameArgs && gameArgs.trim() ? gameArgs.trim().split(/\s+/) : [];
+    gameProcess = spawn(exePath, args, {
       detached: true,
       stdio: 'ignore'
     });

@@ -1,6 +1,6 @@
-() Add feature: show mod updates when available with a orange hue in installed mods.
+(x) Add feature: show mod updates when available with a orange hue in installed mods.
 (x) Add feature: disable/completely hide ui when game launched to lower cpu use when game running. The only thing alive would be the ping that checks if game is closed yet or not. (Update: WIth Tauri and Bun its so lightweight now that this is no longer required.)
-() Improve: Brainstorm idea to make project smaller and optimized, since moving to C is a lot of work and might be overkill for this project. (consider rewriting to C, or at least C# to reduce overhead)
+(x) Improve: Brainstorm idea to make project smaller and optimized, since moving to C is a lot of work and might be overkill for this project. (consider rewriting to C, or at least C# to reduce overhead)
 () Since we are launching Factorio as childprocess we are able to access its logs, Plan a "Logs" Tab that can show the logs in real time. and Store them in case of Factorio Crashes. Will be helpful for debug for modders who like to mess around. If game crashes, it will close our app too.. so need to ensure our app stays alive or opens again.
 () A known issue right now is: When a mod is downloaded, and game is launched even though mod is disabled in mod manager, its not actually stored in the config yet because (save) is not clicked I suppose. And Factorio has a tendendcy to auto enable all new entries if its not in config. We need to figure workaround/fix for this
 () Known Issue: UI keeps breaking if two version of same mod exists in disk. Did A hotfix but... idk... it might be broken again.

@@ -72,7 +72,6 @@ function scanModsMetadata(modsDir, gamePath, cacheFilePath) {
           persistentCache[cacheKey].mtime === stats.mtimeMs && 
           persistentCache[cacheKey].size === stats.size) {
         const cached = persistentCache[cacheKey].metadata;
-        modZipCache[cached.name] = zipPath;
         results.push({
           name: cached.name,
           title: cached.title,
@@ -83,6 +82,7 @@ function scanModsMetadata(modsDir, gamePath, cacheFilePath) {
           homepage: cached.homepage,
           thumbnail: cached.hasThumbnail ? `/api/mods/thumbnail/${cached.name}` : null,
           mtime: stats.mtimeMs,
+          _zipPath: zipPath,
         });
         continue;
       }
@@ -96,8 +96,6 @@ function scanModsMetadata(modsDir, gamePath, cacheFilePath) {
 
       const infoContent = zip.readAsText(infoEntry);
       const info = JSON.parse(infoContent);
-
-      modZipCache[info.name] = zipPath;
 
       const hasThumbnail = entries.some(
         (e) =>
@@ -127,6 +125,7 @@ function scanModsMetadata(modsDir, gamePath, cacheFilePath) {
         ...metadata,
         thumbnail: hasThumbnail ? `/api/mods/thumbnail/${info.name}` : null,
         mtime: stats.mtimeMs,
+        _zipPath: zipPath,
       });
     } catch {
       // Ignore bad zips to keep scanning robust
@@ -140,7 +139,45 @@ function scanModsMetadata(modsDir, gamePath, cacheFilePath) {
     } catch {}
   }
 
-  return { results, modZipCache, modDirMtime };
+  // Deduplicate and only keep highest semantic version of each mod
+  const grouped = {};
+  for (const m of results) {
+    if (!grouped[m.name]) {
+      grouped[m.name] = [];
+    }
+    grouped[m.name].push(m);
+  }
+
+  const dedupedResults = [];
+  const finalModZipCache = {};
+
+  for (const [name, list] of Object.entries(grouped)) {
+    let selected;
+    if (list.length === 1) {
+      selected = list[0];
+    } else {
+      list.sort((a, b) => {
+        const partsA = (a.version || '0.0.0').split('.').map(x => parseInt(x) || 0);
+        const partsB = (b.version || '0.0.0').split('.').map(x => parseInt(x) || 0);
+        const maxLen = Math.max(partsA.length, partsB.length);
+        for (let i = 0; i < maxLen; i++) {
+          const pa = partsA[i] || 0;
+          const pb = partsB[i] || 0;
+          if (pb !== pa) return pb - pa;
+        }
+        return (b.mtime || 0) - (a.mtime || 0);
+      });
+      selected = list[0];
+    }
+
+    if (selected._zipPath) {
+      finalModZipCache[name] = selected._zipPath;
+    }
+    delete selected._zipPath;
+    dedupedResults.push(selected);
+  }
+
+  return { results: dedupedResults, modZipCache: finalModZipCache, modDirMtime };
 }
 
 try {

@@ -23,6 +23,14 @@ const vueAppOptions = {
       currentTab: 'profiles',
       editingProfile: null,
       renameInput: '',
+      uiScale: 85,
+      gameArgs: '',
+      maxConcurrent: 3,
+      enableSoundEffects: true,
+      soundVolume: 80,
+      enableBackgroundAnimation: false,
+      modUpdates: {},
+      isCheckingUpdates: false,
       currentModPath: '',
       gamePath: '',
       status: '',
@@ -165,28 +173,41 @@ const vueAppOptions = {
         
         const coreNames = ['base', 'elevated-rails', 'quality', 'space-age'];
         return list.slice().sort((a, b) => {
+          const aCore = coreNames.indexOf(a.name);
+          const bCore = coreNames.indexOf(b.name);
+
           if (this.installedSort === 'last-downloaded') {
-            const aCore = coreNames.indexOf(a.name);
-            const bCore = coreNames.indexOf(b.name);
-            if (aCore !== -1 && bCore !== -1) return aCore - bCore; // keep relative core hierarchy
-            if (aCore !== -1) return 1; // push core mods to the end!
-            if (bCore !== -1) return -1; // push core mods to the end!
+            if (aCore !== -1 && bCore !== -1) return aCore - bCore;
+            if (aCore !== -1) return 1; // core mods at bottom
+            if (bCore !== -1) return -1; // core mods at bottom
 
             const am = a.mtime || 0;
             const bm = b.mtime || 0;
-            if (am !== bm) {
-              return bm - am; // newest first!
-            }
-          } else {
-            const aCore = coreNames.indexOf(a.name);
-            const bCore = coreNames.indexOf(b.name);
+            if (am !== bm) return bm - am; // newest first
+          } else if (this.installedSort === 'update-needed') {
             if (aCore !== -1 && bCore !== -1) return aCore - bCore;
-            if (aCore !== -1) return -1; // core mods at the top!
-            if (bCore !== -1) return 1; // core mods at the top!
+            if (aCore !== -1) return 1; // core mods at bottom
+            if (bCore !== -1) return -1; // core mods at bottom
+
+            const aHasUpdate = !!this.modUpdates[a.name];
+            const bHasUpdate = !!this.modUpdates[b.name];
+            if (aHasUpdate && !bHasUpdate) return -1;
+            if (!aHasUpdate && bHasUpdate) return 1;
+          } else if (this.installedSort === 'enabled-first') {
+            if (aCore !== -1 && bCore !== -1) return aCore - bCore;
+            if (aCore !== -1) return -1; // core mods at top
+            if (bCore !== -1) return 1; // core mods at top
+
+            if (a.enabled && !b.enabled) return -1;
+            if (!a.enabled && b.enabled) return 1;
+          } else { // 'name' (Alphabetical)
+            if (aCore !== -1 && bCore !== -1) return aCore - bCore;
+            if (aCore !== -1) return -1; // core mods at top
+            if (bCore !== -1) return 1; // core mods at top
           }
 
-          const aTitle = a.title || a.name;
-          const bTitle = b.title || b.name;
+          const aTitle = (a.title || a.name).toLowerCase();
+          const bTitle = (b.title || b.name).toLowerCase();
           return aTitle < bTitle ? -1 : (aTitle > bTitle ? 1 : 0);
         });
       },
@@ -226,8 +247,9 @@ const vueAppOptions = {
     },
     methods: {
       playSound(name) {
-        if (sfx[name]) {
+        if (this.enableSoundEffects && sfx[name]) {
           sfx[name].currentTime = 0;
+          sfx[name].volume = (this.soundVolume !== undefined ? this.soundVolume / 100 : 0.8);
           sfx[name].play().catch(() => {});
         }
       },
@@ -400,6 +422,7 @@ const vueAppOptions = {
               author: mod.author || 'Unknown',
               description: mod.description || 'No description.'
             }));
+            this.checkForModUpdates();
           });
       },
 
@@ -1047,16 +1070,125 @@ const vueAppOptions = {
       openModSettings(mod) {
         this.selectedSettingsMod = mod;
         this.showModSettingsPopup = true;
+      },
+      saveSettingsConfig() {
+        fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userModPath: this.currentModPath,
+            userGamePath: this.gamePath,
+            uiScale: parseInt(this.uiScale) || 100,
+            gameArgs: this.gameArgs,
+            maxConcurrent: parseInt(this.maxConcurrent) || 3,
+            enableSoundEffects: this.enableSoundEffects,
+            soundVolume: parseInt(this.soundVolume) || 80,
+            enableBackgroundAnimation: this.enableBackgroundAnimation
+          })
+        })
+          .then(res => res.json())
+          .then(config => {
+            this.currentModPath = config.userModPath;
+            this.gamePath = config.userGamePath;
+            this.uiScale = config.uiScale;
+            this.gameArgs = config.gameArgs;
+            this.maxConcurrent = config.maxConcurrent;
+            this.enableSoundEffects = config.enableSoundEffects;
+            this.soundVolume = config.soundVolume;
+            this.enableBackgroundAnimation = config.enableBackgroundAnimation;
+          })
+          .catch(err => this.notify('Failed to save settings: ' + err.message));
+      },
+      applyUiScaling() {
+        document.body.style.setProperty('--zoom-factor', (this.uiScale / 100));
+        document.body.style.zoom = (this.uiScale / 100);
+      },
+      detectSteamPath() {
+        this.playSound('click');
+        this.notify('Detecting Steam Factorio path...');
+        fetch('/api/detect-steam-game', { method: 'POST' })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              this.gamePath = data.path;
+              this.notify('Factorio detected: ' + data.path);
+              this.saveSettingsConfig();
+            } else {
+              this.notify('Steam Factorio not detected.');
+            }
+          })
+          .catch(err => this.notify('Detection failed: ' + err.message));
+      },
+      openModsFolder() {
+        this.playSound('click');
+        fetch('/api/open-mod-folder', { method: 'POST' })
+          .catch(err => this.notify('Failed to open mods folder: ' + err.message));
+      },
+      clearDownloadsHistory() {
+        this.playSound('click');
+        fetch('/api/portal/downloads-clear', { method: 'POST' })
+          .then(() => {
+            this.activeDownloads = [];
+            this.notify('Downloads history cleared.');
+          })
+          .catch(err => this.notify('Failed to clear history: ' + err.message));
+      },
+      checkForModUpdates() {
+        if (this.isCheckingUpdates || this.activeDownloads.some(d => ['downloading', 'queued', 'retrying'].includes(d.status))) return;
+        this.isCheckingUpdates = true;
+        fetch('/api/mods/check-updates')
+          .then(res => res.json())
+          .then(updates => {
+            this.modUpdates = updates || {};
+          })
+          .catch(() => {})
+          .finally(() => {
+            this.isCheckingUpdates = false;
+          });
+      },
+      downloadModUpdate(modName, targetVersion) {
+        this.playSound('click');
+        this.notify(`Updating ${modName} to v${targetVersion}...`);
+        fetch('/api/portal/download-with-deps', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            modName: modName,
+            includeOptional: false
+          })
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.error) {
+              this.notify('Error: ' + data.error);
+              return;
+            }
+            this.notify(`Queued update for ${modName}.`);
+            this.startDownloadPolling();
+          })
+          .catch(err => this.notify('Update queueing failed: ' + err.message));
       }
     },
     mounted() {
       this.loadProfiles();
-      fetch('/api/get-mod-path')
+      fetch('/api/config')
         .then(res => res.json())
-        .then(data => this.currentModPath = data.path);
-      fetch('/api/get-game-path')
-        .then(res => res.json())
-        .then(data => this.gamePath = data.path);
+        .then(config => {
+          this.currentModPath = config.userModPath;
+          this.gamePath = config.userGamePath;
+          this.uiScale = config.uiScale || 100;
+          this.gameArgs = config.gameArgs || '';
+          this.maxConcurrent = config.maxConcurrent || 3;
+          this.enableSoundEffects = config.enableSoundEffects !== false;
+          this.soundVolume = config.soundVolume !== undefined ? config.soundVolume : 80;
+          this.enableBackgroundAnimation = config.enableBackgroundAnimation || false;
+          this.applyUiScaling();
+
+          // Check for mod updates automatically after start up
+          setTimeout(() => this.checkForModUpdates(), 3000);
+          // Poll updates check every 3 minutes
+          setInterval(() => this.checkForModUpdates(), 180000);
+        });
       // Defer mod scanning fetch to allow initial paint to happen first.
       requestAnimationFrame(() => this.fetchInstalledMods());
       this.fetchAuthStatus();
