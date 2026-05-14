@@ -221,10 +221,9 @@ button {
   outline: none;
 }
 button:hover:not(:disabled) {
-  background-color: #ffe66d;
-  border-color: #ffe66d;
-  box-shadow: 0 4px 12px rgba(244, 211, 94, 0.35);
+  box-shadow: 0 4px 12px rgba(244, 211, 94, 0.2);
   transform: translateY(-1px);
+  filter: brightness(1.1);
 }
 button:active:not(:disabled) {
   transform: scale(0.94) translateY(0);
@@ -1377,11 +1376,18 @@ input:checked + .slider:before {
 }
 
 .dl-downloads-panel {
-  margin-top: 0.75rem;
-  background: rgba(15, 15, 15, 0.5);
-  border: 1px solid rgba(244, 211, 94, 0.2);
+  position: absolute;
+  bottom: 5.1rem;
+  /* Sit above the pagination bar */
+  left: 1.5rem;
+  right: 1.5rem;
+  z-index: 100;
+  background: rgba(12, 12, 12, 0.95);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(244, 211, 94, 0.25);
   border-radius: 6px;
   overflow: hidden;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
 }
 
 .dl-downloads-header {
@@ -1416,11 +1422,9 @@ input:checked + .slider:before {
   font-weight: normal;
 }
 .dl-btn-clear:hover:not(:disabled) {
-  background: rgba(244, 211, 94, 0.1) !important;
-  color: #f4d35e !important;
-  border-color: #f4d35e !important;
-  transform: none !important;
-  box-shadow: none !important;
+  background: rgba(244, 211, 94, 0.1);
+  color: #f4d35e;
+  border-color: #f4d35e;
 }
 
 .dl-btn-minimize {
@@ -1438,10 +1442,8 @@ input:checked + .slider:before {
   box-shadow: none;
 }
 .dl-btn-minimize:hover:not(:disabled) {
-  color: #f4d35e !important;
-  background: rgba(244, 211, 94, 0.1) !important;
-  transform: none !important;
-  box-shadow: none !important;
+  color: #f4d35e;
+  background: rgba(244, 211, 94, 0.1);
 }
 .dl-btn-minimize svg {
   display: block;
@@ -2200,57 +2202,75 @@ input:checked + .slider:before {
 
 .btn-profile-create-placement {
   margin-top: 1rem;
-  width: 100%;
+  align-self: flex-start;
 }
 
-.profile-tab-actions-footer {
+.titlebar-actions-cluster {
   display: flex;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-.profile-tab-actions-footer .btn-profile-create-placement {
-  margin-top: 0;
-  flex: 1;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.btn-show-logs {
-  background: rgba(15, 15, 15, 0.3);
-  border: 1px solid rgba(244, 211, 94, 0.15);
-  color: rgba(244, 211, 94, 0.6);
-  padding: 0.5rem 1rem;
-  font-size: 0.85rem;
-  border-radius: 4px;
+.btn-log-mini-toggle {
+  background: rgba(15, 15, 15, 0.45);
+  border: 1px solid rgba(244, 211, 94, 0.3);
+  color: rgba(244, 211, 94, 0.45);
   cursor: pointer;
-  font-weight: bold;
+  padding: 3px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  flex: 1;
+  border-radius: 6px;
+  transition: all 0.2s ease;
   margin: 0;
   box-shadow: none;
-  transition: all 0.2s ease;
 }
-.btn-show-logs:hover:not(:disabled) {
-  background: rgba(244, 211, 94, 0.08) !important;
-  border-color: #f4d35e !important;
-  color: #f4d35e !important;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(244, 211, 94, 0.1);
+.btn-log-mini-toggle:hover {
+  color: #f4d35e;
+  background: rgba(244, 211, 94, 0.1);
+  border-color: rgba(244, 211, 94, 0.6);
 }
-.btn-show-logs svg {
-  opacity: 0.7;
+.btn-log-mini-toggle:hover svg .prompt-gt {
+  animation: terminal-double-blink-gt 1.5s infinite;
+}
+.btn-log-mini-toggle:hover svg .prompt-pipe {
+  animation: terminal-double-blink-pipe 1.5s infinite;
+}
+.btn-log-mini-toggle.active {
+  color: #f4d35e;
+  background: rgba(244, 211, 94, 0.15);
+  border-color: #f4d35e;
 }
 
-.logs-console-wrapper {
-  margin-top: 1rem;
-  background: rgba(10, 10, 10, 0.6);
-  border: 1px solid rgba(244, 211, 94, 0.2);
-  border-radius: 6px;
-  display: flex;
-  flex-direction: column;
+.terminal-svg .prompt-pipe {
+  opacity: 0;
+}
+.terminal-svg .prompt-gt {
+  opacity: 1;
+}
+
+@keyframes terminal-double-blink-gt {
+  0%, 40%, 55%, 70%, 85%, 100% {
+    opacity: 1;
+  }
+  47.5%, 77.5% {
+    opacity: 0;
+  }
+}
+@keyframes terminal-double-blink-pipe {
+  0%, 40%, 55%, 70%, 85%, 100% {
+    opacity: 0;
+  }
+  47.5%, 77.5% {
+    opacity: 1;
+  }
+}
+.logs-console-pane {
+  margin-top: 1rem !important;
+  padding: 0 !important;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .logs-header {
@@ -2258,7 +2278,7 @@ input:checked + .slider:before {
   justify-content: space-between;
   align-items: center;
   padding: 0.4rem 0.75rem;
-  background: rgba(244, 211, 94, 0.1);
+  background: rgba(244, 211, 94, 0.08);
   border-bottom: 1px solid rgba(244, 211, 94, 0.1);
 }
 .logs-header .logs-title {
@@ -2270,7 +2290,7 @@ input:checked + .slider:before {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  opacity: 0.9;
+  opacity: 0.8;
 }
 .logs-header .logs-controls {
   display: flex;
@@ -2280,7 +2300,7 @@ input:checked + .slider:before {
 .log-ctrl-btn {
   background: transparent;
   border: none;
-  color: rgba(244, 211, 94, 0.5);
+  color: rgba(244, 211, 94, 0.4);
   cursor: pointer;
   padding: 4px;
   border-radius: 3px;
@@ -2289,16 +2309,19 @@ input:checked + .slider:before {
   justify-content: center;
   margin: 0;
   box-shadow: none;
+  transition: all 0.15s ease;
 }
 .log-ctrl-btn:hover:not(:disabled) {
-  color: #f4d35e !important;
-  background: rgba(244, 211, 94, 0.15) !important;
-  transform: none !important;
-  box-shadow: none !important;
+  color: #f4d35e;
+  background: rgba(244, 211, 94, 0.15);
 }
 .log-ctrl-btn.active {
   color: #f4d35e;
   background: rgba(244, 211, 94, 0.2);
+}
+.log-ctrl-btn.close-btn:hover {
+  color: #ff4444 !important;
+  background: rgba(255, 68, 68, 0.1) !important;
 }
 
 .logs-content {
@@ -2378,8 +2401,18 @@ input:checked + .slider:before {
 
 .btn-group-row-alignment {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.4rem;
+  /* Tightened gap */
   flex-shrink: 0;
+  margin-left: 0;
+  /* Ensure it stays left */
+}
+.btn-group-row-alignment button {
+  margin: 0;
+  /* Remove global button margin */
+  padding: 0.4rem 0.75rem;
+  /* Slightly more compact */
+  font-size: 0.85rem;
 }
 
 .manager-search-and-folders {
@@ -3381,11 +3414,10 @@ input:checked + .slider:before {
   white-space: nowrap;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
-.bulk-update-btn:hover {
-  background: rgba(230, 126, 34, 0.25) !important;
-  border-color: #e67e22 !important;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+.bulk-update-btn:hover:not(:disabled) {
+  background: rgba(244, 211, 94, 0.08);
+  border-color: #f4d35e;
+  color: #f4d35e;
 }
 .bulk-update-btn:active {
   transform: translateY(0);
@@ -3425,6 +3457,7 @@ input:checked + .slider:before {
   text-align: center;
   outline: none;
   transition: all 0.2s ease;
+  appearance: textfield;
   -moz-appearance: textfield;
 }
 .speed-number-input:focus {

@@ -709,6 +709,7 @@ const vueAppOptions = {
               this.notify('Error launching: ' + data.error);
             } else {
               this.isGameRunning = true;
+              this.showLogs = true;
               this.notify('Factorio launched successfully!');
             }
           })
