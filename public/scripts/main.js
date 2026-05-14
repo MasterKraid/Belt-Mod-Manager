@@ -31,6 +31,7 @@ const vueAppOptions = {
       enableSoundEffects: true,
       soundVolume: 80,
       enableBackgroundAnimation: false,
+      animationSpeed: 100,
       modUpdates: {},
       isCheckingUpdates: false,
       currentModPath: '',
@@ -74,6 +75,7 @@ const vueAppOptions = {
       showModSettingsPopup: false,
       selectedSettingsMod: null,
       portalAuth: { authenticated: false, username: null },
+      showPathsMenu: true,
       authUsername: '',
       authPassword: '',
       authError: '',
@@ -1119,25 +1121,29 @@ const vueAppOptions = {
             maxConcurrent: parseInt(this.maxConcurrent) || 3,
             enableSoundEffects: this.enableSoundEffects,
             soundVolume: parseInt(this.soundVolume) || 80,
-            enableBackgroundAnimation: this.enableBackgroundAnimation
+            enableBackgroundAnimation: this.enableBackgroundAnimation,
+            animationSpeed: parseInt(this.animationSpeed) || 100,
+            showPathsMenu: this.showPathsMenu
           })
         })
           .then(res => res.json())
-          .then(config => {
-            this.currentModPath = config.userModPath;
-            this.gamePath = config.userGamePath;
-            this.uiScale = config.uiScale;
-            this.gameArgs = config.gameArgs;
-            this.maxConcurrent = config.maxConcurrent;
-            this.enableSoundEffects = config.enableSoundEffects;
-            this.soundVolume = config.soundVolume;
-            this.enableBackgroundAnimation = config.enableBackgroundAnimation;
-          })
           .catch(err => this.notify('Failed to save settings: ' + err.message));
       },
       applyUiScaling() {
         document.body.style.setProperty('--zoom-factor', (this.uiScale / 100));
         document.body.style.zoom = (this.uiScale / 100);
+        this.applyAnimationSpeed();
+      },
+      applyAnimationSpeed() {
+        const speed = parseFloat(this.animationSpeed) || 100;
+        const duration = 6 / (speed / 100);
+        document.documentElement.style.setProperty('--bg-anim-duration', duration + 's');
+      },
+      resetAnimationSpeed() {
+        this.animationSpeed = 100;
+        this.applyAnimationSpeed();
+        this.saveSettingsConfig();
+        this.playSound('click');
       },
       detectSteamPath() {
         this.playSound('click');
@@ -1218,6 +1224,8 @@ const vueAppOptions = {
           this.enableSoundEffects = config.enableSoundEffects !== false;
           this.soundVolume = config.soundVolume !== undefined ? config.soundVolume : 80;
           this.enableBackgroundAnimation = config.enableBackgroundAnimation || false;
+          this.animationSpeed = config.animationSpeed || 100;
+          this.showPathsMenu = config.showPathsMenu !== undefined ? config.showPathsMenu : true;
           this.applyUiScaling();
 
           // Check for mod updates automatically after start up

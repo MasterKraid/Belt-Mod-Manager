@@ -28,6 +28,8 @@ let maxConcurrent = 3;
 let enableSoundEffects = true;
 let soundVolume = 80;
 let enableBackgroundAnimation = false;
+let animationSpeed = 100;
+let showPathsMenu = true;
 
 const CONFIG_FILE = path.join(__dirname, 'config.json');
 const METADATA_CACHE_FILE = process.env.NODE_ENV === 'test' 
@@ -65,6 +67,12 @@ function loadConfig() {
       if (config.enableBackgroundAnimation !== undefined) {
         enableBackgroundAnimation = config.enableBackgroundAnimation;
       }
+      if (config.animationSpeed !== undefined) {
+        animationSpeed = config.animationSpeed;
+      }
+      if (config.showPathsMenu !== undefined) {
+        showPathsMenu = config.showPathsMenu;
+      }
     }
   } catch (err) {
     console.warn('Could not load config.json:', err.message);
@@ -82,7 +90,9 @@ function saveConfig() {
       maxConcurrent,
       enableSoundEffects,
       soundVolume,
-      enableBackgroundAnimation
+      enableBackgroundAnimation,
+      animationSpeed,
+      showPathsMenu
     }, null, 2));
   } catch (err) {
     console.warn('Could not save config.json:', err.message);
@@ -1136,7 +1146,9 @@ app.get('/api/config', (req, res) => {
     maxConcurrent,
     enableSoundEffects,
     soundVolume,
-    enableBackgroundAnimation
+    enableBackgroundAnimation,
+    animationSpeed,
+    showPathsMenu
   });
 });
 
@@ -1150,7 +1162,9 @@ app.post('/api/config', (req, res) => {
     maxConcurrent: newMaxConcurrent,
     enableSoundEffects: newEnableSound,
     soundVolume: newVolume,
-    enableBackgroundAnimation: newEnableBgAnimate
+    enableBackgroundAnimation: newEnableBgAnimate,
+    animationSpeed: newAnimSpeed,
+    showPathsMenu: newShowPaths
   } = req.body;
 
   if (newModPath !== undefined && newModPath !== userModPath) {
@@ -1179,6 +1193,12 @@ app.post('/api/config', (req, res) => {
   if (newEnableBgAnimate !== undefined && typeof newEnableBgAnimate === 'boolean') {
     enableBackgroundAnimation = newEnableBgAnimate;
   }
+  if (newAnimSpeed !== undefined && typeof newAnimSpeed === 'number') {
+    animationSpeed = newAnimSpeed;
+  }
+  if (newShowPaths !== undefined && typeof newShowPaths === 'boolean') {
+    showPathsMenu = newShowPaths;
+  }
 
   saveConfig();
   res.json({
@@ -1190,7 +1210,9 @@ app.post('/api/config', (req, res) => {
     maxConcurrent,
     enableSoundEffects,
     soundVolume,
-    enableBackgroundAnimation
+    enableBackgroundAnimation,
+    animationSpeed,
+    showPathsMenu
   });
 });
 

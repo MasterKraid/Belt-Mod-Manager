@@ -99,8 +99,16 @@
           status }}</p>
 
         <div v-show="currentTab==='profiles'" class="tab-content-wrapper">
-          <div class="profiles-section-box paths-box">
-            <h3 class="paths-title">Paths</h3>
+          <div class="profiles-section-box paths-box" v-if="showPathsMenu">
+            <div class="paths-header">
+              <h3 class="paths-title">Paths</h3>
+              <button class="paths-close-btn" @click="showPathsMenu = false; playSound('click')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
 
             <div class="path-setting-row-spacer">
               <div class="paths-label">Mods Folder:</div>
@@ -532,131 +540,164 @@
           <div class="settings-grid">
             
             <!-- Section: Game & Files Paths -->
-            <div class="settings-card glass-panel">
-              <h3 class="settings-card-title">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                </svg>
-                Files & Directories
-              </h3>
+            <div class="settings-card glass-panel settings-paths-card">
+              <div class="paths-header">
+                <h3 class="paths-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: text-bottom; margin-right: 6px;">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                  Files & Directories
+                </h3>
+              </div>
               
-              <div class="settings-field-group">
-                <label class="settings-field-label">Factorio Game Path</label>
-                <div class="settings-path-input-row">
-                  <input type="text" v-model="gamePath" placeholder="D:\Steam\steamapps\common\Factorio" class="settings-input text-input" @change="saveSettingsConfig" />
-                  <button class="settings-btn settings-btn-secondary" @click="detectSteamPath">Detect Steam</button>
-                </div>
-                <small class="settings-field-hint">Path to the main Factorio directory containing bin/x64/factorio.exe.</small>
+              <div class="path-setting-row-spacer">
+                <div class="paths-label">Mods Folder:</div>
+                <span class="paths-value">{{ currentModPath || '(default)' }}</span>
+                <button @click="setModPath" :disabled="isGameRunning" class="has-tooltip paths-btn" data-tooltip="Set custom Factorio mods folder path">Set Path</button>
               </div>
 
-              <div class="settings-field-group mt15">
-                <label class="settings-field-label">Factorio Mods Directory</label>
-                <div class="settings-path-input-row">
-                  <input type="text" v-model="currentModPath" placeholder="C:\Users\...\AppData\Roaming\Factorio\mods" class="settings-input text-input" @change="saveSettingsConfig" />
-                  <button class="settings-btn settings-btn-secondary" @click="openModsFolder">Open Folder</button>
-                </div>
-                <small class="settings-field-hint">Directory where your downloaded mod .zip files are scanned and loaded.</small>
-              </div>
-            </div>
-
-            <!-- Section: Interface & Experience -->
-            <div class="settings-card glass-panel">
-              <h3 class="settings-card-title">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
-                </svg>
-                Interface & Experience
-              </h3>
-
-              <div class="settings-field-group">
-                <label class="settings-field-label">UI Scaling: <span class="highlight-text">{{ uiScale }}%</span></label>
-                <div class="settings-slider-row">
-                  <input type="range" min="80" max="150" step="5" v-model="uiScale" class="settings-range-slider" @input="applyUiScaling" @change="saveSettingsConfig" />
-                </div>
-                <small class="settings-field-hint">Scale the entire Mod Manager interface for custom resolutions or High-DPI screens.</small>
-              </div>
-
-              <div class="settings-field-group mt15">
-                <label class="settings-field-label">UI Sound Effects</label>
-                <div class="toggle-row" @click="enableSoundEffects = !enableSoundEffects; playSound('click'); saveSettingsConfig()">
-                  <div class="dl-checkbox" :class="{ checked: enableSoundEffects }">
-                    <svg v-if="enableSoundEffects" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                      <polyline points="20 6 9 17 4 12"></polyline>
+              <div class="path-setting-row">
+                <div class="paths-label">Game Folder:</div>
+                <span class="paths-value">{{ gamePath || '(not set)' }}</span>
+                <div class="profile-actions-layout">
+                  <button @click="detectSteamPath" :disabled="isGameRunning" class="steam-detect-btn steam-detect-btn-style has-tooltip"
+                    data-tooltip="Auto-detect from Steam">
+                    <svg width="24" height="24" viewBox="0 0 32 32" fill="currentColor">
+                      <path d="M 22 6 C 18.745659 6 16.09469 8.6041857 16.007812 11.837891 L 12.337891 17.083984 C 12.065931 17.032464 11.786701 17 11.5 17 C 10.551677 17 9.673638 17.297769 8.9472656 17.800781 L 4 15.84375 L 4 21.220703 L 7.1054688 22.449219 C 7.5429388 24.475474 9.3449541 26 11.5 26 C 13.703628 26 15.534282 24.405137 15.917969 22.310547 L 21.691406 17.984375 C 21.794183 17.989633 21.895937 18 22 18 C 25.309 18 28 15.309 28 12 C 28 8.691 25.309 6 22 6 z M 22 8 C 24.206 8 26 9.794 26 12 C 26 14.206 24.206 16 22 16 C 19.794 16 18 14.206 18 12 C 18 9.794 19.794 8 22 8 z M 22 9 A 3 3 0 0 0 22 15 A 3 3 0 0 0 22 9 z M 11.5 18 C 13.43 18 15 19.57 15 21.5 C 15 23.43 13.43 25 11.5 25 C 10.078718 25 8.8581368 24.145398 8.3105469 22.925781 L 10.580078 23.824219 C 10.882078 23.944219 11.192047 24.001953 11.498047 24.001953 C 12.494047 24.001953 13.436219 23.403875 13.824219 22.421875 C 14.333219 21.137875 13.703922 19.683781 12.419922 19.175781 L 10.142578 18.273438 C 10.560118 18.097145 11.019013 18 11.5 18 z" />
                     </svg>
-                  </div>
-                  <span class="settings-toggle-label">Play rich UI interaction sound effects</span>
-                </div>
-              </div>
-
-              <div class="settings-field-group mt15" v-if="enableSoundEffects">
-                <label class="settings-field-label">Sound Effects Volume: <span class="highlight-text">{{ soundVolume }}%</span></label>
-                <div class="settings-slider-row">
-                  <input type="range" min="0" max="100" step="5" v-model="soundVolume" class="settings-range-slider" @input="playSound('click')" @change="saveSettingsConfig" />
-                </div>
-                <small class="settings-field-hint">Control the volume loudness of the user interface sound effects.</small>
-              </div>
-
-              <div class="settings-field-group mt15">
-                <label class="settings-field-label">Moving Background Animation</label>
-                <div class="toggle-row" @click="enableBackgroundAnimation = !enableBackgroundAnimation; playSound('click'); saveSettingsConfig()">
-                  <div class="dl-checkbox" :class="{ checked: enableBackgroundAnimation }">
-                    <svg v-if="enableBackgroundAnimation" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                  </div>
-                  <span class="settings-toggle-label">Enable animated grid patterns (requires GPU layout repaints)</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Section: Downloader & Performance -->
-            <div class="settings-card glass-panel">
-              <h3 class="settings-card-title">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="8 17 12 21 16 17"></polyline>
-                  <line x1="12" y1="12" x2="12" y2="21"></line>
-                  <path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"></path>
-                </svg>
-                Downloader & Networking
-              </h3>
-
-              <div class="settings-field-group">
-                <label class="settings-field-label">Maximum Concurrent Downloads: <span class="highlight-text">{{ maxConcurrent }}</span></label>
-                <div class="concurrency-selector-row">
-                  <div v-for="num in [1, 2, 3, 4, 5]" :key="num" class="concurrency-pill" :class="{ active: maxConcurrent === num }" @click="maxConcurrent = num; playSound('click'); saveSettingsConfig()">
-                    {{ num }}
-                  </div>
-                </div>
-                <small class="settings-field-hint">Specify how many downloads are executed in parallel. Higher limits might saturate connections.</small>
-              </div>
-
-              <div class="settings-field-group mt15">
-                <div class="btn-action-row">
-                  <button class="settings-btn settings-btn-danger" @click="clearDownloadsHistory">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polyline points="3 6 5 6 21 6"></polyline>
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </svg>
-                    Wipe Downloads History
                   </button>
-                  <span class="settings-field-hint-inline">Removes completed or failed download tasks from your downloader tab.</span>
+                  <button @click="setGamePath" :disabled="isGameRunning" class="has-tooltip btn-set-game-path" data-tooltip="Set custom Factorio game folder path">Set Game Path</button>
                 </div>
               </div>
             </div>
 
-            <!-- Section: Game Launch Settings -->
-            <div class="settings-card glass-panel">
-              <h3 class="settings-card-title">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                </svg>
-                Game Launch Configuration
-              </h3>
+            <div class="settings-column">
+              <!-- Section: Interface & Experience -->
+              <div class="settings-card glass-panel">
+                <h3 class="settings-card-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
+                  </svg>
+                  Interface & Experience
+                </h3>
 
-              <div class="settings-field-group">
-                <label class="settings-field-label">Custom Factorio Launch Arguments</label>
-                <input type="text" v-model="gameArgs" placeholder="e.g. --fullscreen --graphics-quality=low" class="settings-input text-input custom-args-input" @change="saveSettingsConfig" />
-                <small class="settings-field-hint">These command-line arguments are appended directly when booting Factorio from the Mod Manager.</small>
+                <div class="settings-field-group">
+                  <label class="settings-field-label">UI Scaling: <span class="highlight-text">{{ uiScale }}%</span></label>
+                  <div class="settings-slider-row">
+                    <input type="range" min="80" max="150" step="5" v-model="uiScale" class="settings-range-slider" @input="applyUiScaling" @change="saveSettingsConfig" />
+                  </div>
+                  <small class="settings-field-hint">Scale the entire Mod Manager interface for custom resolutions or High-DPI screens.</small>
+                </div>
+
+                <div class="settings-field-group mt15">
+                  <label class="settings-field-label">UI Sound Effects</label>
+                  <div class="toggle-row" @click="enableSoundEffects = !enableSoundEffects; playSound('click'); saveSettingsConfig()">
+                    <div class="dl-checkbox" :class="{ checked: enableSoundEffects }">
+                      <svg v-if="enableSoundEffects" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </div>
+                    <span class="settings-toggle-label">Play rich UI interaction sound effects</span>
+                  </div>
+                </div>
+
+                <div class="settings-field-group mt15" v-if="enableSoundEffects">
+                  <label class="settings-field-label">Sound Effects Volume: <span class="highlight-text">{{ soundVolume }}%</span></label>
+                  <div class="settings-slider-row">
+                    <input type="range" min="0" max="100" step="5" v-model="soundVolume" class="settings-range-slider" @input="playSound('click')" @change="saveSettingsConfig" />
+                  </div>
+                  <small class="settings-field-hint">Control the volume loudness of the user interface sound effects.</small>
+                </div>
+
+                <div class="settings-field-group mt15">
+                  <label class="settings-field-label">Show Paths menu in Profile</label>
+                  <div class="toggle-row" @click="showPathsMenu = !showPathsMenu; playSound('click'); saveSettingsConfig()">
+                    <div class="dl-checkbox" :class="{ checked: showPathsMenu }">
+                      <svg v-if="showPathsMenu" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </div>
+                    <span class="settings-toggle-label">Enable the quick paths overview in the Profiles tab</span>
+                  </div>
+                </div>
+
+                <div class="settings-field-group mt15">
+                  <label class="settings-field-label">Moving Background Animation</label>
+                  <div class="toggle-row" @click="enableBackgroundAnimation = !enableBackgroundAnimation; playSound('click'); saveSettingsConfig()">
+                    <div class="dl-checkbox" :class="{ checked: enableBackgroundAnimation }">
+                      <svg v-if="enableBackgroundAnimation" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </div>
+                    <span class="settings-toggle-label">Enable animated grid patterns (requires GPU layout repaints)</span>
+                  </div>
+                </div>
+
+                <div class="settings-field-group mt15" v-if="enableBackgroundAnimation">
+                  <label class="settings-field-label">
+                    Animation Speed: 
+                    <input type="number" v-model.number="animationSpeed" min="50" max="800" step="5" class="speed-number-input" @input="applyAnimationSpeed" @change="saveSettingsConfig" />
+                    <span class="highlight-text">%</span>
+                    <button class="reset-btn" @click="resetAnimationSpeed">Reset</button>
+                  </label>
+                  <div class="settings-slider-row">
+                    <input type="range" min="50" max="800" step="5" v-model.number="animationSpeed" class="settings-range-slider" @input="applyAnimationSpeed" @change="saveSettingsConfig" />
+                  </div>
+                  <small class="settings-field-hint">Adjust the scroll speed of the moving background grid.</small>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-column">
+              <!-- Section: Downloader & Performance -->
+              <div class="settings-card glass-panel">
+                <h3 class="settings-card-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="8 17 12 21 16 17"></polyline>
+                    <line x1="12" y1="12" x2="12" y2="21"></line>
+                    <path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"></path>
+                  </svg>
+                  Downloader & Networking
+                </h3>
+
+                <div class="settings-field-group">
+                  <label class="settings-field-label">Maximum Concurrent Downloads: <span class="highlight-text">{{ maxConcurrent }}</span></label>
+                  <div class="concurrency-selector-row">
+                    <div v-for="num in [1, 2, 3, 4, 5]" :key="num" class="concurrency-pill" :class="{ active: maxConcurrent === num }" @click="maxConcurrent = num; playSound('click'); saveSettingsConfig()">
+                      {{ num }}
+                    </div>
+                  </div>
+                  <small class="settings-field-hint">Specify how many downloads are executed in parallel. Higher limits might saturate connections.</small>
+                </div>
+
+                <div class="settings-field-group mt15">
+                  <div class="btn-action-row">
+                    <button class="settings-btn settings-btn-danger" @click="clearDownloadsHistory">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      </svg>
+                      Wipe Downloads History
+                    </button>
+                    <span class="settings-field-hint-inline">Removes completed or failed download tasks from your downloader tab.</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Section: Game Launch Settings -->
+              <div class="settings-card glass-panel mt15">
+                <h3 class="settings-card-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  Game Launch Configuration
+                </h3>
+
+                <div class="settings-field-group">
+                  <label class="settings-field-label">Custom Factorio Launch Arguments</label>
+                  <input type="text" v-model="gameArgs" placeholder="e.g. --fullscreen --graphics-quality=low" class="settings-input text-input custom-args-input" @change="saveSettingsConfig" />
+                  <small class="settings-field-hint">These command-line arguments are appended directly when booting Factorio from the Mod Manager.</small>
+                </div>
               </div>
             </div>
 

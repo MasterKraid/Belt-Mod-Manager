@@ -143,7 +143,7 @@ pub fn run() {
                                             tauri::WebviewUrl::External(url.parse().unwrap())
                                         )
                                         .title("Belt Mod Manager")
-                                        .inner_size(720.0, 840.0)
+                                        .inner_size(750.0, 840.0)
                                         .resizable(false)
                                         .transparent(true)
                                         .decorations(false)
