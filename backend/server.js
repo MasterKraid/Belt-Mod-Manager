@@ -582,26 +582,31 @@ function mergeNewMods(scanned, current) {
 
   const known = new Set();
   const added = [];
+  let changed = false;
 
   // Merge metadata from disk into existing profile items
   current.forEach(mod => {
     known.add(mod.name);
     const scannedMod = scannedMap[mod.name];
     if (scannedMod) {
-      mod.title = scannedMod.title || mod.title || mod.name;
-      mod.version = scannedMod.version || mod.version || '0.0.0';
-      mod.author = scannedMod.author || mod.author || 'Unknown';
-      mod.description = scannedMod.description || mod.description || '(no description)';
-      mod.dependencies = scannedMod.dependencies || mod.dependencies || [];
-      mod.thumbnail = scannedMod.thumbnail || mod.thumbnail || null;
+      if (mod.title !== scannedMod.title || mod.version !== scannedMod.version || mod.author !== scannedMod.author) {
+        mod.title = scannedMod.title || mod.title || mod.name;
+        mod.version = scannedMod.version || mod.version || '0.0.0';
+        mod.author = scannedMod.author || mod.author || 'Unknown';
+        mod.description = scannedMod.description || mod.description || '(no description)';
+        mod.dependencies = scannedMod.dependencies || mod.dependencies || [];
+        mod.thumbnail = scannedMod.thumbnail || mod.thumbnail || null;
+        changed = true;
+      }
     } else {
-      if (!mod.title) mod.title = mod.name;
-      if (!mod.version) mod.version = '0.0.0';
+      if (!mod.title) { mod.title = mod.name; changed = true; }
+      if (!mod.version) { mod.version = '0.0.0'; changed = true; }
     }
 
     // Force base mod to always be true
-    if (mod.name === 'base') {
+    if (mod.name === 'base' && !mod.enabled) {
       mod.enabled = true;
+      changed = true;
     }
   });
 
@@ -613,6 +618,7 @@ function mergeNewMods(scanned, current) {
       const state = mod.name === 'base' ? true : !!mod.enabled;
       current.push({ ...mod, enabled: state });
       added.push(mod.title || mod.name);
+      changed = true;
     }
   });
 
@@ -624,12 +630,12 @@ function mergeNewMods(scanned, current) {
     if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
     if (aIndex !== -1) return -1;
     if (bIndex !== -1) return 1;
-    const aTitle = a.title || a.name;
-    const bTitle = b.title || b.name;
+    const aTitle = (a.title || a.name).toLowerCase();
+    const bTitle = (b.title || b.name).toLowerCase();
     return aTitle < bTitle ? -1 : (aTitle > bTitle ? 1 : 0);
   });
 
-  return added;
+  return changed;
 }
 
 // === API Routes ===
@@ -690,14 +696,17 @@ app.get('/api/profiles/:name', (req, res) => {
   const file = path.join(PROFILES_DIR, `${profileName}.json`);
   if (fs.existsSync(file)) {
     try {
-      const raw = fs.readFileSync(file, 'utf-8');
-      const data = JSON.parse(raw);
-      if (!Array.isArray(data)) {
-        return res.status(500).json({ error: 'Profile file is not a mod list array' });
-      }
       const scanned = scanMods();
-      mergeNewMods(scanned, data);
-      res.json(data);
+      const mods = JSON.parse(fs.readFileSync(file, 'utf-8'));
+      if (!Array.isArray(mods)) return res.status(500).json({ error: 'Profile file is not a mod list array' });
+
+      const changed = mergeNewMods(scanned, mods);
+      if (changed) {
+        fs.writeFileSync(file, JSON.stringify(mods, null, 2));
+        console.log(`[OK] Auto-enriched and saved profile: ${profileName}`);
+      }
+      // it was that easy? 🗿
+      res.json(mods);
     } catch (err) {
       return res.status(400).send('Profile file is corrupted JSON');
     }
@@ -1050,10 +1059,70 @@ function syncProfileWithActualModList() {
     });
 
     // Write back to profile JSON
+    const scanned = scanMods();
+    mergeNewMods(scanned, profileMods);
     fs.writeFileSync(profileFile, JSON.stringify(profileMods, null, 2));
     console.log(`[OK] Synchronized profile "${activeProfile}" with real mod-list.json changes after game exit.`);
   } catch (err) {
     console.warn('Failed to sync profile on game exit:', err.message);
+  }
+}
+
+function preLaunchModListSync() {
+  if (!userModPath || !fs.existsSync(userModPath)) return;
+  const listPath = getModListPath();
+  if (!fs.existsSync(listPath)) return;
+
+  try {
+    const files = fs.readdirSync(userModPath);
+    const modFiles = files.filter(f => f.endsWith('.zip') || fs.statSync(path.join(userModPath, f)).isDirectory());
+    
+    // Use the cached metadata if available, otherwise do a quick disk scan
+    let scanned = cachedScannedMods;
+    if (!scanned) {
+      scanned = [];
+      for (const file of modFiles) {
+        if (file.endsWith('.zip')) {
+          try {
+            const zip = new AdmZip(path.join(userModPath, file));
+            const infoEntry = zip.getEntries().find(e => e.entryName.endsWith('info.json'));
+            if (infoEntry) {
+              const info = JSON.parse(zip.readAsText(infoEntry));
+              if (info.name) scanned.push({ name: info.name });
+            }
+          } catch {}
+        } else {
+          const infoPath = path.join(userModPath, file, 'info.json');
+          if (fs.existsSync(infoPath)) {
+            try {
+              const info = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
+              if (info.name) scanned.push({ name: info.name });
+            } catch {}
+          }
+        }
+      }
+    }
+
+    const data = JSON.parse(fs.readFileSync(listPath, 'utf-8'));
+    if (!data || !Array.isArray(data.mods)) return;
+
+    let changed = false;
+    for (const s of scanned) {
+      if (['base', 'elevated-rails', 'quality', 'space-age'].includes(s.name)) continue;
+      
+      const exists = data.mods.find(m => m.name === s.name);
+      if (!exists) {
+        data.mods.push({ name: s.name, enabled: false });
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      fs.writeFileSync(listPath, JSON.stringify(data, null, 2));
+      console.log('[OK] Pre-launch sync: Added missing mods to mod-list.json as disabled.');
+    }
+  } catch (err) {
+    console.error('Failed to perform pre-launch sync:', err);
   }
 }
 
@@ -1177,6 +1246,9 @@ app.post('/api/launch-game', (req, res) => {
   if (gameProcess) {
     return res.status(400).json({ error: 'Game is already running' });
   }
+
+  // Ensure mod-list.json is synced with all disk files (as disabled) before launch
+  preLaunchModListSync();
 
   const exePath = path.join(userGamePath, 'bin', 'x64', 'factorio.exe');
   if (!fs.existsSync(exePath)) {

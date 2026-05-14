@@ -25,5 +25,5 @@ if (compileNeeded) {
     console.error('[Build] Sass compilation failed:', err.message);
   }
 } else {
-  // SASS unchanged, skipping compile!
+  console.log('[Build] SASS unchanged, skipping compile!')
 }
