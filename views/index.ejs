@@ -234,12 +234,47 @@
               </div>
 
               <div class="manager-search-and-folders">
-                <button class="folder-open-btn has-tooltip btn-icon-square-layout" @click="openModFolder" data-tooltip="Open Mods Folder">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                  </svg>
-                </button>
+                <div class="custom-dropdown sort-dropdown-square" @click.stop>
+                  <div class="dropdown-trigger has-tooltip" data-tooltip="Sort Mods"
+                    @click="managerSortOpen = !managerSortOpen; playSound('click')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round" class="sort-svg-alignment">
+                      <path d="M15 15l-3 3-3-3M12 6v12M9 9l3-3 3 3"></path>
+                    </svg>
+                  </div>
+                  <div v-show="managerSortOpen" class="dropdown-menu">
+                    <div class="dropdown-item" :class="{ active: managerSort === 'name' }"
+                      @click="managerSort = 'name'; managerSortOpen = false; playSound('click')">
+                      <svg v-if="managerSort === 'name'" class="check-icon" width="12" height="12" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                      <span>Alphabetical</span>
+                    </div>
+                    <div class="dropdown-item" :class="{ active: managerSort === 'last-downloaded' }"
+                      @click="managerSort = 'last-downloaded'; managerSortOpen = false; playSound('click')">
+                      <svg v-if="managerSort === 'last-downloaded'" class="check-icon" width="12" height="12" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                      <span>Last Downloaded</span>
+                    </div>
+                    <div class="dropdown-item" :class="{ active: managerSort === 'update-needed' }"
+                      @click="managerSort = 'update-needed'; managerSortOpen = false; playSound('click')">
+                      <svg v-if="managerSort === 'update-needed'" class="check-icon" width="12" height="12" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                      <span>Update Needed</span>
+                    </div>
+                    <div class="dropdown-item" :class="{ active: managerSort === 'enabled-first' }"
+                      @click="managerSort = 'enabled-first'; managerSortOpen = false; playSound('click')">
+                      <svg v-if="managerSort === 'enabled-first'" class="check-icon" width="12" height="12" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                      <span>Activated First</span>
+                    </div>
+                    <div class="dropdown-item" :class="{ active: managerSort === 'enabled-last' }"
+                      @click="managerSort = 'enabled-last'; managerSortOpen = false; playSound('click')">
+                      <svg v-if="managerSort === 'enabled-last'" class="check-icon" width="12" height="12" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                      <span>Activated Last</span>
+                    </div>
+                  </div>
+                </div>
                 <div class="search-wrapper search-wrapper-manager">
                   <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

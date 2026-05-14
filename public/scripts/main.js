@@ -17,6 +17,8 @@ const vueAppOptions = {
       installedMods: [],
       installedSort: 'name',
       installedSortOpen: false,
+      managerSort: 'name',
+      managerSortOpen: false,
       expandedMods: [],
       profiles: [],
       selectedProfile: 'default',
@@ -138,26 +140,52 @@ const vueAppOptions = {
           );
         }
 
-        // Sort dynamically: Core mods first, then enabled mods, then disabled mods
         const coreNames = ['base', 'elevated-rails', 'quality', 'space-age'];
-        list.sort((a, b) => {
+        return list.slice().sort((a, b) => {
           const aCore = coreNames.indexOf(a.name);
           const bCore = coreNames.indexOf(b.name);
-          if (aCore !== -1 && bCore !== -1) return aCore - bCore;
-          if (aCore !== -1) return -1;
-          if (bCore !== -1) return 1;
 
-          // Enabled mods first
-          if (a.enabled && !b.enabled) return -1;
-          if (!a.enabled && b.enabled) return 1;
+          if (this.managerSort === 'last-downloaded') {
+            if (aCore !== -1 && bCore !== -1) return aCore - bCore;
+            if (aCore !== -1) return 1; // core mods at bottom
+            if (bCore !== -1) return -1; // core mods at bottom
 
-          // Stable alphabetical secondary sort (optimized)
-          const aTitle = a.title || a.name;
-          const bTitle = b.title || b.name;
+            const am = a.mtime || 0;
+            const bm = b.mtime || 0;
+            if (am !== bm) return bm - am; // newest first
+          } else if (this.managerSort === 'update-needed') {
+            if (aCore !== -1 && bCore !== -1) return aCore - bCore;
+            if (aCore !== -1) return 1; // core mods at bottom
+            if (bCore !== -1) return -1; // core mods at bottom
+
+            const aHasUpdate = !!this.modUpdates[a.name];
+            const bHasUpdate = !!this.modUpdates[b.name];
+            if (aHasUpdate && !bHasUpdate) return -1;
+            if (!aHasUpdate && bHasUpdate) return 1;
+          } else if (this.managerSort === 'enabled-first') {
+            if (aCore !== -1 && bCore !== -1) return aCore - bCore;
+            if (aCore !== -1) return -1; // core mods at top
+            if (bCore !== -1) return 1; // core mods at top
+
+            if (a.enabled && !b.enabled) return -1;
+            if (!a.enabled && b.enabled) return 1;
+          } else if (this.managerSort === 'enabled-last') {
+            if (aCore !== -1 && bCore !== -1) return aCore - bCore;
+            if (aCore !== -1) return -1; // core mods at top
+            if (bCore !== -1) return 1; // core mods at top
+
+            if (a.enabled && !b.enabled) return 1;
+            if (!a.enabled && b.enabled) return -1;
+          } else { // 'name' (Alphabetical)
+            if (aCore !== -1 && bCore !== -1) return aCore - bCore;
+            if (aCore !== -1) return -1; // core mods at top
+            if (bCore !== -1) return 1; // core mods at top
+          }
+
+          const aTitle = (a.title || a.name).toLowerCase();
+          const bTitle = (b.title || b.name).toLowerCase();
           return aTitle < bTitle ? -1 : (aTitle > bTitle ? 1 : 0);
         });
-
-        return list;
       },
       filteredInstalledMods() {
         const query = this.searchQueryInstalled.toLowerCase().trim();
@@ -200,6 +228,13 @@ const vueAppOptions = {
 
             if (a.enabled && !b.enabled) return -1;
             if (!a.enabled && b.enabled) return 1;
+          } else if (this.installedSort === 'enabled-last') {
+            if (aCore !== -1 && bCore !== -1) return aCore - bCore;
+            if (aCore !== -1) return -1; // core mods at top
+            if (bCore !== -1) return 1; // core mods at top
+
+            if (a.enabled && !b.enabled) return 1;
+            if (!a.enabled && b.enabled) return -1;
           } else { // 'name' (Alphabetical)
             if (aCore !== -1 && bCore !== -1) return aCore - bCore;
             if (aCore !== -1) return -1; // core mods at top
@@ -1047,6 +1082,7 @@ const vueAppOptions = {
         this.dlVersionOpen = false;
         this.dlSpaceAgeOpen = false;
         this.installedSortOpen = false;
+        this.managerSortOpen = false;
       },
 
       closeAllDropdownsExcept(except) {

@@ -383,6 +383,28 @@ describe('Frontend Application Logic and Helper Tests', () => {
       expect(dep.incompatible).toBe(true);
     });
 
+    it('should correctly sort mods by enabled-first and enabled-last inside filteredMods', () => {
+      vueInstance.mods = [
+        { name: 'b-mod', enabled: false },
+        { name: 'a-mod', enabled: true },
+        { name: 'base', enabled: true } // core mod
+      ];
+
+      // Test enabled-first sorting
+      vueInstance.managerSort = 'enabled-first';
+      let sorted = vueInstance.filteredMods;
+      expect(sorted[0].name).toBe('base'); // core mods always first/top
+      expect(sorted[1].name).toBe('a-mod'); // enabled next
+      expect(sorted[2].name).toBe('b-mod'); // disabled last
+
+      // Test enabled-last sorting
+      vueInstance.managerSort = 'enabled-last';
+      sorted = vueInstance.filteredMods;
+      expect(sorted[0].name).toBe('base'); // core mods always first/top
+      expect(sorted[1].name).toBe('b-mod'); // disabled next (since enabled-last)
+      expect(sorted[2].name).toBe('a-mod'); // enabled last
+    });
+
     it('should not enable already enabled dependencies twice', () => {
       vueInstance.mods = [
         { name: 'child-mod', enabled: true }
