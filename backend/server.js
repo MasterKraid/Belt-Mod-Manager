@@ -31,6 +31,12 @@ let enableBackgroundAnimation = false;
 let animationSpeed = 100;
 let showPathsMenu = true;
 
+// Logs management
+let logBuffer = [];
+const MAX_LOG_BUFFER = 10000;
+let logStreamClients = [];
+let logFilePath = '';
+
 const CONFIG_FILE = path.join(__dirname, 'config.json');
 const METADATA_CACHE_FILE = process.env.NODE_ENV === 'test' 
   ? path.join(__dirname, '..', '.cache', 'test-metadata-cache.json') 
@@ -97,6 +103,35 @@ function saveConfig() {
   } catch (err) {
     console.warn('Could not save config.json:', err.message);
   }
+}
+
+function handleLogData(data) {
+  const lines = data.toString().split(/\r?\n/);
+  lines.forEach(line => {
+    if (!line.trim()) return;
+    const logObj = { text: line, timestamp: Date.now() };
+    logBuffer.push(logObj);
+    if (logBuffer.length > MAX_LOG_BUFFER) logBuffer.shift();
+
+    // Broadcast to SSE clients
+    const eventData = JSON.stringify(logObj);
+    logStreamClients.forEach(client => {
+      try {
+        client.res.write(`data: ${eventData}\n\n`);
+      } catch (err) {
+        // Client likely disconnected
+      }
+    });
+
+    // Write to persistent log file
+    if (logFilePath) {
+      try {
+        fs.appendFileSync(logFilePath, `${new Date(logObj.timestamp).toISOString()} ${line}\n`);
+      } catch (err) {
+        console.error('Error writing to log file:', err.message);
+      }
+    }
+  });
 }
 
 // Load config immediately
@@ -1279,14 +1314,36 @@ app.post('/api/launch-game', (req, res) => {
 
   try {
     const args = gameArgs && gameArgs.trim() ? gameArgs.trim().split(/\s+/) : [];
+    
+    // Setup log file for this session
+    try {
+      const logsDir = path.join(__dirname, '..', 'logs');
+      if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      logFilePath = path.join(logsDir, `factorio-${timestamp}.log`);
+      fs.writeFileSync(logFilePath, `--- Factorio Session Start: ${new Date().toISOString()} ---\n`);
+    } catch (err) {
+      console.error('Failed to initialize log file:', err.message);
+      logFilePath = '';
+    }
+
     gameProcess = spawn(exePath, args, {
       detached: true,
-      stdio: 'ignore'
+      stdio: ['ignore', 'pipe', 'pipe']
     });
+
+    // Capture logs
+    gameProcess.stdout.on('data', handleLogData);
+    gameProcess.stderr.on('data', handleLogData);
 
     gameProcess.unref();
 
     gameProcess.on('exit', () => {
+      if (logFilePath) {
+        try {
+          fs.appendFileSync(logFilePath, `\n--- Factorio Session End: ${new Date().toISOString()} ---\n`);
+        } catch (e) {}
+      }
       gameProcess = null;
       syncProfileWithActualModList();
     });
@@ -1296,6 +1353,27 @@ app.post('/api/launch-game', (req, res) => {
     gameProcess = null;
     res.status(500).json({ error: err.message });
   }
+});
+
+// Real-time logs SSE endpoint
+app.get('/api/logs-stream', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  // Send buffer history
+  logBuffer.forEach(log => {
+    res.write(`data: ${JSON.stringify(log)}\n\n`);
+  });
+
+  const clientId = Date.now();
+  const newClient = { id: clientId, res };
+  logStreamClients.push(newClient);
+
+  req.on('close', () => {
+    logStreamClients = logStreamClients.filter(c => c.id !== clientId);
+  });
 });
 
 app.get('/api/game-status', (req, res) => {

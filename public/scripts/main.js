@@ -129,7 +129,13 @@ const vueAppOptions = {
         { value: 'any', label: 'Space Age: Include' },
         { value: 'compatible', label: 'Space Age: Required' },
         { value: 'exclude', label: 'Space Age: Exclude' }
-      ]
+      ],
+      // Logs console
+      logs: [],
+      showLogs: false,
+      isLogsAutoScroll: true,
+      // Downloader UI
+      isDownloadsMinimized: true
     },
     computed: {
       filteredMods() {
@@ -285,7 +291,34 @@ const vueAppOptions = {
         return found ? found.label : 'Space Age: Include';
       }
     },
+    created() {
+      this.initLogsStream();
+    },
     methods: {
+      initLogsStream() {
+        const eventSource = new EventSource('/api/logs-stream');
+        eventSource.onmessage = (event) => {
+          const log = JSON.parse(event.data);
+          this.logs.push(log);
+          // Keep a reasonable history on client
+          if (this.logs.length > 2000) this.logs.shift();
+          
+          if (this.isLogsAutoScroll && this.showLogs) {
+            this.$nextTick(() => {
+              const el = this.$refs.logsContainer;
+              if (el) el.scrollTop = el.scrollHeight;
+            });
+          }
+        };
+        eventSource.onerror = (e) => {
+          eventSource.close();
+          // Attempt to reconnect after 5 seconds
+          setTimeout(() => this.initLogsStream(), 5000);
+        };
+      },
+      clearLogs() {
+        this.logs = [];
+      },
       playSound(name) {
         if (this.enableSoundEffects && sfx[name]) {
           sfx[name].currentTime = 0;
@@ -410,7 +443,7 @@ const vueAppOptions = {
           })
           .catch(err => this.notify('Dependency resolution failed: ' + err.message));
       },
-      notify(message, duration = 5) {
+      notify(message, duration = 2.5) {
         const id = ++this.notifId;
         this.notifications.push({ id, message, duration });
         setTimeout(() => {
@@ -956,6 +989,7 @@ const vueAppOptions = {
                 this.stopDownloadPolling();
                 this.fetchMods();
                 this.fetchInstalledMods();
+                this.checkUpdates();
 
                 if (wasActiveBatch) {
                   if (this.currentTab !== 'downloader') {
@@ -1213,32 +1247,35 @@ const vueAppOptions = {
           })
           .catch(err => this.notify('Update queueing failed: ' + err.message));
       },
-      updateAllMods() {
+      async updateAllMods() {
         this.playSound('click');
         const updates = this.installedMods.filter(m => !!this.modUpdates[m.name]);
         if (updates.length === 0) return;
 
         this.notify(`Queuing ${updates.length} mod updates...`);
         
-        updates.forEach(mod => {
-          fetch('/api/portal/download-with-deps', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              modName: mod.name,
-              includeOptional: false
-            })
-          })
-          .then(res => res.json())
-          .then(data => {
-            if (data.error) {
-              console.error(`Bulk update failed for ${mod.name}:`, data.error);
-            }
+        try {
+          const promises = updates.map(mod => {
+            return fetch('/api/portal/download-with-deps', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                modName: mod.name,
+                includeOptional: false
+              })
+            }).then(res => res.json());
           });
-        });
 
-        this.startDownloadPolling();
-        this.notify('Bulk update started. Check Downloader tab for progress.');
+          await Promise.all(promises);
+          
+          // Start polling immediately after queuing
+          this.startDownloadPolling();
+          this.notify('Bulk update started. Check Downloader tab for progress.');
+        } catch (err) {
+          console.error('Bulk update failed:', err);
+          this.notify('Bulk update failed to queue some mods.');
+          this.startDownloadPolling(); // Still poll for whatever did succeed
+        }
       },
     },
     mounted() {
