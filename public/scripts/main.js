@@ -248,6 +248,9 @@ const vueAppOptions = {
           return aTitle < bTitle ? -1 : (aTitle > bTitle ? 1 : 0);
         });
       },
+      modsWithUpdatesCount() {
+        return this.installedMods.filter(m => !!this.modUpdates[m.name]).length;
+      },
       filteredDropdownProfiles() {
         const query = this.profileSearchQuery.toLowerCase().trim();
         if (!query) return this.profiles;
@@ -1209,7 +1212,34 @@ const vueAppOptions = {
             this.startDownloadPolling();
           })
           .catch(err => this.notify('Update queueing failed: ' + err.message));
-      }
+      },
+      updateAllMods() {
+        this.playSound('click');
+        const updates = this.installedMods.filter(m => !!this.modUpdates[m.name]);
+        if (updates.length === 0) return;
+
+        this.notify(`Queuing ${updates.length} mod updates...`);
+        
+        updates.forEach(mod => {
+          fetch('/api/portal/download-with-deps', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              modName: mod.name,
+              includeOptional: false
+            })
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.error) {
+              console.error(`Bulk update failed for ${mod.name}:`, data.error);
+            }
+          });
+        });
+
+        this.startDownloadPolling();
+        this.notify('Bulk update started. Check Downloader tab for progress.');
+      },
     },
     mounted() {
       this.loadProfiles();

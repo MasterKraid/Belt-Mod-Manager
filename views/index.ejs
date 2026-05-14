@@ -345,6 +345,18 @@
             <h3 class="installed-tab-title">Installed Mods</h3>
 
             <div class="installed-tab-controls-cluster">
+              <button v-if="installedSort === 'update-needed' && modsWithUpdatesCount > 0" 
+                      class="bulk-update-btn has-tooltip" 
+                      data-tooltip="Queue all available updates"
+                      @click="updateAllMods">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="23 4 23 10 17 10"></polyline>
+                  <polyline points="1 20 1 14 7 14"></polyline>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 5.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+                Update ({{ modsWithUpdatesCount }})
+              </button>
+
               <!-- Sorting Dropdown for Installed Mods -->
               <div class="custom-dropdown dl-mini-dropdown installed-sort-dropdown-width" @click.stop>
                 <div class="dropdown-trigger has-tooltip" data-tooltip="Sort Installed Mods"
@@ -406,7 +418,7 @@
                   <circle cx="11" cy="11" r="8"></circle>
                   <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                 </svg>
-                <input type="text" v-model="searchQueryInstalled" placeholder="Search installed mods..."
+                <input type="text" v-model="searchQueryInstalled" placeholder="Search installed mods"
                   class="custom-search-input" />
                 <button v-if="searchQueryInstalled" class="search-clear-btn" @click="searchQueryInstalled = ''; playSound('click')">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
