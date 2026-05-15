@@ -1286,11 +1286,42 @@ app.get('/api/mod-settings-map', async (req, res) => {
     }
 
     // If actual settings keys are provided, try to resolve unmapped ones
-    // by matching against prefix patterns from concatenation in Lua files
-    // e.g. name = "transition-speed-"..aircraft generates "transition-speed-gunship"
     if (req.query.keys) {
       const actualKeys = req.query.keys.split(',');
-      const unmapped = actualKeys.filter(k => !settingMap[k]);
+      const actualKeySet = new Set(actualKeys);
+      let unmapped = actualKeys.filter(k => !settingMap[k]);
+      
+      // Strategy 3: Broad name="..." regex, validated against actual keys
+      // Catches settings in nested Lua tables the table-aware regex misses
+      if (unmapped.length > 0) {
+        const broadRegex = /name\s*=\s*"([^"]+)"/g;
+        for (const mod of scanned) {
+          const zipPath = modZipCache[mod.name];
+          if (!zipPath || !fs.existsSync(zipPath)) continue;
+          try {
+            const zip = new AdmZip(zipPath);
+            for (const entry of zip.getEntries()) {
+              const entryLower = entry.entryName.toLowerCase();
+              if (!entryLower.endsWith('.lua')) continue;
+              const baseName = path.basename(entryLower);
+              if (!baseName.startsWith('settings')) continue;
+              try {
+                const content = zip.readAsText(entry)
+                  .replace(/--\[\[[\s\S]*?\]\]/g, '').replace(/--.*/g, '');
+                let m;
+                broadRegex.lastIndex = 0;
+                while ((m = broadRegex.exec(content)) !== null) {
+                  const sn = m[1];
+                  if (!settingMap[sn] && actualKeySet.has(sn)) {
+                    settingMap[sn] = mod.name;
+                  }
+                }
+              } catch {}
+            }
+          } catch {}
+        }
+        unmapped = actualKeys.filter(k => !settingMap[k]);
+      }
       
       if (unmapped.length > 0) {
         // Extract string prefixes from Lua concatenation patterns
