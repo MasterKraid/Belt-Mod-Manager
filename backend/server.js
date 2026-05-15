@@ -1187,6 +1187,49 @@ app.get('/api/config', (req, res) => {
   });
 });
 
+const { exec } = require('child_process');
+const os = require('os');
+const crypto = require('crypto');
+
+app.post('/api/mod-settings', (req, res) => {
+  const { path: datPath } = req.body;
+  if (!datPath) return res.status(400).send('Path required');
+  
+  const tempJson = path.join(os.tmpdir(), `fs_${crypto.randomBytes(4).toString('hex')}.json`);
+  exec(`factorio_settings_cli decode "${datPath}" "${tempJson}"`, (error, stdout, stderr) => {
+    if (error) {
+      return res.status(500).send(`Failed to decode: ${stderr || error.message}`);
+    }
+    fs.readFile(tempJson, 'utf-8', (err, data) => {
+      fs.unlink(tempJson, () => {});
+      if (err) return res.status(500).send('Failed to read decoded file');
+      try {
+        res.json(JSON.parse(data));
+      } catch (parseErr) {
+        res.status(500).send('Invalid JSON output');
+      }
+    });
+  });
+});
+
+app.put('/api/mod-settings', (req, res) => {
+  const { path: datPath, data } = req.body;
+  if (!datPath || !data) return res.status(400).send('Path and data required');
+  
+  const tempJson = path.join(os.tmpdir(), `fs_${crypto.randomBytes(4).toString('hex')}.json`);
+  fs.writeFile(tempJson, JSON.stringify(data), 'utf-8', (err) => {
+    if (err) return res.status(500).send('Failed to write temporary JSON');
+    
+    exec(`factorio_settings_cli encode "${tempJson}" "${datPath}"`, (error, stdout, stderr) => {
+      fs.unlink(tempJson, () => {});
+      if (error) {
+        return res.status(500).send(`Failed to encode: ${stderr || error.message}`);
+      }
+      res.json({ success: true });
+    });
+  });
+});
+
 app.post('/api/config', (req, res) => {
   const { 
     userModPath: newModPath, 

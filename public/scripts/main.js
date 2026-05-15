@@ -74,6 +74,13 @@ const vueAppOptions = {
       showAuthPopup: false,
       showModSettingsPopup: false,
       selectedSettingsMod: null,
+      modSettingsData: null,
+      categorizedSettings: {},
+      activeSettingsTab: 'startup',
+      selectedConfigMod: null,
+      activeConfigTab: 'startup',
+      settingsLoading: false,
+      modSettingsError: null,
       portalAuth: { authenticated: false, username: null },
       showPathsMenu: true,
       authUsername: '',
@@ -295,6 +302,16 @@ const vueAppOptions = {
       this.initLogsStream();
     },
     methods: {
+      updateTooltipOnOverflow(e, text) {
+        const target = e.currentTarget.querySelector('.mod-name-clamp') || e.currentTarget;
+        if (target.scrollHeight > target.clientHeight || target.scrollWidth > target.clientWidth) {
+          e.currentTarget.classList.add('has-tooltip');
+          e.currentTarget.setAttribute('data-tooltip', text);
+        } else {
+          e.currentTarget.classList.remove('has-tooltip');
+          e.currentTarget.removeAttribute('data-tooltip');
+        }
+      },
       initLogsStream() {
         const eventSource = new EventSource('/api/logs-stream');
         eventSource.onmessage = (event) => {
@@ -326,10 +343,13 @@ const vueAppOptions = {
           sfx[name].play().catch(() => {});
         }
       },
-      switchTab(tab) {
+      async switchTab(tab) {
         if (this.currentTab !== tab) {
           this.currentTab = tab;
           this.playSound('tabSwitch');
+          if (tab === 'config' && !this.modSettingsData && this.currentModPath) {
+            await this.loadModSettingsDat();
+          }
         }
       },
       toggleModStatus(mod) {
@@ -1143,9 +1163,119 @@ const vueAppOptions = {
         }
       },
 
-      openModSettings(mod) {
+      async openModSettings(mod) {
         this.selectedSettingsMod = mod;
+        this.activeSettingsTab = 'startup';
         this.showModSettingsPopup = true;
+        if (!this.modSettingsData && this.currentModPath) {
+          await this.loadModSettingsDat();
+        }
+      },
+      async loadModSettingsDat() {
+        this.settingsLoading = true;
+        try {
+          const reqBody = { path: this.currentModPath + '/mod-settings.dat' };
+          const res = await fetch('/api/mod-settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(reqBody)
+          });
+          if (!res.ok) throw new Error(await res.text());
+          const jsonStr = await res.json();
+          this.modSettingsData = typeof jsonStr === 'string' ? JSON.parse(jsonStr) : jsonStr;
+          this.parseAndCategorizeSettings(this.modSettingsData);
+        } catch (e) {
+          console.error("Failed to load mod-settings.dat", e);
+          this.modSettingsError = String(e);
+        } finally {
+          this.settingsLoading = false;
+        }
+      },
+      parseAndCategorizeSettings(data) {
+        // Build prefix matcher
+        const modNames = this.mods.map(m => m.name).sort((a, b) => b.length - a.length);
+        const categorized = {};
+        
+        ['startup', 'runtime-global', 'runtime-per-user'].forEach(scope => {
+          if (!data.settings[scope]) return;
+          
+          Object.keys(data.settings[scope]).forEach(key => {
+            let matchedMod = 'General';
+            for (const modName of modNames) {
+              if (key.startsWith(modName)) {
+                matchedMod = modName;
+                break;
+              }
+            }
+            
+            if (!categorized[matchedMod]) {
+              categorized[matchedMod] = { 'startup': [], 'runtime-global': [], 'runtime-per-user': [] };
+            }
+            
+            const value = data.settings[scope][key];
+            const metaType = data.metadata[scope] ? data.metadata[scope][key] : null;
+            
+            categorized[matchedMod][scope].push({
+              key,
+              value,
+              metaType,
+              scope
+            });
+          });
+        });
+        
+        this.categorizedSettings = categorized;
+      },
+      async saveModSettingsDat() {
+        if (!this.modSettingsData) return;
+        
+        // Reconstruct the flat JSON from the categorized model
+        Object.keys(this.categorizedSettings).forEach(modName => {
+          ['startup', 'runtime-global', 'runtime-per-user'].forEach(scope => {
+            this.categorizedSettings[modName][scope].forEach(item => {
+              if (this.modSettingsData.settings[scope] && this.modSettingsData.settings[scope][item.key] !== undefined) {
+                this.modSettingsData.settings[scope][item.key] = item.value;
+              }
+            });
+          });
+        });
+        
+        try {
+          const path = this.currentModPath + '/mod-settings.dat';
+          const res = await fetch('/api/mod-settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              path,
+              data: this.modSettingsData
+            })
+          });
+          if (!res.ok) throw new Error(await res.text());
+          this.showNotification('Mod settings saved successfully!');
+        } catch (e) {
+          console.error("Failed to save mod settings", e);
+          this.showNotification('Failed to save settings!', 'error');
+        }
+      },
+      rgbToHex(r, g, b) {
+        const toHex = (n) => {
+          const val = Math.max(0, Math.min(255, Math.round((n || 0) * 255)));
+          return val.toString(16).padStart(2, '0');
+        };
+        return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+      },
+      updateColorFromHex(settingVal, hex) {
+        if (!hex || hex.length !== 7) return;
+        settingVal.r = parseInt(hex.slice(1, 3), 16) / 255;
+        settingVal.g = parseInt(hex.slice(3, 5), 16) / 255;
+        settingVal.b = parseInt(hex.slice(5, 7), 16) / 255;
+      },
+      updateSettingJSON(setting, rawString) {
+        try {
+          setting.value = JSON.parse(rawString);
+        } catch (e) {
+          // Ignore parse errors while typing
+        }
       },
       saveSettingsConfig() {
         fetch('/api/config', {

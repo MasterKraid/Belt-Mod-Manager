@@ -250,7 +250,7 @@
               </div>
             </div>
           </div>
-          </div>
+        </div>
 
 
         <div v-show="currentTab==='manager'" class="tab-content-wrapper">
@@ -591,12 +591,133 @@
           </div>
         </div>
 
-        <!-- Placeholder Tabs -->
+        <!-- Config Tab -->
         <div v-show="currentTab==='config'" class="tab-content-wrapper">
-          <div class="dl-empty-state">
-            <p>Coming soon...</p>
+          <div v-if="settingsLoading" class="dl-empty-state">
+            <p>Loading Config...</p>
+          </div>
+          <div v-else-if="!modSettingsData" class="dl-empty-state">
+            <p>Could not load mod-settings.dat. Ensure it exists in your selected mod directory.</p>
+            <p v-if="modSettingsError" style="color: #ff6b6b; font-size: 0.85em; margin-top: 0.5rem; word-break: break-all;">Error: {{ modSettingsError }}</p>
+          </div>
+          <div v-else class="config-tab-main-layout">
+            <!-- Left sidebar: Mod list -->
+            <div class="config-mod-sidebar">
+              <h3 class="config-sidebar-header">
+                Mods
+                <span class="config-total-badge">{{ Object.keys(categorizedSettings).length }} total</span>
+              </h3>
+              <div class="config-mod-list-scroll">
+                <div v-for="(settings, modName) in categorizedSettings" :key="modName">
+                  <button 
+                    :class="['config-mod-item', { active: selectedConfigMod === modName }]"
+                    @click="selectedConfigMod = modName; activeConfigTab = 'startup'; playSound('click')"
+                    @mouseenter="updateTooltipOnOverflow($event, modName)"
+                  >
+                    <span class="mod-name-clamp">{{ modName }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Right side: Settings for selected mod -->
+            <div class="config-settings-pane" v-if="selectedConfigMod && categorizedSettings[selectedConfigMod]">
+              <div class="config-pane-header">
+                <div class="config-segmented-tabs">
+                  <button :class="['config-tab-btn', { active: activeConfigTab === 'startup' }]" @click="activeConfigTab = 'startup'; playSound('click')">Startup</button>
+                  <button :class="['config-tab-btn', { active: activeConfigTab === 'runtime-global' }]" @click="activeConfigTab = 'runtime-global'; playSound('click')">Map (Global)</button>
+                  <button :class="['config-tab-btn', { active: activeConfigTab === 'runtime-per-user' }]" @click="activeConfigTab = 'runtime-per-user'; playSound('click')">Per Player</button>
+                </div>
+                <button class="dl-btn dl-btn-primary" @click="saveModSettingsDat(); playSound('click')" style="padding: 0.5rem 1.5rem; border-radius: 6px; font-weight: bold; box-shadow: 0 4px 12px rgba(244, 211, 94, 0.2);">Save Config</button>
+              </div>
+              
+              <div class="config-settings-scroll">
+                <template v-if="categorizedSettings[selectedConfigMod][activeConfigTab] && categorizedSettings[selectedConfigMod][activeConfigTab].length > 0">
+                  <div class="config-setting-card" v-for="setting in categorizedSettings[selectedConfigMod][activeConfigTab]" :key="setting.key">
+                    <label class="setting-key">{{ setting.key.replace(selectedConfigMod + '-', '') }}</label>
+                    
+                    <!-- Boolean -->
+                    <template v-if="setting.metaType === 'bool'">
+                      <div class="toggle-row" @click="setting.value = !setting.value; playSound('click')">
+                        <label class="switch" style="pointer-events: none;">
+                          <input type="checkbox" :checked="setting.value">
+                          <span class="slider"></span>
+                        </label>
+                        <span class="settings-toggle-label">{{ setting.value ? 'Enabled' : 'Disabled' }}</span>
+                      </div>
+                    </template>
+                    
+                    <!-- Number -->
+                    <template v-else-if="setting.metaType === 'number' || setting.metaType === 'signed_int' || setting.metaType === 'unsigned_int'">
+                      <input type="number" v-model.number="setting.value" class="dl-input" />
+                    </template>
+                    
+                    <!-- String -->
+                    <template v-else-if="setting.metaType === 'string'">
+                      <input type="text" v-model="setting.value" class="dl-input" />
+                    </template>
+                    
+                    <!-- Color Dictionary -->
+                    <template v-else-if="setting.metaType === 'dictionary' && setting.value && setting.value.r !== undefined">
+                      <div class="color-picker-component">
+                        <div class="color-preview-large" :style="{ backgroundColor: `rgba(${Math.round(setting.value.r*255)}, ${Math.round(setting.value.g*255)}, ${Math.round(setting.value.b*255)}, ${setting.value.a !== undefined ? setting.value.a : 1})` }">
+                          <span class="hex-text">{{ rgbToHex(setting.value.r, setting.value.g, setting.value.b).toUpperCase() }}</span>
+                        </div>
+                        <div class="color-sliders-grid">
+                          <div class="color-slider-row">
+                            <label>R</label>
+                            <input type="range" min="0" max="1" step="0.00392" v-model.number="setting.value.r" class="settings-range-slider red-slider">
+                            <span class="val">{{ Math.round(setting.value.r * 255) }}</span>
+                          </div>
+                          <div class="color-slider-row">
+                            <label>G</label>
+                            <input type="range" min="0" max="1" step="0.00392" v-model.number="setting.value.g" class="settings-range-slider green-slider">
+                            <span class="val">{{ Math.round(setting.value.g * 255) }}</span>
+                          </div>
+                          <div class="color-slider-row">
+                            <label>B</label>
+                            <input type="range" min="0" max="1" step="0.00392" v-model.number="setting.value.b" class="settings-range-slider blue-slider">
+                            <span class="val">{{ Math.round(setting.value.b * 255) }}</span>
+                          </div>
+                          <div class="color-slider-row">
+                            <label>A</label>
+                            <input type="range" min="0" max="1" step="0.01" v-model.number="setting.value.a" class="settings-range-slider">
+                            <span class="val">{{ Math.round(setting.value.a * 100) }}%</span>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                    
+                    <!-- Fallback -->
+                    <template v-else>
+                      <span style="font-size: 0.85em; opacity: 0.6; margin-bottom: 0.5rem; display: block;">Raw JSON ({{ setting.metaType }}):</span>
+                      <textarea :value="JSON.stringify(setting.value, null, 2)" @input="updateSettingJSON(setting, $event.target.value)" class="dl-input" style="width: 100%; resize: vertical;" rows="3"></textarea>
+                    </template>
+                  </div>
+                </template>
+                <div v-else class="config-empty-state-centered">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 1rem;">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </svg>
+                  <p>No {{ activeConfigTab }} settings found.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div v-else class="config-settings-pane config-pane-centered">
+              <div class="dl-empty-state">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="margin-bottom: 1.5rem;">
+                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+                </svg>
+                <p style="font-size: 1.1rem;">Select a mod from the sidebar</p>
+                <p style="font-size: 0.85rem; margin-top: 0.5rem;">to configure its settings</p>
+              </div>
+            </div>
           </div>
         </div>
+
         <!-- Settings Tab -->
         <div v-show="currentTab==='settings'" class="tab-content-wrapper settings-tab-container">
           <div class="settings-grid">
