@@ -4406,3 +4406,19 @@ input:checked+.slider {
   gap: 1rem;
   justify-content: center;
 }
+.dl-mod-counter {
+  background: rgba(244, 211, 94, 0.1);
+  border: 1px solid rgba(244, 211, 94, 0.3);
+  color: #f4d35e;
+  font-size: 0.75rem;
+  font-weight: bold;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  font-family: "Consolas", monospace;
+  box-shadow: 0 0 10px rgba(244, 211, 94, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

@@ -1191,6 +1191,162 @@ const { exec } = require('child_process');
 const os = require('os');
 const crypto = require('crypto');
 
+// Build a setting-name → mod-name map by parsing settings*.lua from each mod ZIP
+app.get('/api/mod-settings-map', async (req, res) => {
+  try {
+    const scanned = await getScannedMods('settings-map');
+    const settingMap = {}; // { settingName: modName }
+
+    // Regex to extract setting names from Lua: name = "..." or name="..."
+    const luaNameRegex = /name\s*=\s*"([^"]+)"/g;
+
+    // Parse game data directories for base/DLC settings
+    if (userGamePath) {
+      const gameDataMods = ['base', 'elevated-rails', 'quality', 'space-age'];
+      for (const modName of gameDataMods) {
+        const settingsDir = path.join(userGamePath, 'data', modName);
+        if (!fs.existsSync(settingsDir)) continue;
+        
+        // Check for settings.lua and settings-updates.lua
+        for (const settingsFile of ['settings.lua', 'settings-updates.lua', 'settings-final-fixes.lua']) {
+          const settingsPath = path.join(settingsDir, settingsFile);
+          if (!fs.existsSync(settingsPath)) continue;
+          try {
+            const content = fs.readFileSync(settingsPath, 'utf-8');
+            let match;
+            luaNameRegex.lastIndex = 0;
+            while ((match = luaNameRegex.exec(content)) !== null) {
+              settingMap[match[1]] = modName;
+            }
+          } catch {}
+        }
+      }
+    }
+
+    // Parse each mod ZIP for settings*.lua files
+    for (const mod of scanned) {
+      const zipPath = modZipCache[mod.name];
+      if (!zipPath || !fs.existsSync(zipPath)) continue;
+
+      try {
+        const zip = new AdmZip(zipPath);
+        const entries = zip.getEntries();
+        
+        for (const entry of entries) {
+          // Match settings.lua, settings-updates.lua, settings-final-fixes.lua
+          const entryLower = entry.entryName.toLowerCase();
+          if (!entryLower.endsWith('.lua')) continue;
+          const baseName = path.basename(entryLower);
+          if (!baseName.startsWith('settings')) continue;
+          
+          try {
+            const content = zip.readAsText(entry);
+            
+            // Strip Lua comments to avoid false matches
+            const stripped = content
+              .replace(/--\[\[[\s\S]*?\]\]/g, '')  // block comments
+              .replace(/--.*/g, '');                  // line comments
+            
+            // Strategy 1: Find Lua table blocks with both name and setting_type
+            // Split by table boundaries and validate each block
+            const tableRegex = /\{[^{}]*\}/g;
+            let tableMatch;
+            while ((tableMatch = tableRegex.exec(stripped)) !== null) {
+              const block = tableMatch[0];
+              // Only process blocks that look like setting definitions
+              if (!/setting_type/.test(block) && !/type\s*=\s*"[^"]*-setting"/.test(block)) continue;
+              
+              const nameMatch = block.match(/name\s*=\s*"([^"]+)"/);
+              if (nameMatch) {
+                const settingName = nameMatch[1];
+                if (!['startup', 'runtime-global', 'runtime-per-user',
+                     'bool-setting', 'int-setting', 'double-setting', 'string-setting',
+                     'color-setting'].includes(settingName)) {
+                  settingMap[settingName] = mod.name;
+                }
+              }
+            }
+            
+            // Strategy 2: KuxCoreLib-style patterns: x:bool{"setting-name", ...} or x:int{"setting-name", ...}
+            let match;
+            const kuxRegex = /:\w+\s*\{\s*"([a-zA-Z][a-zA-Z0-9_-]{2,})"/g;
+            kuxRegex.lastIndex = 0;
+            while ((match = kuxRegex.exec(stripped)) !== null) {
+              const settingName = match[1];
+              if (['startup', 'runtime-global', 'runtime-per-user',
+                   'bool-setting', 'int-setting', 'double-setting', 'string-setting',
+                   'color-setting'].includes(settingName)) continue;
+              if (!settingMap[settingName]) {
+                settingMap[settingName] = mod.name;
+              }
+            }
+          } catch {}
+        }
+      } catch {}
+    }
+
+    // If actual settings keys are provided, try to resolve unmapped ones
+    // by matching against prefix patterns from concatenation in Lua files
+    // e.g. name = "transition-speed-"..aircraft generates "transition-speed-gunship"
+    if (req.query.keys) {
+      const actualKeys = req.query.keys.split(',');
+      const unmapped = actualKeys.filter(k => !settingMap[k]);
+      
+      if (unmapped.length > 0) {
+        // Extract string prefixes from Lua concatenation patterns
+        const prefixToMod = {}; // prefix → modName
+        
+        for (const mod of scanned) {
+          const zipPath = modZipCache[mod.name];
+          if (!zipPath || !fs.existsSync(zipPath)) continue;
+          
+          try {
+            const zip = new AdmZip(zipPath);
+            for (const entry of zip.getEntries()) {
+              const entryLower = entry.entryName.toLowerCase();
+              if (!entryLower.endsWith('.lua')) continue;
+              const baseName = path.basename(entryLower);
+              if (!baseName.startsWith('settings')) continue;
+              
+              try {
+                const content = zip.readAsText(entry)
+                  .replace(/--\[\[[\s\S]*?\]\]/g, '')
+                  .replace(/--.*/g, '');
+                
+                // Match patterns like: name = "prefix-"..variable  or "prefix-"..variable.."suffix"
+                const concatRegex = /(?:name\s*=\s*)?["']([a-zA-Z][a-zA-Z0-9_-]*[-_])["']\s*\.\./g;
+                let cm;
+                while ((cm = concatRegex.exec(content)) !== null) {
+                  const prefix = cm[1];
+                  if (prefix.length >= 3) {
+                    prefixToMod[prefix.toLowerCase()] = mod.name;
+                  }
+                }
+              } catch {}
+            }
+          } catch {}
+        }
+        
+        // Apply prefix matches to unmapped keys
+        for (const key of unmapped) {
+          const lowerKey = key.toLowerCase();
+          for (const [prefix, modName] of Object.entries(prefixToMod)) {
+            if (lowerKey.startsWith(prefix)) {
+              settingMap[key] = modName;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    res.json(settingMap);
+  } catch (err) {
+    console.error('[SettingsMap] Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/mod-settings', (req, res) => {
   const { path: datPath } = req.body;
   if (!datPath) return res.status(400).send('Path required');
