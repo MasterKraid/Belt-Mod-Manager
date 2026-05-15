@@ -611,7 +611,7 @@
                 <div v-for="(settings, modName) in categorizedSettings" :key="modName">
                   <button 
                     :class="['config-mod-item', { active: selectedConfigMod === modName }]"
-                    @click="selectedConfigMod = modName; activeConfigTab = 'startup'; playSound('click')"
+                    @click="switchConfigMod(modName)"
                     @mouseenter="updateTooltipOnOverflow($event, modName)"
                   >
                     <span class="mod-name-clamp">{{ modName }}</span>
@@ -624,11 +624,10 @@
             <div class="config-settings-pane" v-if="selectedConfigMod && categorizedSettings[selectedConfigMod]">
               <div class="config-pane-header">
                 <div class="config-segmented-tabs">
-                  <button :class="['config-tab-btn', { active: activeConfigTab === 'startup' }]" @click="activeConfigTab = 'startup'; playSound('click')">Startup</button>
-                  <button :class="['config-tab-btn', { active: activeConfigTab === 'runtime-global' }]" @click="activeConfigTab = 'runtime-global'; playSound('click')">Map (Global)</button>
-                  <button :class="['config-tab-btn', { active: activeConfigTab === 'runtime-per-user' }]" @click="activeConfigTab = 'runtime-per-user'; playSound('click')">Per Player</button>
+                  <button :class="['config-tab-btn', { active: activeConfigTab === 'startup' }]" @click="switchConfigSubTab('startup')">Startup</button>
+                  <button :class="['config-tab-btn', { active: activeConfigTab === 'runtime-global' }]" @click="switchConfigSubTab('runtime-global')">Map (Global)</button>
+                  <button :class="['config-tab-btn', { active: activeConfigTab === 'runtime-per-user' }]" @click="switchConfigSubTab('runtime-per-user')">Per Player</button>
                 </div>
-                <button class="dl-btn dl-btn-primary" @click="saveModSettingsDat(); playSound('click')" style="padding: 0.5rem 1.5rem; border-radius: 6px; font-weight: bold; box-shadow: 0 4px 12px rgba(244, 211, 94, 0.2);">Save Config</button>
               </div>
               
               <div class="config-settings-scroll">
@@ -1369,6 +1368,49 @@
         </div>
       </div>
 
+      <!-- Unsaved Changes Modal -->
+      <div v-if="showUnsavedModal" class="dl-modal-overlay">
+        <div class="dl-modal" style="width: 380px;">
+          <div class="dl-modal-header" style="background: transparent; border-bottom: 1px solid rgba(244, 211, 94, 0.1); padding: 0.5rem 0.85rem;">
+            <h3 style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; color: #f4d35e; font-weight: bold;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13" stroke-linecap="round"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17" stroke-linecap="round"></line>
+              </svg>
+              Unsaved Changes
+            </h3>
+            <button class="dl-modal-close" @click="showUnsavedModal = false; pendingTabAction = null; playSound('click')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+          <div class="dl-modal-body">
+            <p style="font-size: 0.95rem; font-weight: bold; color: #fff; margin-bottom: 0.4rem; line-height: 1.3;">You have unsaved configuration changes!</p>
+            <p style="font-size: 0.85rem; color: rgba(255,255,255,0.4); line-height: 1.5; margin-bottom: 1.25rem;">Would you like to save them now or discard them to continue?</p>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+              <button class="dl-btn dl-btn-danger" @click="confirmDiscardChanges()" style="padding: 0.4rem 1.25rem; font-size: 0.8rem;">Discard</button>
+              <button class="dl-btn dl-btn-primary" @click="saveModSettingsDat(); playSound('click')" style="padding: 0.4rem 1.5rem; font-size: 0.8rem;">Save Changes</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Floating Save Button -->
+      <transition name="slide-fade">
+        <div v-if="currentTab==='config' && configDirty" class="config-floating-save-container">
+          <button class="dl-btn dl-btn-primary has-tooltip" @click="saveModSettingsDat(); playSound('click')" data-tooltip="Save Config">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+              <polyline points="17 21 17 13 7 13 7 21"></polyline>
+              <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+          </button>
+        </div>
+      </transition>
 
     </div>
   </div>

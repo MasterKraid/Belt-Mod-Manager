@@ -8,24 +8,10 @@
 (x) Feature, a button at top of Installed Mods page, when sort is selected as "Update Needed" and there is atleast 1 mod that needs update. Pressing this update button, puts them in download queue of update automatically. Mainting the concurrent download rule.
 (x) Since we are launching Factorio as childprocess we are able to access its logs, Plan a "Logs" Tab that can show the logs in real time. and Store them in case of Factorio Crashes. Will be helpful for debug for modders who like to mess around. If game crashes, it will close our app too.. so need to ensure our app stays alive or opens again. (Update: no need for a whole new tab, just like the current downloading pop up that appears on the buttom of the downloader page, Logs will be like that, a pop up console that appears in the Profile page, with a slight exception, there will be a button to open it when wanted, below the profile section. The console can be hidden when not in use. and will store to a log/ directory, with proper timestamp txt.)
 (x) Fix Bug, Make the download list pop up screen on the buttom of the downloader page into fixed size with a scrollbar, which appears when a download is clicked and done, and has an option to be minimized
+(x) Implement the Config Editing UI
 
 () Known Issue: UI keeps breaking if two version of same mod exists in disk. Did A hotfix but... idk... it might be broken again.
-() Implement Config editing UI. Need to brainstorm idea on how to make ingame config editing via the Mod Manager UI. (Make the UI nice and compact, using tabs for each mod that has config, and allow nested grouping of config) (Update: I think we can just use the config files directly with minor parsing. Need to check, the .dat file I mean. Idk how to parse it yet. But this seems more promising than injecting Lua code into the game.) (Update: Half Implementation done, The hard part implemented the whole parsing as a rust library is done, the easy part remaining is UI for it. check: https://github.com/MasterKraid/Factorio-DAT-encoder-decoder-Rust---Bun-Implementation.git) (Update: Released as a crate: https://crates.io/crates/factorio-dat-settings) (Usage: Install cargo install factorio-dat-settings Running the above command will globally install the factorio_settings_cli binary. Install as library Run the following Cargo command in your project directory: cargo add factorio-dat-settings Or add the following line to your Cargo.toml: factorio-dat-settings = "1.0.0") 
-```
-use std::fs;
-use factorio_settings::{decode_dat_to_json, encode_json_to_dat};
-
-fn main() {
-    // Decode
-    let dat_bytes = fs::read("mod-settings.dat").unwrap();
-    let json_string = decode_dat_to_json(&dat_bytes).unwrap();
-
-    // Encode
-    let new_dat_bytes = encode_json_to_dat(&json_string).unwrap();
-    fs::write("encoded-settings.dat", new_dat_bytes).unwrap();
-}
-```
-() (Future Feature) Mod Package Editor & Cloner: The settings button on each installed mod currently shows a blank popup. While we will use the `.dat` config file for standard Factorio settings, many mods have hardcoded editable strings inside their package zip. To make these editable safely:
+() (Future Feature) Mod Package Editor & Cloner: The settings button on each installed mod currently shows a blank popup. While we will use the `.dat` config file for standard Factorio settings in the config tab, many mods have hardcoded editable strings inside their package zip. To make these editable safely:
     - Implement a "Clone Mod" feature that duplicates a mod (e.g., adding a "-cloned" suffix to internal data and filename) so the user can modify its internal code without conflicts.
     - Expose a UI to edit these specific mod package files.
     - Note: Needs more brainstorming on the UX and exactly what strings to expose.

@@ -81,6 +81,9 @@ const vueAppOptions = {
       activeConfigTab: 'startup',
       settingsLoading: false,
       modSettingsError: null,
+      configDirty: false,
+      showUnsavedModal: false,
+      pendingTabAction: null,
       portalAuth: { authenticated: false, username: null },
       showPathsMenu: true,
       authUsername: '',
@@ -341,15 +344,6 @@ const vueAppOptions = {
           sfx[name].currentTime = 0;
           sfx[name].volume = (this.soundVolume !== undefined ? this.soundVolume / 100 : 0.8);
           sfx[name].play().catch(() => {});
-        }
-      },
-      async switchTab(tab) {
-        if (this.currentTab !== tab) {
-          this.currentTab = tab;
-          this.playSound('tabSwitch');
-          if (tab === 'config' && !this.modSettingsData && this.currentModPath) {
-            await this.loadModSettingsDat();
-          }
         }
       },
       toggleModStatus(mod) {
@@ -1189,6 +1183,8 @@ const vueAppOptions = {
           this.modSettingsError = String(e);
         } finally {
           this.settingsLoading = false;
+          // Ensure we reset dirty state after loading
+          this.$nextTick(() => { this.configDirty = false; });
         }
       },
       parseAndCategorizeSettings(data) {
@@ -1251,7 +1247,21 @@ const vueAppOptions = {
             })
           });
           if (!res.ok) throw new Error(await res.text());
+          this.configDirty = false;
+          this.showUnsavedModal = false;
           this.showNotification('Mod settings saved successfully!');
+          
+          // Execute pending action if any
+          if (this.pendingTabAction) {
+            const action = this.pendingTabAction;
+            this.pendingTabAction = null;
+            if (action.type === 'mainTab') this.currentTab = action.value;
+            else if (action.type === 'subTab') this.activeConfigTab = action.value;
+            else if (action.type === 'mod') {
+              this.selectedConfigMod = action.value;
+              this.activeConfigTab = 'startup';
+            }
+          }
         } catch (e) {
           console.error("Failed to save mod settings", e);
           this.showNotification('Failed to save settings!', 'error');
@@ -1408,6 +1418,70 @@ const vueAppOptions = {
           this.startDownloadPolling(); // Still poll for whatever did succeed
         }
       },
+      // Navigation Guards for Unsaved Config
+      async switchTab(tab) {
+        if (this.currentTab === 'config' && this.configDirty) {
+          this.pendingTabAction = { type: 'mainTab', value: tab };
+          this.showUnsavedModal = true;
+          return;
+        }
+        
+        if (this.currentTab !== tab) {
+          this.currentTab = tab;
+          this.playSound('tabSwitch');
+          // Load settings if entering config tab for the first time
+          if (tab === 'config' && !this.modSettingsData && this.currentModPath) {
+            await this.loadModSettingsDat();
+          }
+        }
+      },
+      switchConfigSubTab(scope) {
+        if (this.configDirty) {
+          this.pendingTabAction = { type: 'subTab', value: scope };
+          this.showUnsavedModal = true;
+          return;
+        }
+        this.activeConfigTab = scope;
+        this.playSound('click');
+      },
+      switchConfigMod(modName) {
+        if (this.configDirty) {
+          this.pendingTabAction = { type: 'mod', value: modName };
+          this.showUnsavedModal = true;
+          return;
+        }
+        this.selectedConfigMod = modName;
+        this.activeConfigTab = 'startup';
+        this.playSound('click');
+      },
+      confirmDiscardChanges() {
+        this.configDirty = false;
+        this.showUnsavedModal = false;
+        const action = this.pendingTabAction;
+        this.pendingTabAction = null;
+
+        if (!action) return;
+        
+        if (action.type === 'mainTab') this.currentTab = action.value;
+        else if (action.type === 'subTab') this.activeConfigTab = action.value;
+        else if (action.type === 'mod') {
+          this.selectedConfigMod = action.value;
+          this.activeConfigTab = 'startup';
+        }
+        
+        // Re-load settings to discard changes in memory
+        this.loadModSettingsDat();
+        this.playSound('click');
+      }
+    },
+    watch: {
+      categorizedSettings: {
+        handler() {
+          if (this.settingsLoading) return;
+          this.configDirty = true;
+        },
+        deep: true
+      }
     },
     mounted() {
       this.loadProfiles();
