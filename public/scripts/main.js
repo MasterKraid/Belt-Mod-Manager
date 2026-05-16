@@ -17,7 +17,7 @@ const vueAppOptions = {
     installedMods: [],
     installedSort: 'name',
     installedSortOpen: false,
-    managerSort: 'name',
+    managerSort: 'enabled-first',
     managerSortOpen: false,
     expandedMods: [],
     profiles: [],
@@ -174,46 +174,48 @@ const vueAppOptions = {
         const aCore = coreNames.indexOf(a.name);
         const bCore = coreNames.indexOf(b.name);
 
-        if (this.managerSort === 'last-downloaded') {
+        const sortMode = this.managerSort;
+
+        if (sortMode === 'last-downloaded') {
           if (aCore !== -1 && bCore !== -1) return aCore - bCore;
-          if (aCore !== -1) return 1; // core mods at bottom
-          if (bCore !== -1) return -1; // core mods at bottom
+          if (aCore !== -1) return 1;
+          if (bCore !== -1) return -1;
 
           const am = a.mtime || 0;
           const bm = b.mtime || 0;
-          if (am !== bm) return bm - am; // newest first
-        } else if (this.managerSort === 'update-needed') {
+          if (am !== bm) return bm - am;
+        } else if (sortMode === 'update-needed') {
           if (aCore !== -1 && bCore !== -1) return aCore - bCore;
-          if (aCore !== -1) return 1; // core mods at bottom
-          if (bCore !== -1) return -1; // core mods at bottom
+          if (aCore !== -1) return 1;
+          if (bCore !== -1) return -1;
 
           const aHasUpdate = !!this.modUpdates[a.name];
           const bHasUpdate = !!this.modUpdates[b.name];
           if (aHasUpdate && !bHasUpdate) return -1;
           if (!aHasUpdate && bHasUpdate) return 1;
-        } else if (this.managerSort === 'enabled-first') {
+        } else if (sortMode === 'enabled-first') {
           if (aCore !== -1 && bCore !== -1) return aCore - bCore;
-          if (aCore !== -1) return -1; // core mods at top
-          if (bCore !== -1) return 1; // core mods at top
+          if (aCore !== -1) return -1;
+          if (bCore !== -1) return 1;
 
           if (a.enabled && !b.enabled) return -1;
           if (!a.enabled && b.enabled) return 1;
-        } else if (this.managerSort === 'enabled-last') {
+        } else if (sortMode === 'enabled-last') {
           if (aCore !== -1 && bCore !== -1) return aCore - bCore;
-          if (aCore !== -1) return -1; // core mods at top
-          if (bCore !== -1) return 1; // core mods at top
+          if (aCore !== -1) return 1;
+          if (bCore !== -1) return -1;
 
           if (a.enabled && !b.enabled) return 1;
           if (!a.enabled && b.enabled) return -1;
-        } else { // 'name' (Alphabetical)
+        } else {
           if (aCore !== -1 && bCore !== -1) return aCore - bCore;
-          if (aCore !== -1) return -1; // core mods at top
-          if (bCore !== -1) return 1; // core mods at top
+          if (aCore !== -1) return -1;
+          if (bCore !== -1) return 1;
         }
 
-        const aTitle = (a.title || a.name).toLowerCase();
-        const bTitle = (b.title || b.name).toLowerCase();
-        return aTitle < bTitle ? -1 : (aTitle > bTitle ? 1 : 0);
+        const titleA = (a.title || a.name || "").toLowerCase();
+        const titleB = (b.title || b.name || "").toLowerCase();
+        return titleA.localeCompare(titleB);
       });
     },
     filteredInstalledMods() {
@@ -233,46 +235,48 @@ const vueAppOptions = {
         const aCore = coreNames.indexOf(a.name);
         const bCore = coreNames.indexOf(b.name);
 
-        if (this.installedSort === 'last-downloaded') {
+        const sortMode = this.installedSort;
+
+        if (sortMode === 'last-downloaded') {
           if (aCore !== -1 && bCore !== -1) return aCore - bCore;
-          if (aCore !== -1) return 1; // core mods at bottom
-          if (bCore !== -1) return -1; // core mods at bottom
+          if (aCore !== -1) return 1;
+          if (bCore !== -1) return -1;
 
           const am = a.mtime || 0;
           const bm = b.mtime || 0;
-          if (am !== bm) return bm - am; // newest first
-        } else if (this.installedSort === 'update-needed') {
+          if (am !== bm) return bm - am;
+        } else if (sortMode === 'update-needed') {
           if (aCore !== -1 && bCore !== -1) return aCore - bCore;
-          if (aCore !== -1) return 1; // core mods at bottom
-          if (bCore !== -1) return -1; // core mods at bottom
+          if (aCore !== -1) return 1;
+          if (bCore !== -1) return -1;
 
           const aHasUpdate = !!this.modUpdates[a.name];
           const bHasUpdate = !!this.modUpdates[b.name];
           if (aHasUpdate && !bHasUpdate) return -1;
           if (!aHasUpdate && bHasUpdate) return 1;
-        } else if (this.installedSort === 'enabled-first') {
+        } else if (sortMode === 'enabled-first') {
           if (aCore !== -1 && bCore !== -1) return aCore - bCore;
-          if (aCore !== -1) return -1; // core mods at top
-          if (bCore !== -1) return 1; // core mods at top
+          if (aCore !== -1) return -1;
+          if (bCore !== -1) return 1;
 
           if (a.enabled && !b.enabled) return -1;
           if (!a.enabled && b.enabled) return 1;
-        } else if (this.installedSort === 'enabled-last') {
+        } else if (sortMode === 'enabled-last') {
           if (aCore !== -1 && bCore !== -1) return aCore - bCore;
-          if (aCore !== -1) return -1; // core mods at top
-          if (bCore !== -1) return 1; // core mods at top
+          if (aCore !== -1) return 1;
+          if (bCore !== -1) return -1;
 
           if (a.enabled && !b.enabled) return 1;
           if (!a.enabled && b.enabled) return -1;
-        } else { // 'name' (Alphabetical)
+        } else {
           if (aCore !== -1 && bCore !== -1) return aCore - bCore;
-          if (aCore !== -1) return -1; // core mods at top
-          if (bCore !== -1) return 1; // core mods at top
+          if (aCore !== -1) return -1;
+          if (bCore !== -1) return 1;
         }
 
-        const aTitle = (a.title || a.name).toLowerCase();
-        const bTitle = (b.title || b.name).toLowerCase();
-        return aTitle < bTitle ? -1 : (aTitle > bTitle ? 1 : 0);
+        const titleA = (a.title || a.name || "").toLowerCase();
+        const titleB = (b.title || b.name || "").toLowerCase();
+        return titleA.localeCompare(titleB);
       });
     },
     modsWithUpdatesCount() {

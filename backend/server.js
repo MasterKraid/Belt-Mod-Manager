@@ -634,9 +634,18 @@ function mergeNewMods(scanned, current) {
     scannedMap[mod.name] = mod;
   });
 
+  const builtInMods = ['base', 'elevated-rails', 'quality', 'space-age'];
   const known = new Set();
-  const added = [];
   let changed = false;
+
+  // Prune mods that are no longer on disk and not built-in
+  for (let i = current.length - 1; i >= 0; i--) {
+    const mod = current[i];
+    if (!scannedMap[mod.name] && !builtInMods.includes(mod.name)) {
+      current.splice(i, 1);
+      changed = true;
+    }
+  }
 
   // Merge metadata from disk into existing profile items
   current.forEach(mod => {
@@ -650,11 +659,12 @@ function mergeNewMods(scanned, current) {
         mod.description = scannedMod.description || mod.description || '(no description)';
         mod.dependencies = scannedMod.dependencies || mod.dependencies || [];
         mod.thumbnail = scannedMod.thumbnail || mod.thumbnail || null;
+        mod.mtime = scannedMod.mtime || 0;
+        changed = true;
+      } else if (mod.mtime !== scannedMod.mtime) {
+        mod.mtime = scannedMod.mtime || 0;
         changed = true;
       }
-    } else {
-      if (!mod.title) { mod.title = mod.name; changed = true; }
-      if (!mod.version) { mod.version = '0.0.0'; changed = true; }
     }
 
     // Force base mod to always be true

@@ -345,7 +345,7 @@
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                         <polyline points="20 6 9 17 4 12"></polyline>
                       </svg>
-                      <span>Activated First</span>
+                      <span>Enabled First</span>
                     </div>
                     <div class="dropdown-item" :class="{ active: managerSort === 'enabled-last' }"
                       @click="managerSort = 'enabled-last'; managerSortOpen = false; playSound('click')">
@@ -353,7 +353,7 @@
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                         <polyline points="20 6 9 17 4 12"></polyline>
                       </svg>
-                      <span>Activated Last</span>
+                      <span>Enabled Last</span>
                     </div>
                   </div>
                 </div>
@@ -578,7 +578,15 @@
                   <div>
                     <!-- Confirmation Mode -->
                     <div v-if="deletingInstalledModName === mod.name" class="profile-actions-layout">
-                      <span class="delete-warn-text">Delete this mod zip file from disk?</span>
+                      <span class="delete-warn-text">
+                        <template v-if="mods.some(m => m.name === mod.name && m.enabled)">
+                          <strong>Warning:</strong> This mod is currently <strong>ENABLED</strong> in your active
+                          profile. Delete anyway?
+                        </template>
+                        <template v-else>
+                          Delete this mod zip file from disk?
+                        </template>
+                      </span>
                       <button class="dl-btn dl-btn-danger btn-confirm-delete-action"
                         @click.stop="confirmDeleteInstalledMod(mod.name)">
                         Yes, Delete!
@@ -607,7 +615,15 @@
                   <div>
                     <!-- Confirmation Mode -->
                     <div v-if="deletingInstalledModDepsName === mod.name" class="profile-actions-layout">
-                      <span class="delete-warn-text">Delete this mod AND all its unused dependencies recursively?</span>
+                      <span class="delete-warn-text">
+                        <template v-if="mods.some(m => m.name === mod.name && m.enabled)">
+                          <strong>Warning:</strong> This mod is <strong>ENABLED</strong>. Delete mod AND all its unused
+                          dependencies?
+                        </template>
+                        <template v-else>
+                          Delete this mod AND all its unused dependencies recursively?
+                        </template>
+                      </span>
                       <button class="dl-btn dl-btn-danger btn-confirm-delete-action"
                         @click.stop="confirmDeleteInstalledModWithDeps(mod.name)">
                         Yes, Delete Mod + Deps!
