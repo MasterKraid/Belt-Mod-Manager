@@ -1194,11 +1194,18 @@ const vueAppOptions = {
               allKeys.push(...Object.keys(this.modSettingsData.settings[scope]));
             }
           });
-          const mapUrl = '/api/mod-settings-map?keys=' + encodeURIComponent(allKeys.join(','));
-          const mapRes = await fetch(mapUrl);
+          
+          const mapRes = await fetch('/api/mod-settings-map', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keys: allKeys })
+          });
+          
           if (mapRes.ok) {
             this.modSettingsMap = await mapRes.json();
             console.log(`[Config] Loaded ${Object.keys(this.modSettingsMap).length} setting→mod mappings from mod ZIPs`);
+          } else {
+            console.error(`[Config] Failed to load settings map: ${mapRes.status} ${mapRes.statusText}`);
           }
         }
 

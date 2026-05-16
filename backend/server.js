@@ -429,6 +429,14 @@ function scanMods() {
   } catch(e) {}
 
   if (cachedScannedMods && lastModDirMtime === currentMtime) {
+    // If modZipCache is somehow empty but we have cached results, we should re-populate it
+    // from the cached _zipPath metadata if available, or just proceed knowing the cache is hot.
+    // Usually modZipCache persists as a global, but this is a safety measure.
+    if (Object.keys(modZipCache).length === 0) {
+      cachedScannedMods.forEach(m => {
+        if (m._zipPath) modZipCache[m.name] = m._zipPath;
+      });
+    }
     return cachedScannedMods.map(m => ({
       ...m,
       enabled: m.type === 'core' ? true : (statusMap[m.name] ?? false)
@@ -593,7 +601,8 @@ function scanMods() {
     if (selected._zipPath) {
       finalModZipCache[name] = selected._zipPath;
     }
-    delete selected._zipPath;
+    // finalModZipCache[name] = selected._zipPath; // Already set above
+    // delete selected._zipPath; // DO NOT DELETE - needed for internal backend cache consistency
     dedupedResults.push(selected);
   }
 
@@ -1192,10 +1201,13 @@ const os = require('os');
 const crypto = require('crypto');
 
 // Build a setting-name → mod-name map by parsing settings*.lua from each mod ZIP
-app.get('/api/mod-settings-map', async (req, res) => {
+app.all('/api/mod-settings-map', async (req, res) => {
   try {
     const scanned = await getScannedMods('settings-map');
     const settingMap = {}; // { settingName: modName }
+    
+    // Get keys from query (GET) or body (POST)
+    const rawKeys = req.query.keys || (req.body && req.body.keys);
 
     // Regex to extract setting names from Lua: name = "..." or name="..."
     const luaNameRegex = /name\s*=\s*"([^"]+)"/g;
@@ -1286,8 +1298,8 @@ app.get('/api/mod-settings-map', async (req, res) => {
     }
 
     // If actual settings keys are provided, try to resolve unmapped ones
-    if (req.query.keys) {
-      const actualKeys = req.query.keys.split(',');
+    if (rawKeys) {
+      const actualKeys = Array.isArray(rawKeys) ? rawKeys : rawKeys.split(',');
       const actualKeySet = new Set(actualKeys);
       let unmapped = actualKeys.filter(k => !settingMap[k]);
       

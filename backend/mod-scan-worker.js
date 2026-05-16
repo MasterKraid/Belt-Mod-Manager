@@ -173,7 +173,7 @@ function scanModsMetadata(modsDir, gamePath, cacheFilePath) {
     if (selected._zipPath) {
       finalModZipCache[name] = selected._zipPath;
     }
-    delete selected._zipPath;
+    // delete selected._zipPath; // DO NOT DELETE - needed for internal backend cache consistency
     dedupedResults.push(selected);
   }
 
