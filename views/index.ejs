@@ -255,7 +255,7 @@
                 </button>
               </div>
             </div>
-            <div class="logs-content scrollable-list-box" ref="logsContainer">
+            <div class="logs-content scrollable-list-box" ref="logsContainer" @scroll="handleLogScroll">
               <div v-if="logs.length === 0" class="logs-empty">Waiting for game output...</div>
               <div v-for="(log, idx) in logs" :key="idx" class="log-line">
                 <span class="log-timestamp">{{ new Date(log.timestamp).toLocaleTimeString([], { hour12: false })

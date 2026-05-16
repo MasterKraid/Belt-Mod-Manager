@@ -334,11 +334,8 @@ const vueAppOptions = {
         // Keep a reasonable history on client
         if (this.logs.length > 2000) this.logs.shift();
 
-        if (this.isLogsAutoScroll && this.showLogs) {
-          this.$nextTick(() => {
-            const el = this.$refs.logsContainer;
-            if (el) el.scrollTop = el.scrollHeight;
-          });
+        if (this.isLogsAutoScroll) {
+          this.scrollToBottom();
         }
       };
       eventSource.onerror = (e) => {
@@ -1632,6 +1629,28 @@ const vueAppOptions = {
       // Re-load settings to discard changes in memory
       this.loadModSettingsDat();
       this.playSound('click');
+    },
+    scrollToBottom() {
+      if (!this.showLogs) return;
+      this.$nextTick(() => {
+        const el = this.$refs.logsContainer;
+        if (el) {
+          el.scrollTop = el.scrollHeight;
+          // Double-check after a short delay for layout shifts
+          setTimeout(() => {
+            if (this.isLogsAutoScroll && el) el.scrollTop = el.scrollHeight;
+          }, 50);
+        }
+      });
+    },
+    handleLogScroll(e) {
+      if (this.isLogsAutoScroll) {
+        const el = e.target;
+        // If locked, don't let them scroll up. Snap back.
+        if (el.scrollTop < el.scrollHeight - el.clientHeight - 2) {
+          el.scrollTop = el.scrollHeight;
+        }
+      }
     }
   },
   watch: {
@@ -1658,6 +1677,21 @@ const vueAppOptions = {
         }
       },
       deep: true
+    },
+    showLogs(val) {
+      if (val && this.isLogsAutoScroll) {
+        this.scrollToBottom();
+      }
+    },
+    isLogsAutoScroll(val) {
+      if (val) {
+        this.scrollToBottom();
+      }
+    },
+    logs() {
+      if (this.isLogsAutoScroll) {
+        this.scrollToBottom();
+      }
     }
   },
   mounted() {

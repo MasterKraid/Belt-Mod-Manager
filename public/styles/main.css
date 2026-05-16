@@ -2339,7 +2339,7 @@ input:checked + .slider:before {
   font-family: "Consolas", "Monaco", monospace;
   font-size: 0.8rem;
   overflow-y: auto;
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
 }
 .logs-content::-webkit-scrollbar {
   width: 6px;

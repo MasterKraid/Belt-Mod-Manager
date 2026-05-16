@@ -9,3 +9,4 @@ scratch/
 .credentials
 .cache/
 /src-tauri/target/
+logs/

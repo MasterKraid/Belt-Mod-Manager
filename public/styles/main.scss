@@ -2532,7 +2532,7 @@ input:checked+.slider {
   font-family: 'Consolas', 'Monaco', monospace;
   font-size: 0.8rem;
   overflow-y: auto;
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
 
   &::-webkit-scrollbar {
     width: 6px;
