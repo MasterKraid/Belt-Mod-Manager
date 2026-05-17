@@ -1806,12 +1806,23 @@ const vueAppOptions = {
       tooltipEl.style.visibility = 'hidden';
       tooltipEl.style.display = 'block';
 
+      // Measure target element position and get current body zoom factor
+      const zoom = parseFloat(getComputedStyle(document.body).zoom) || 1;
+      const configPane = target.closest('.config-settings-pane');
+      if (configPane) {
+        const paneRect = configPane.getBoundingClientRect();
+        const paneWidthZoomed = paneRect.width / zoom;
+        const maxW = Math.min(400, paneWidthZoomed - 40);
+        tooltipEl.style.maxWidth = maxW + 'px';
+      } else {
+        tooltipEl.style.maxWidth = '320px';
+      }
+
       // 2. Measure tooltip real size
       const tooltipWidth = tooltipEl.offsetWidth;
       const tooltipHeight = tooltipEl.offsetHeight;
 
-      // 3. Measure target element position and get current body zoom factor
-      const zoom = parseFloat(getComputedStyle(document.body).zoom) || 1;
+      // 3. Measure target element position and get zoomed coordinates
       const targetRect = target.getBoundingClientRect();
 
       // Convert all viewport coordinates to zoomed coordinates by dividing by the zoom factor
@@ -1833,14 +1844,24 @@ const vueAppOptions = {
         isBelow = true;
       }
 
-      // 6. Collision check: Left/Right edge viewport boundaries
-      const padding = 12; // margin safety padding from window edge
-      const viewportWidthZoomed = window.innerWidth / zoom;
-      if (tooltipLeft + tooltipWidth > viewportWidthZoomed - padding) {
-        tooltipLeft = viewportWidthZoomed - padding - tooltipWidth;
+      // 6. Collision check: Left/Right edge viewport/pane boundaries
+      const padding = 12; // margin safety padding
+      let minLeft = padding;
+      let maxRight = (window.innerWidth / zoom) - padding;
+
+      if (configPane) {
+        const paneRect = configPane.getBoundingClientRect();
+        const paneLeftZoomed = paneRect.left / zoom;
+        const paneRightZoomed = paneRect.right / zoom;
+        minLeft = paneLeftZoomed + padding;
+        maxRight = paneRightZoomed - padding;
       }
-      if (tooltipLeft < padding) {
-        tooltipLeft = padding;
+
+      if (tooltipLeft + tooltipWidth > maxRight) {
+        tooltipLeft = maxRight - tooltipWidth;
+      }
+      if (tooltipLeft < minLeft) {
+        tooltipLeft = minLeft;
       }
 
       // 7. Calculate pointer arrow position relative to the tooltip box

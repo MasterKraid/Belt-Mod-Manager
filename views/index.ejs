@@ -748,6 +748,7 @@
                     <template
                       v-else-if="setting.metaType === 'number' || setting.metaType === 'signed_int' || setting.metaType === 'unsigned_int'">
                       <input type="number"
+                        step="any"
                         :min="modSettingsMetadata[setting.key] && modSettingsMetadata[setting.key].minimum_value !== null ? modSettingsMetadata[setting.key].minimum_value : undefined"
                         :max="modSettingsMetadata[setting.key] && modSettingsMetadata[setting.key].maximum_value !== null ? modSettingsMetadata[setting.key].maximum_value : undefined"
                         v-model.number="setting.value" class="dl-input" />
