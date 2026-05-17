@@ -19,4 +19,5 @@
 () Implement Mod folder upon build in appdata for local storage
 () Implement profile sharing and auto downloading
 () Other sharing options
+() Bug: When fixing long dependency list, redownloads mods that are already present. Need to check behavior when downloading big dependency list.
 () (TO BE DONE LAST BEFORE 1.0 release) Make Wiki, Readme, and other documentation.

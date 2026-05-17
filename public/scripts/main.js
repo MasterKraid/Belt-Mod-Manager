@@ -1364,6 +1364,42 @@ const vueAppOptions = {
       }
     },
     parseAndCategorizeSettings(data) {
+      if (!data) return;
+
+      // Synthesize allowed_values metadata for string settings that are Enabled/Disabled
+      if (data.settings) {
+        ['startup', 'runtime-global', 'runtime-per-user'].forEach(scope => {
+          const settings = data.settings[scope];
+          if (settings) {
+            Object.keys(settings).forEach(key => {
+              const value = settings[key];
+              if (typeof value === 'string' && (value === 'Enabled' || value === 'Disabled' || value === 'enabled' || value === 'disabled')) {
+                if (!this.modSettingsMetadata) {
+                  this.modSettingsMetadata = {};
+                }
+                const isCapitalized = value === 'Enabled' || value === 'Disabled';
+                if (!this.modSettingsMetadata[key]) {
+                  this.modSettingsMetadata[key] = {
+                    title: key,
+                    description: null,
+                    type: 'string-setting',
+                    allowed_values: isCapitalized ? ['Enabled', 'Disabled'] : ['enabled', 'disabled'],
+                    allowed_values_labels: isCapitalized
+                      ? { 'Enabled': 'Enabled', 'Disabled': 'Disabled' }
+                      : { 'enabled': 'Enabled', 'disabled': 'Disabled' }
+                  };
+                } else if (!this.modSettingsMetadata[key].allowed_values) {
+                  this.modSettingsMetadata[key].allowed_values = isCapitalized ? ['Enabled', 'Disabled'] : ['enabled', 'disabled'];
+                  this.modSettingsMetadata[key].allowed_values_labels = isCapitalized
+                    ? { 'Enabled': 'Enabled', 'Disabled': 'Disabled' }
+                    : { 'enabled': 'Enabled', 'disabled': 'Disabled' };
+                }
+              }
+            });
+          }
+        });
+      }
+
       // Build prefix matcher from ALL installed mods (most comprehensive) + active profile
       const allMods = [...(this.installedMods || []), ...(this.mods || [])];
       let modNames = [...new Set(allMods.map(m => m.name))];
