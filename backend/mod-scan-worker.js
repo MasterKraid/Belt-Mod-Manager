@@ -3,6 +3,122 @@ const fs = require('fs');
 const path = require('path');
 const AdmZip = require('adm-zip');
 
+function parseLuaSettings(luaText) {
+  const cleanText = luaText
+    .replace(/--\[\[[\s\S]*?\]\]/g, '')
+    .replace(/--.*/g, '');
+
+  const blocks = [];
+  let pos = 0;
+  while (true) {
+    const idx = cleanText.indexOf('{', pos);
+    if (idx === -1) break;
+    
+    let depth = 1;
+    let endIdx = -1;
+    for (let i = idx + 1; i < cleanText.length; i++) {
+      if (cleanText[i] === '{') depth++;
+      else if (cleanText[i] === '}') {
+        depth--;
+        if (depth === 0) {
+          endIdx = i;
+          break;
+        }
+      }
+    }
+    if (endIdx === -1) break;
+    
+    const block = cleanText.slice(idx, endIdx + 1);
+    if (/type\s*=\s*["'](?:bool|int|double|string|color)-setting["']/.test(block)) {
+      blocks.push(block);
+    }
+    pos = idx + 1;
+  }
+
+  const leafBlocks = blocks.filter(b => {
+    const matches = b.match(/type\s*=\s*["'](?:bool|int|double|string|color)-setting["']/g) || [];
+    return matches.length === 1;
+  });
+
+  const settings = [];
+  for (const block of leafBlocks) {
+    const nameMatch = block.match(/name\s*=\s*["']([^"']+)["']/);
+    const typeMatch = block.match(/type\s*=\s*["']([^"']+)["']/);
+    const settingTypeMatch = block.match(/setting_type\s*=\s*["']([^"']+)["']/) || block.match(/setting-type\s*=\s*["']([^"']+)["']/);
+    const defaultMatch = block.match(/default_value\s*=\s*([^,\n}]+)/);
+    
+    if (nameMatch && typeMatch) {
+      const setting = {
+        name: nameMatch[1],
+        type: typeMatch[1],
+        setting_type: settingTypeMatch ? settingTypeMatch[1] : 'startup'
+      };
+
+      if (defaultMatch) {
+        const valStr = defaultMatch[1].trim();
+        if (valStr === 'true') setting.default_value = true;
+        else if (valStr === 'false') setting.default_value = false;
+        else if (valStr.startsWith('"') || valStr.startsWith("'")) {
+          setting.default_value = valStr.slice(1, -1);
+        } else if (!isNaN(Number(valStr))) {
+          setting.default_value = Number(valStr);
+        } else {
+          setting.default_value = valStr;
+        }
+      }
+
+      const allowedMatch = block.match(/allowed_values\s*=\s*\{([^}]+)\}/);
+      if (allowedMatch) {
+        setting.allowed_values = allowedMatch[1]
+          .split(',')
+          .map(s => s.trim().replace(/^["']|["']$/g, ''))
+          .filter(Boolean);
+      }
+
+      const minMatch = block.match(/minimum_value\s*=\s*([^,\n}]+)/);
+      if (minMatch) {
+        const val = Number(minMatch[1].trim());
+        setting.minimum_value = isNaN(val) ? minMatch[1].trim() : val;
+      }
+      const maxMatch = block.match(/maximum_value\s*=\s*([^,\n}]+)/);
+      if (maxMatch) {
+        const val = Number(maxMatch[1].trim());
+        setting.maximum_value = isNaN(val) ? maxMatch[1].trim() : val;
+      }
+
+      settings.push(setting);
+    }
+  }
+  return settings;
+}
+
+function parseCfg(cfgText) {
+  const sections = {};
+  let currentSection = null;
+  const lines = cfgText.split(/\r?\n/);
+  
+  for (let line of lines) {
+    line = line.trim();
+    if (!line || line.startsWith(';') || line.startsWith('#')) continue;
+    
+    if (line.startsWith('[') && line.endsWith(']')) {
+      currentSection = line.slice(1, -1).trim();
+      sections[currentSection] = sections[currentSection] || {};
+      continue;
+    }
+    
+    if (currentSection) {
+      const eqIdx = line.indexOf('=');
+      if (eqIdx !== -1) {
+        const key = line.slice(0, eqIdx).trim();
+        const value = line.slice(eqIdx + 1).trim();
+        sections[currentSection][key] = value;
+      }
+    }
+  }
+  return sections;
+}
+
 function parseGameInfoMods(gamePath) {
   const names = ['base', 'elevated-rails', 'quality', 'space-age'];
   const parsed = [];
@@ -70,7 +186,8 @@ function scanModsMetadata(modsDir, gamePath, cacheFilePath) {
 
       if (persistentCache[cacheKey] && 
           persistentCache[cacheKey].mtime === stats.mtimeMs && 
-          persistentCache[cacheKey].size === stats.size) {
+          persistentCache[cacheKey].size === stats.size &&
+          persistentCache[cacheKey].metadata.settings !== undefined) {
         const cached = persistentCache[cacheKey].metadata;
         results.push({
           name: cached.name,
@@ -83,6 +200,8 @@ function scanModsMetadata(modsDir, gamePath, cacheFilePath) {
           thumbnail: cached.hasThumbnail ? `/api/mods/thumbnail/${cached.name}` : null,
           mtime: stats.mtimeMs,
           _zipPath: zipPath,
+          settings: cached.settings,
+          locale: cached.locale
         });
         continue;
       }
@@ -103,6 +222,40 @@ function scanModsMetadata(modsDir, gamePath, cacheFilePath) {
           e.entryName.toLowerCase() === 'thumbnail.png'
       );
 
+      // Parse settings
+      const settings = [];
+      const settingsEntries = entries.filter(e => {
+        const lower = e.entryName.toLowerCase();
+        return (lower.endsWith('settings.lua') || lower.endsWith('settings-updates.lua') || lower.endsWith('settings-final-fixes.lua')) && !e.isDirectory;
+      });
+      for (const entry of settingsEntries) {
+        try {
+          const parsed = parseLuaSettings(zip.readAsText(entry));
+          settings.push(...parsed);
+        } catch {}
+      }
+
+      // Parse locale (English only)
+      const locale = { names: {}, descriptions: {}, values: {} };
+      const localeEntries = entries.filter(e => {
+        const lower = e.entryName.toLowerCase();
+        return (lower.includes('/locale/en/') && (lower.endsWith('.cfg') || lower.endsWith('.ini'))) && !e.isDirectory;
+      });
+      for (const entry of localeEntries) {
+        try {
+          const cfg = parseCfg(zip.readAsText(entry));
+          if (cfg['mod-setting-name']) {
+            Object.assign(locale.names, cfg['mod-setting-name']);
+          }
+          if (cfg['mod-setting-description']) {
+            Object.assign(locale.descriptions, cfg['mod-setting-description']);
+          }
+          if (cfg['string-setting-value']) {
+            Object.assign(locale.values, cfg['string-setting-value']);
+          }
+        } catch {}
+      }
+
       const metadata = {
         name: info.name,
         title: info.title || info.name,
@@ -112,6 +265,8 @@ function scanModsMetadata(modsDir, gamePath, cacheFilePath) {
         dependencies: info.dependencies || [],
         homepage: info.homepage || '',
         hasThumbnail,
+        settings,
+        locale
       };
 
       persistentCache[cacheKey] = {

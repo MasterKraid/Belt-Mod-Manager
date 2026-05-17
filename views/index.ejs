@@ -723,7 +723,15 @@
                   v-if="categorizedSettings[selectedConfigMod][activeConfigTab] && categorizedSettings[selectedConfigMod][activeConfigTab].length > 0">
                   <div class="config-setting-card"
                     v-for="setting in categorizedSettings[selectedConfigMod][activeConfigTab]" :key="setting.key">
-                    <label class="setting-key">{{ setting.key.replace(selectedConfigMod + '-', '') }}</label>
+                    <div class="setting-header-row" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                      <label class="setting-key" style="margin-bottom: 0;">
+                        {{ modSettingsMetadata[setting.key] && modSettingsMetadata[setting.key].title ? modSettingsMetadata[setting.key].title : setting.key.replace(selectedConfigMod + '-', '') }}
+                      </label>
+                      <span v-if="modSettingsMetadata[setting.key] && modSettingsMetadata[setting.key].description"
+                        class="info-icon-tooltip has-tooltip"
+                        :data-tooltip="modSettingsMetadata[setting.key].description"
+                        style="cursor: help; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.15); color: #fff; border-radius: 50%; font-size: 10px; font-weight: bold; font-family: monospace;">!</span>
+                    </div>
 
                     <!-- Boolean -->
                     <template v-if="setting.metaType === 'bool'">
@@ -739,7 +747,47 @@
                     <!-- Number -->
                     <template
                       v-else-if="setting.metaType === 'number' || setting.metaType === 'signed_int' || setting.metaType === 'unsigned_int'">
-                      <input type="number" v-model.number="setting.value" class="dl-input" />
+                      <input type="number"
+                        :min="modSettingsMetadata[setting.key] && modSettingsMetadata[setting.key].minimum_value !== null ? modSettingsMetadata[setting.key].minimum_value : undefined"
+                        :max="modSettingsMetadata[setting.key] && modSettingsMetadata[setting.key].maximum_value !== null ? modSettingsMetadata[setting.key].maximum_value : undefined"
+                        v-model.number="setting.value" class="dl-input" />
+                    </template>
+
+                    <!-- String or Enum with allowed_values -->
+                    <template v-else-if="setting.metaType === 'string' && modSettingsMetadata[setting.key] && modSettingsMetadata[setting.key].allowed_values">
+                      <div class="custom-dropdown dl-mini-dropdown" style="width: 100%;" @click.stop>
+                        <div class="dropdown-trigger"
+                          @click="activeDropdownSettingKey = (activeDropdownSettingKey === setting.key ? null : setting.key); playSound('click')">
+                          <span>
+                            {{
+                              modSettingsMetadata[setting.key].allowed_values_labels && modSettingsMetadata[setting.key].allowed_values_labels[setting.value]
+                              ? modSettingsMetadata[setting.key].allowed_values_labels[setting.value]
+                              : setting.value
+                            }}
+                          </span>
+                          <svg class="dropdown-arrow" :class="{ open: activeDropdownSettingKey === setting.key }" width="14" height="14"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                            stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                          </svg>
+                        </div>
+                        <div v-show="activeDropdownSettingKey === setting.key" class="dropdown-menu full-width-dropdown-menu" style="max-height: 200px; overflow-y: auto;">
+                          <div v-for="opt in modSettingsMetadata[setting.key].allowed_values" class="dropdown-item" :class="{ active: setting.value === opt }"
+                            @click="setting.value = opt; activeDropdownSettingKey = null; playSound('click')">
+                            <svg v-if="setting.value === opt" class="check-icon" width="12" height="12" viewBox="0 0 24 24"
+                              fill="none" stroke="currentColor" stroke-width="3">
+                              <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            <span>
+                              {{
+                                modSettingsMetadata[setting.key].allowed_values_labels && modSettingsMetadata[setting.key].allowed_values_labels[opt]
+                                ? modSettingsMetadata[setting.key].allowed_values_labels[opt]
+                                : opt
+                              }}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </template>
 
                     <!-- String -->

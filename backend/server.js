@@ -1391,6 +1391,64 @@ app.all('/api/mod-settings-map', async (req, res) => {
   }
 });
 
+app.get('/api/mod-settings-metadata', async (req, res) => {
+  try {
+    const scanned = await getScannedMods('settings-metadata');
+    const metadataMap = {};
+
+    const sorted = [...scanned].sort((a, b) => {
+      const partsA = (a.version || '0.0.0').split('.').map(x => parseInt(x) || 0);
+      const partsB = (b.version || '0.0.0').split('.').map(x => parseInt(x) || 0);
+      const maxLen = Math.max(partsA.length, partsB.length);
+      for (let i = 0; i < maxLen; i++) {
+        const pa = partsA[i] || 0;
+        const pb = partsB[i] || 0;
+        if (pa !== pb) return pa - pb;
+      }
+      return 0;
+    });
+
+    for (const mod of sorted) {
+      if (!mod.settings) continue;
+      for (const setting of mod.settings) {
+        const key = setting.name;
+        const title = mod.locale && mod.locale.names && mod.locale.names[key] ? mod.locale.names[key] : key;
+        const description = mod.locale && mod.locale.descriptions && mod.locale.descriptions[key] ? mod.locale.descriptions[key] : null;
+
+        const values = {};
+        if (setting.allowed_values && mod.locale && mod.locale.values) {
+          setting.allowed_values.forEach(val => {
+            const locKey = `${key}-${val}`;
+            if (mod.locale.values[locKey]) {
+              values[val] = mod.locale.values[locKey];
+            } else {
+              values[val] = val;
+            }
+          });
+        }
+
+        metadataMap[key] = {
+          modName: mod.name,
+          title,
+          description,
+          type: setting.type,
+          setting_type: setting.setting_type,
+          default_value: setting.default_value,
+          allowed_values: setting.allowed_values || null,
+          allowed_values_labels: Object.keys(values).length > 0 ? values : null,
+          minimum_value: setting.minimum_value !== undefined ? setting.minimum_value : null,
+          maximum_value: setting.maximum_value !== undefined ? setting.maximum_value : null
+        };
+      }
+    }
+
+    res.json(metadataMap);
+  } catch (err) {
+    console.error('[SettingsMetadata] Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/mod-settings', (req, res) => {
   const { path: datPath } = req.body;
   if (!datPath) return res.status(400).send('Path required');

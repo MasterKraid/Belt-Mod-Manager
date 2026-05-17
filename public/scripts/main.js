@@ -82,6 +82,8 @@ const vueAppOptions = {
     settingsLoading: false,
     modSettingsError: null,
     modSettingsMap: null,
+    modSettingsMetadata: {},
+    activeDropdownSettingKey: null,
     configDirty: false,
     showUnsavedModal: false,
     pendingTabAction: null,
@@ -1213,6 +1215,17 @@ const vueAppOptions = {
           }
         }
 
+        // Fetch settings metadata
+        try {
+          const metaRes = await fetch('/api/mod-settings-metadata');
+          if (metaRes.ok) {
+            this.modSettingsMetadata = await metaRes.json();
+            console.log(`[Config] Loaded settings metadata for ${Object.keys(this.modSettingsMetadata).length} settings`);
+          }
+        } catch (metaErr) {
+          console.error('[Config] Failed to fetch settings metadata:', metaErr);
+        }
+
         this.parseAndCategorizeSettings(this.modSettingsData);
       } catch (e) {
         console.error("Failed to load mod-settings.dat", e);
@@ -1737,6 +1750,7 @@ const vueAppOptions = {
     document.addEventListener('click', () => {
       this.dropdownOpen = false;
       this.closeDlDropdowns();
+      this.activeDropdownSettingKey = null;
     });
 
     // Disable default browser right-click context menu
