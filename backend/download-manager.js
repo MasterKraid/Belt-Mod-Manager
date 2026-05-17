@@ -465,7 +465,7 @@ class DownloadManager {
 
   // ---- Download jobs -----------------------------------------------------
 
-  queueDownload(modName, version, fileName, officialDownloadUrl) {
+  queueDownload(modName, version, fileName, officialDownloadUrl, keepOldVersion = false) {
     // Deduplicate
     for (const [, job] of this.jobs) {
       if (job.fileName === fileName && ['downloading', 'queued', 'complete'].includes(job.status)) {
@@ -475,7 +475,7 @@ class DownloadManager {
 
     // Already on disk?
     if (this._isInstalled(fileName)) {
-      const job = this._makeJob(modName, version, fileName, officialDownloadUrl);
+      const job = this._makeJob(modName, version, fileName, officialDownloadUrl, keepOldVersion);
       job.status = 'complete';
       job.progress = 1;
       job.skipped = true;
@@ -483,14 +483,14 @@ class DownloadManager {
       return this._jobStatus(job);
     }
 
-    const job = this._makeJob(modName, version, fileName, officialDownloadUrl);
+    const job = this._makeJob(modName, version, fileName, officialDownloadUrl, keepOldVersion);
     this.jobs.set(job.id, job);
     this.queue.push(job.id);
     this._processQueue();
     return this._jobStatus(job);
   }
 
-  async queueWithDependencies(modName, includeOptional = false) {
+  async queueWithDependencies(modName, includeOptional = false, keepOldVersion = false) {
     const deps = await this.resolveDependencies(modName, includeOptional);
     const plan = { downloads: [], skipped: [] };
 
@@ -498,7 +498,7 @@ class DownloadManager {
       if (this._isInstalled(dep.fileName)) {
         plan.skipped.push({ modName: dep.modName, title: dep.title, version: dep.version, fileName: dep.fileName });
       } else {
-        const job = this.queueDownload(dep.modName, dep.version, dep.fileName, dep.officialDownloadUrl);
+        const job = this.queueDownload(dep.modName, dep.version, dep.fileName, dep.officialDownloadUrl, keepOldVersion);
         plan.downloads.push(this._jobStatus(job));
       }
     }
@@ -539,10 +539,10 @@ class DownloadManager {
 
   // ---- Internals ---------------------------------------------------------
 
-  _makeJob(modName, version, fileName, officialDownloadUrl) {
+  _makeJob(modName, version, fileName, officialDownloadUrl, keepOldVersion = false) {
     return {
       id: this._nextId++,
-      modName, version, fileName, officialDownloadUrl,
+      modName, version, fileName, officialDownloadUrl, keepOldVersion,
       status: 'queued', progress: 0,
       totalBytes: 0, downloadedBytes: 0, speed: 0,
       error: null, retryCount: 0, skipped: false,
@@ -653,6 +653,21 @@ class DownloadManager {
       // Rename .part to final
       if (fs.existsSync(partPath)) {
         fs.renameSync(partPath, finalPath);
+      }
+
+      // Automatically delete older versions of the same mod if keepOldVersion is false
+      if (!job.keepOldVersion) {
+        try {
+          const prefix = job.modName + '_';
+          const files = fs.readdirSync(modsDir);
+          for (const file of files) {
+            if (file.endsWith('.zip') && file !== job.fileName && file.startsWith(prefix)) {
+              try {
+                fs.unlinkSync(path.join(modsDir, file));
+              } catch (e) {}
+            }
+          }
+        } catch (err) {}
       }
 
       job.status = 'complete';

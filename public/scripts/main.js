@@ -1534,7 +1534,7 @@ const vueAppOptions = {
           this.isCheckingUpdates = false;
         });
     },
-    downloadModUpdate(modName, targetVersion) {
+    downloadModUpdate(modName, targetVersion, keepOldVersion = false) {
       this.playSound('click');
       this.notify(`Updating ${modName} to v${targetVersion}...`);
       fetch('/api/portal/download-with-deps', {
@@ -1542,7 +1542,8 @@ const vueAppOptions = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           modName: modName,
-          includeOptional: false
+          includeOptional: false,
+          keepOldVersion: keepOldVersion
         })
       })
         .then(res => res.json())

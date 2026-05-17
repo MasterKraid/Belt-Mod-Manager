@@ -423,7 +423,7 @@
               <h3 class="installed-tab-title" style="margin: 0;">Installed Mods</h3>
               <div class="dl-mod-counter has-tooltip" data-tooltip="Total Mods Installed"
                 style="transform: translateY(2px);">
-                {{ mods.length }}
+                {{ installedMods.length }}
               </div>
             </div>
 
@@ -526,7 +526,7 @@
           <div class="mod-list">
             <div class="mod-item installed-item" v-for="mod in filteredInstalledMods"
               :key="mod.name + '@' + mod.version">
-              <div class="installed-header" @click="toggleExpand(mod.name)">
+              <div class="installed-header" @click="toggleExpand(mod.name + '_' + mod.version)">
                 <div class="installed-title-area">
                   <img v-if="mod.thumbnail" :src="mod.thumbnail" class="thumbnail installed-mod-thumbnail"
                     :class="{ 'base-mod-logo': mod.name === 'base' }" />
@@ -551,7 +551,7 @@
                       </path>
                     </svg>
                   </button>
-                  <div class="expand-arrow" :class="{ expanded: expandedMods.includes(mod.name) }">
+                  <div class="expand-arrow" :class="{ expanded: expandedMods.includes(mod.name + '_' + mod.version) }">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                       stroke-linecap="round" stroke-linejoin="round">
                       <polyline points="6 9 12 15 18 9"></polyline>
@@ -560,7 +560,7 @@
                 </div>
               </div>
 
-              <div v-show="expandedMods.includes(mod.name)" class="mod-details">
+              <div v-show="expandedMods.includes(mod.name + '_' + mod.version)" class="mod-details">
                 <p><strong>Author:</strong> {{ mod.author || 'Unknown' }}</p>
                 <p><strong>Description:</strong> {{ mod.description || 'No description.' }}</p>
                 <p><strong>Dependencies:</strong>
@@ -649,9 +649,9 @@
                   </div>
 
                   <!-- Direct Mod Update Trigger -->
-                  <div v-if="modUpdates[mod.name]">
+                  <div v-if="modUpdates[mod.name]" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                     <button class="dl-btn dl-btn-primary btn-update-mod-trigger"
-                      @click.stop="downloadModUpdate(mod.name, modUpdates[mod.name])">
+                      @click.stop="downloadModUpdate(mod.name, modUpdates[mod.name], false)">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                         stroke-width="2.5" class="vertical-align-icon-text">
                         <polyline points="17 11 12 16 7 11"></polyline>
@@ -659,6 +659,16 @@
                         <path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"></path>
                       </svg>
                       Update to v{{ modUpdates[mod.name] }}
+                    </button>
+                    <button class="dl-btn dl-btn-secondary btn-update-mod-trigger has-tooltip" data-tooltip="Update and keep the old version in mod list."
+                      @click.stop="downloadModUpdate(mod.name, modUpdates[mod.name], true)">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5" class="vertical-align-icon-text">
+                        <polyline points="17 11 12 16 7 11"></polyline>
+                        <line x1="12" y1="9" x2="12" y2="16"></line>
+                        <path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"></path>
+                      </svg>
+                      Update +old ver.
                     </button>
                   </div>
                 </div>

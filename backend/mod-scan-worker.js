@@ -139,45 +139,41 @@ function scanModsMetadata(modsDir, gamePath, cacheFilePath) {
     } catch {}
   }
 
-  // Deduplicate and only keep highest semantic version of each mod
+  // Group to find latest versions
   const grouped = {};
   for (const m of results) {
-    if (!grouped[m.name]) {
-      grouped[m.name] = [];
-    }
+    if (!grouped[m.name]) grouped[m.name] = [];
     grouped[m.name].push(m);
   }
 
-  const dedupedResults = [];
+  const finalResults = [];
   const finalModZipCache = {};
 
   for (const [name, list] of Object.entries(grouped)) {
-    let selected;
-    if (list.length === 1) {
-      selected = list[0];
-    } else {
-      list.sort((a, b) => {
-        const partsA = (a.version || '0.0.0').split('.').map(x => parseInt(x) || 0);
-        const partsB = (b.version || '0.0.0').split('.').map(x => parseInt(x) || 0);
-        const maxLen = Math.max(partsA.length, partsB.length);
-        for (let i = 0; i < maxLen; i++) {
-          const pa = partsA[i] || 0;
-          const pb = partsB[i] || 0;
-          if (pb !== pa) return pb - pa;
-        }
-        return (b.mtime || 0) - (a.mtime || 0);
-      });
-      selected = list[0];
-    }
+    // Sort to find the latest
+    list.sort((a, b) => {
+      const partsA = (a.version || '0.0.0').split('.').map(x => parseInt(x) || 0);
+      const partsB = (b.version || '0.0.0').split('.').map(x => parseInt(x) || 0);
+      const maxLen = Math.max(partsA.length, partsB.length);
+      for (let i = 0; i < maxLen; i++) {
+        const pa = partsA[i] || 0;
+        const pb = partsB[i] || 0;
+        if (pb !== pa) return pb - pa;
+      }
+      return (b.mtime || 0) - (a.mtime || 0);
+    });
 
-    if (selected._zipPath) {
-      finalModZipCache[name] = selected._zipPath;
-    }
-    // delete selected._zipPath; // DO NOT DELETE - needed for internal backend cache consistency
-    dedupedResults.push(selected);
+    // Mark the latest version and update the ZIP cache with it
+    list.forEach((m, idx) => {
+      m.latest = (idx === 0);
+      if (m.latest && m._zipPath) {
+        finalModZipCache[name] = m._zipPath;
+      }
+      finalResults.push(m);
+    });
   }
 
-  return { results: dedupedResults, modZipCache: finalModZipCache, modDirMtime };
+  return { results: finalResults, modZipCache: finalModZipCache, modDirMtime };
 }
 
 try {
