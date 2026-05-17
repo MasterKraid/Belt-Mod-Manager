@@ -184,7 +184,8 @@ describe('API Endpoints', () => {
         'test-mod',
         '0.1.0',
         'test-mod_0.1.0.zip',
-        'https://example.com/test-mod_0.1.0.zip'
+        'https://example.com/test-mod_0.1.0.zip',
+        false
       );
     });
 

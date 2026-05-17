@@ -262,8 +262,8 @@ const vueAppOptions = {
           if (!a.enabled && b.enabled) return 1;
         } else if (sortMode === 'enabled-last') {
           if (aCore !== -1 && bCore !== -1) return aCore - bCore;
-          if (aCore !== -1) return 1;
-          if (bCore !== -1) return -1;
+          if (aCore !== -1) return -1;
+          if (bCore !== -1) return 1;
 
           if (a.enabled && !b.enabled) return 1;
           if (!a.enabled && b.enabled) return -1;

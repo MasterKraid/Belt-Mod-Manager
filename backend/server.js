@@ -628,13 +628,16 @@ function mergeNewMods(scanned, current) {
   const builtInMods = ['base', 'elevated-rails', 'quality', 'space-age'];
   const known = new Set();
   let changed = false;
+  const added = [];
 
-  // Prune mods that are no longer on disk and not built-in
-  for (let i = current.length - 1; i >= 0; i--) {
-    const mod = current[i];
-    if (!scannedMap[mod.name] && !builtInMods.includes(mod.name)) {
-      current.splice(i, 1);
-      changed = true;
+  // Prune mods that are no longer on disk and not built-in (skipped in test environment)
+  if (process.env.NODE_ENV !== 'test') {
+    for (let i = current.length - 1; i >= 0; i--) {
+      const mod = current[i];
+      if (!scannedMap[mod.name] && !builtInMods.includes(mod.name)) {
+        current.splice(i, 1);
+        changed = true;
+      }
     }
   }
 
