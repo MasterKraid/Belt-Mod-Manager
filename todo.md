@@ -16,4 +16,7 @@
     - Expose a UI to edit these specific mod package files.
     - Note: Needs more brainstorming on the UX and exactly what strings to expose.
 () (LOWEST PRIORITY) Currently we are just copying sounds from Factorio in codebase itself. This will cause issues in future. How to fix? Map the soundnames in codebase to the sounds that we are grabbing from Factorio Directory. When user downloads, during first load ask for game path, and also provide auto detect from steam option. When provided, game auto fetches the sounds in local instance. And then restarts. Now sounds will be availabe and we can safely remove them from the codebase. This also removes the possibilty of backlash from factorio devs for using their game sounds directly.
+() Implement Mod folder upon build in appdata for local storage
+() Implement profile sharing and auto downloading
+() Other sharing options
 () (TO BE DONE LAST BEFORE 1.0 release) Make Wiki, Readme, and other documentation.

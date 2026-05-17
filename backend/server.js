@@ -1085,6 +1085,35 @@ app.get('/api/mods/thumbnail/:modName', (req, res) => {
 const { spawn } = require('child_process');
 let gameProcess = null;
 
+function killGameProcess() {
+  if (gameProcess) {
+    try {
+      console.log(`[Exit] Parent process shutting down. Terminating active game process (PID: ${gameProcess.pid})...`);
+      gameProcess.kill();
+      if (process.platform === 'win32') {
+        const { execSync } = require('child_process');
+        execSync(`taskkill /F /T /PID ${gameProcess.pid}`, { stdio: 'ignore' });
+      }
+    } catch (e) {
+      console.error('[Exit] Error terminating game process:', e.message);
+    }
+  }
+}
+
+process.on('exit', killGameProcess);
+process.on('SIGINT', () => {
+  killGameProcess();
+  process.exit(0);
+});
+process.on('SIGTERM', () => {
+  killGameProcess();
+  process.exit(0);
+});
+process.on('SIGHUP', () => {
+  killGameProcess();
+  process.exit(0);
+});
+
 function syncProfileWithActualModList() {
   if (!activeProfile) return;
   const profileFile = path.join(PROFILES_DIR, `${activeProfile}.json`);

@@ -212,6 +212,13 @@ const vueAppOptions = {
         return false;
       });
     },
+    hasMultipleConfigSections() {
+      let count = 0;
+      if (this.hasConfigSectionRaw('startup')) count++;
+      if (this.hasConfigSectionRaw('runtime-global')) count++;
+      if (this.hasConfigSectionRaw('runtime-per-user')) count++;
+      return count > 1;
+    },
     filteredMods() {
       const query = this.searchQueryManager.toLowerCase().trim();
       let list = [...this.mods];
@@ -373,6 +380,75 @@ const vueAppOptions = {
     this.initLogsStream();
   },
   methods: {
+    hasConfigSectionRaw(tab) {
+      if (!this.selectedConfigMod || !this.categorizedSettings[this.selectedConfigMod]) return false;
+      const settings = this.categorizedSettings[this.selectedConfigMod][tab];
+      return Array.isArray(settings) && settings.length > 0;
+    },
+    hasConfigSection(tab) {
+      return this.filteredConfigSettingsByTab(tab).length > 0;
+    },
+    filteredConfigSettingsByTab(tab) {
+      if (!this.selectedConfigMod || !this.categorizedSettings[this.selectedConfigMod]) {
+        return [];
+      }
+      const settings = this.categorizedSettings[this.selectedConfigMod][tab] || [];
+      const query = this.configSearchQuery.toLowerCase().trim();
+      if (!query) {
+        return settings;
+      }
+      if (this.selectedConfigMod.toLowerCase().includes(query)) {
+        return settings;
+      }
+      return settings.filter(s => {
+        if (s.key.toLowerCase().includes(query)) return true;
+        const meta = this.modSettingsMetadata[s.key];
+        if (meta && meta.title && meta.title.toLowerCase().includes(query)) return true;
+        return false;
+      });
+    },
+    scrollToActiveSection(smooth = false) {
+      this.$nextTick(() => {
+        const container = this.$refs.configSettingsScroll;
+        const el = document.getElementById(`config-section-${this.activeConfigTab}`);
+        if (container && el) {
+          const sections = ['startup', 'runtime-global', 'runtime-per-user'].filter(sec => this.hasConfigSectionRaw(sec));
+          let targetScrollTop = 0;
+          if (sections[0] !== this.activeConfigTab) {
+            targetScrollTop = el.offsetTop - 16;
+          }
+          if (smooth) {
+            container.scrollTo({
+              top: targetScrollTop,
+              behavior: 'smooth'
+            });
+          } else {
+            container.scrollTop = targetScrollTop;
+          }
+        }
+      });
+    },
+    onConfigScroll(e) {
+      const scrollContainer = e.target;
+      const containerTop = scrollContainer.getBoundingClientRect().top;
+      
+      const sections = ['startup', 'runtime-global', 'runtime-per-user'];
+      let activeSection = null;
+      
+      for (const sec of sections) {
+        const el = document.getElementById(`config-section-${sec}`);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          if (rect.top - containerTop <= 80) {
+            activeSection = sec;
+          }
+        }
+      }
+      
+      if (activeSection && this.activeConfigTab !== activeSection) {
+        this.activeConfigTab = activeSection;
+      }
+    },
     updateTooltipOnOverflow(e, text) {
       const target = e.currentTarget.querySelector('.mod-name-clamp') || e.currentTarget;
       if (target.scrollHeight > target.clientHeight || target.scrollWidth > target.clientWidth) {
@@ -1676,6 +1752,7 @@ const vueAppOptions = {
       }
       this.activeConfigTab = scope;
       this.playSound('click');
+      this.scrollToActiveSection(true);
     },
     switchConfigMod(modName) {
       if (this.configDirty) {
@@ -1686,6 +1763,7 @@ const vueAppOptions = {
       this.selectedConfigMod = modName;
       this.activeConfigTab = 'startup';
       this.playSound('click');
+      this.scrollToActiveSection();
     },
     confirmDiscardChanges() {
       this.configDirty = false;
@@ -1696,10 +1774,14 @@ const vueAppOptions = {
       if (!action) return;
 
       if (action.type === 'mainTab') this.currentTab = action.value;
-      else if (action.type === 'subTab') this.activeConfigTab = action.value;
+      else if (action.type === 'subTab') {
+        this.activeConfigTab = action.value;
+        this.scrollToActiveSection(true);
+      }
       else if (action.type === 'mod') {
         this.selectedConfigMod = action.value;
         this.activeConfigTab = 'startup';
+        this.scrollToActiveSection();
       }
 
       // Re-load settings to discard changes in memory

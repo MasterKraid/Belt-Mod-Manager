@@ -3898,6 +3898,31 @@ input:checked + .slider:before {
   padding: 1.5rem;
 }
 
+.config-section {
+  margin-bottom: 2.5rem;
+}
+.config-section:last-child {
+  margin-bottom: 0;
+}
+
+.config-section-title {
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #f4d35e;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin: 1.5rem 0 1.25rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  opacity: 0.85;
+}
+.config-section-title:first-child {
+  margin-top: 0.5rem;
+}
+
 .config-pane-centered {
   align-items: center;
   justify-content: center;

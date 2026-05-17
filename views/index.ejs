@@ -155,7 +155,7 @@
                     <circle cx="11" cy="11" r="8"></circle>
                     <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                   </svg>
-                  <input type="text" v-model="profileSearchQueryPage" placeholder="Search profiles..."
+                  <input type="text" v-model="profileSearchQueryPage" placeholder="Search profiles"
                     class="custom-search-input" />
                   <button v-if="profileSearchQueryPage" class="search-clear-btn"
                     @click="profileSearchQueryPage = ''; playSound('click')">
@@ -280,7 +280,7 @@
               </div>
               <div v-show="dropdownOpen" class="dropdown-menu">
                 <div v-if="profiles.length >= 10" class="dropdown-search-wrapper" @click.stop>
-                  <input type="text" v-model="profileSearchQuery" placeholder="Search profiles..."
+                  <input type="text" v-model="profileSearchQuery" placeholder="Search profiles"
                     class="dropdown-search-input" ref="profileSearch" />
                 </div>
                 <div class="dropdown-items-list dropdown-items-scroll">
@@ -736,130 +736,157 @@
                 </div>
               </div>
 
-              <div class="config-settings-scroll">
-                <template
-                  v-if="filteredConfigSettings && filteredConfigSettings.length > 0">
-                  <div class="config-setting-card"
-                    v-for="setting in filteredConfigSettings" :key="setting.key">
-                    <div class="setting-header-row" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
-                      <label class="setting-key" style="margin-bottom: 0;">
-                        {{ modSettingsMetadata[setting.key] && modSettingsMetadata[setting.key].title ? modSettingsMetadata[setting.key].title : setting.key.replace(selectedConfigMod + '-', '') }}
-                      </label>
-                      <span v-if="modSettingsMetadata[setting.key] && modSettingsMetadata[setting.key].description"
-                        class="info-icon-tooltip has-tooltip"
-                        :data-tooltip="modSettingsMetadata[setting.key].description"
-                        style="cursor: help; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.15); color: #fff; border-radius: 50%; font-size: 10px; font-weight: bold; font-family: monospace;">!</span>
-                    </div>
+              <div class="config-settings-scroll" ref="configSettingsScroll" @scroll="onConfigScroll">
+                
+                <!-- Scenario A: Category not present in the mod -->
+                <template v-if="!hasConfigSectionRaw(activeConfigTab)">
+                  <div class="config-empty-state-centered">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                      style="margin-bottom: 1rem;">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="8" x2="12" y2="12"></line>
+                      <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <p v-if="activeConfigTab === 'startup'">No Startup settings found.</p>
+                    <p v-else-if="activeConfigTab === 'runtime-global'">No Map (Global) settings found.</p>
+                    <p v-else-if="activeConfigTab === 'runtime-per-user'">No Per Player settings found.</p>
+                  </div>
+                </template>
 
-                    <!-- Boolean -->
-                    <template v-if="setting.metaType === 'bool'">
-                      <div class="toggle-row" @click="setting.value = !setting.value; playSound('click')">
-                        <label class="switch" style="pointer-events: none;">
-                          <input type="checkbox" :checked="setting.value">
-                          <span class="slider"></span>
+                <!-- Scenario B: Category is present in the mod -->
+                <template v-else>
+                  <template
+                    v-if="filteredConfigSettingsByTab('startup').length > 0 || filteredConfigSettingsByTab('runtime-global').length > 0 || filteredConfigSettingsByTab('runtime-per-user').length > 0">
+                    
+                    <div v-for="sec in ['startup', 'runtime-global', 'runtime-per-user']" :key="sec"
+                      v-if="filteredConfigSettingsByTab(sec).length > 0" :id="'config-section-' + sec" class="config-section">
+                      
+                      <h4 class="config-section-title">
+                        {{ sec === 'startup' ? 'Startup' : (sec === 'runtime-global' ? 'Map (Global)' : 'Per Player') }}
+                      </h4>
+
+                      <div class="config-setting-card"
+                        v-for="setting in filteredConfigSettingsByTab(sec)" :key="setting.key">
+                      <div class="setting-header-row" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <label class="setting-key" style="margin-bottom: 0;">
+                          {{ modSettingsMetadata[setting.key] && modSettingsMetadata[setting.key].title ? modSettingsMetadata[setting.key].title : setting.key.replace(selectedConfigMod + '-', '') }}
                         </label>
-                        <span class="settings-toggle-label">{{ setting.value ? 'Enabled' : 'Disabled' }}</span>
+                        <span v-if="modSettingsMetadata[setting.key] && modSettingsMetadata[setting.key].description"
+                          class="info-icon-tooltip has-tooltip"
+                          :data-tooltip="modSettingsMetadata[setting.key].description"
+                          style="cursor: help; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.15); color: #fff; border-radius: 50%; font-size: 10px; font-weight: bold; font-family: monospace;">!</span>
                       </div>
-                    </template>
 
-                    <!-- Number -->
-                    <template
-                      v-else-if="setting.metaType === 'number' || setting.metaType === 'signed_int' || setting.metaType === 'unsigned_int'">
-                      <input type="number"
-                        step="any"
-                        :min="modSettingsMetadata[setting.key] && modSettingsMetadata[setting.key].minimum_value !== null ? modSettingsMetadata[setting.key].minimum_value : undefined"
-                        :max="modSettingsMetadata[setting.key] && modSettingsMetadata[setting.key].maximum_value !== null ? modSettingsMetadata[setting.key].maximum_value : undefined"
-                        v-model.number="setting.value" class="dl-input" />
-                    </template>
-
-                    <!-- String or Enum with allowed_values -->
-                    <template v-else-if="setting.metaType === 'string' && modSettingsMetadata[setting.key] && modSettingsMetadata[setting.key].allowed_values">
-                      <div class="custom-dropdown dl-mini-dropdown" style="width: 100%;" @click.stop>
-                        <div class="dropdown-trigger"
-                          @click="activeDropdownSettingKey = (activeDropdownSettingKey === setting.key ? null : setting.key); playSound('click')">
-                          <span>
-                            {{
-                              modSettingsMetadata[setting.key].allowed_values_labels && modSettingsMetadata[setting.key].allowed_values_labels[setting.value]
-                              ? modSettingsMetadata[setting.key].allowed_values_labels[setting.value]
-                              : setting.value
-                            }}
-                          </span>
-                          <svg class="dropdown-arrow" :class="{ open: activeDropdownSettingKey === setting.key }" width="14" height="14"
-                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
-                            stroke-linejoin="round">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                          </svg>
+                      <!-- Boolean -->
+                      <template v-if="setting.metaType === 'bool'">
+                        <div class="toggle-row" @click="setting.value = !setting.value; playSound('click')">
+                          <label class="switch" style="pointer-events: none;">
+                            <input type="checkbox" :checked="setting.value">
+                            <span class="slider"></span>
+                          </label>
+                          <span class="settings-toggle-label">{{ setting.value ? 'Enabled' : 'Disabled' }}</span>
                         </div>
-                        <div v-show="activeDropdownSettingKey === setting.key" class="dropdown-menu full-width-dropdown-menu" style="max-height: 200px; overflow-y: auto;">
-                          <div v-for="opt in modSettingsMetadata[setting.key].allowed_values" class="dropdown-item" :class="{ active: setting.value === opt }"
-                            @click="setting.value = opt; activeDropdownSettingKey = null; playSound('click')">
-                            <svg v-if="setting.value === opt" class="check-icon" width="12" height="12" viewBox="0 0 24 24"
-                              fill="none" stroke="currentColor" stroke-width="3">
-                              <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
+                      </template>
+
+                      <!-- Number -->
+                      <template
+                        v-else-if="setting.metaType === 'number' || setting.metaType === 'signed_int' || setting.metaType === 'unsigned_int'">
+                        <input type="number"
+                          step="any"
+                          :min="modSettingsMetadata[setting.key] && modSettingsMetadata[setting.key].minimum_value !== null ? modSettingsMetadata[setting.key].minimum_value : undefined"
+                          :max="modSettingsMetadata[setting.key] && modSettingsMetadata[setting.key].maximum_value !== null ? modSettingsMetadata[setting.key].maximum_value : undefined"
+                          v-model.number="setting.value" class="dl-input" />
+                      </template>
+
+                      <!-- String or Enum with allowed_values -->
+                      <template v-else-if="setting.metaType === 'string' && modSettingsMetadata[setting.key] && modSettingsMetadata[setting.key].allowed_values">
+                        <div class="custom-dropdown dl-mini-dropdown" style="width: 100%;" @click.stop>
+                          <div class="dropdown-trigger"
+                            @click="activeDropdownSettingKey = (activeDropdownSettingKey === setting.key ? null : setting.key); playSound('click')">
                             <span>
                               {{
-                                modSettingsMetadata[setting.key].allowed_values_labels && modSettingsMetadata[setting.key].allowed_values_labels[opt]
-                                ? modSettingsMetadata[setting.key].allowed_values_labels[opt]
-                                : opt
+                                modSettingsMetadata[setting.key].allowed_values_labels && modSettingsMetadata[setting.key].allowed_values_labels[setting.value]
+                                ? modSettingsMetadata[setting.key].allowed_values_labels[setting.value]
+                                : setting.value
                               }}
                             </span>
+                            <svg class="dropdown-arrow" :class="{ open: activeDropdownSettingKey === setting.key }" width="14" height="14"
+                              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                              stroke-linejoin="round">
+                              <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                          </div>
+                          <div v-show="activeDropdownSettingKey === setting.key" class="dropdown-menu full-width-dropdown-menu" style="max-height: 200px; overflow-y: auto;">
+                            <div v-for="opt in modSettingsMetadata[setting.key].allowed_values" class="dropdown-item" :class="{ active: setting.value === opt }"
+                              @click="setting.value = opt; activeDropdownSettingKey = null; playSound('click')">
+                              <svg v-if="setting.value === opt" class="check-icon" width="12" height="12" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="3">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                              </svg>
+                              <span>
+                                {{
+                                  modSettingsMetadata[setting.key].allowed_values_labels && modSettingsMetadata[setting.key].allowed_values_labels[opt]
+                                  ? modSettingsMetadata[setting.key].allowed_values_labels[opt]
+                                  : opt
+                                }}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </template>
+                      </template>
 
-                    <!-- String -->
-                    <template v-else-if="setting.metaType === 'string'">
-                      <input type="text" v-model="setting.value" class="dl-input" />
-                    </template>
+                      <!-- String -->
+                      <template v-else-if="setting.metaType === 'string'">
+                        <input type="text" v-model="setting.value" class="dl-input" />
+                      </template>
 
-                    <!-- Color Dictionary -->
-                    <template
-                      v-else-if="setting.metaType === 'dictionary' && setting.value && setting.value.r !== undefined">
-                      <div class="color-picker-component">
-                        <div class="color-preview-large"
-                          :style="{ backgroundColor: `rgba(${Math.round(setting.value.r*255)}, ${Math.round(setting.value.g*255)}, ${Math.round(setting.value.b*255)}, ${setting.value.a !== undefined ? setting.value.a : 1})` }">
-                          <span class="hex-text">{{ rgbToHex(setting.value.r, setting.value.g,
-                            setting.value.b).toUpperCase() }}</span>
+                      <!-- Color Dictionary -->
+                      <template
+                        v-else-if="setting.metaType === 'dictionary' && setting.value && setting.value.r !== undefined">
+                        <div class="color-picker-component">
+                          <div class="color-preview-large"
+                            :style="{ backgroundColor: `rgba(${Math.round(setting.value.r*255)}, ${Math.round(setting.value.g*255)}, ${Math.round(setting.value.b*255)}, ${setting.value.a !== undefined ? setting.value.a : 1})` }">
+                            <span class="hex-text">{{ rgbToHex(setting.value.r, setting.value.g,
+                              setting.value.b).toUpperCase() }}</span>
+                          </div>
+                          <div class="color-sliders-grid">
+                            <div class="color-slider-row">
+                              <label>R</label>
+                              <input type="range" min="0" max="1" step="0.00392" v-model.number="setting.value.r"
+                                class="settings-range-slider red-slider">
+                              <span class="val">{{ Math.round(setting.value.r * 255) }}</span>
+                            </div>
+                            <div class="color-slider-row">
+                              <label>G</label>
+                              <input type="range" min="0" max="1" step="0.00392" v-model.number="setting.value.g"
+                                class="settings-range-slider green-slider">
+                              <span class="val">{{ Math.round(setting.value.g * 255) }}</span>
+                            </div>
+                            <div class="color-slider-row">
+                              <label>B</label>
+                              <input type="range" min="0" max="1" step="0.00392" v-model.number="setting.value.b"
+                                class="settings-range-slider blue-slider">
+                              <span class="val">{{ Math.round(setting.value.b * 255) }}</span>
+                            </div>
+                            <div class="color-slider-row">
+                              <label>A</label>
+                              <input type="range" min="0" max="1" step="0.01" v-model.number="setting.value.a"
+                                class="settings-range-slider">
+                              <span class="val">{{ Math.round(setting.value.a * 100) }}%</span>
+                            </div>
+                          </div>
                         </div>
-                        <div class="color-sliders-grid">
-                          <div class="color-slider-row">
-                            <label>R</label>
-                            <input type="range" min="0" max="1" step="0.00392" v-model.number="setting.value.r"
-                              class="settings-range-slider red-slider">
-                            <span class="val">{{ Math.round(setting.value.r * 255) }}</span>
-                          </div>
-                          <div class="color-slider-row">
-                            <label>G</label>
-                            <input type="range" min="0" max="1" step="0.00392" v-model.number="setting.value.g"
-                              class="settings-range-slider green-slider">
-                            <span class="val">{{ Math.round(setting.value.g * 255) }}</span>
-                          </div>
-                          <div class="color-slider-row">
-                            <label>B</label>
-                            <input type="range" min="0" max="1" step="0.00392" v-model.number="setting.value.b"
-                              class="settings-range-slider blue-slider">
-                            <span class="val">{{ Math.round(setting.value.b * 255) }}</span>
-                          </div>
-                          <div class="color-slider-row">
-                            <label>A</label>
-                            <input type="range" min="0" max="1" step="0.01" v-model.number="setting.value.a"
-                              class="settings-range-slider">
-                            <span class="val">{{ Math.round(setting.value.a * 100) }}%</span>
-                          </div>
-                        </div>
-                      </div>
-                    </template>
+                      </template>
 
-                    <!-- Fallback -->
-                    <template v-else>
-                      <span style="font-size: 0.85em; opacity: 0.6; margin-bottom: 0.5rem; display: block;">Raw JSON ({{
-                        setting.metaType }}):</span>
-                      <textarea :value="JSON.stringify(setting.value, null, 2)"
-                        @input="updateSettingJSON(setting, $event.target.value)" class="dl-input"
-                        style="width: 100%; resize: vertical;" rows="3"></textarea>
-                    </template>
+                      <!-- Fallback -->
+                      <template v-else>
+                        <span style="font-size: 0.85em; opacity: 0.6; margin-bottom: 0.5rem; display: block;">Raw JSON ({{
+                          setting.metaType }}):</span>
+                        <textarea :value="JSON.stringify(setting.value, null, 2)"
+                          @input="updateSettingJSON(setting, $event.target.value)" class="dl-input"
+                          style="width: 100%; resize: vertical;" rows="3"></textarea>
+                      </template>
+                    </div>
                   </div>
                 </template>
                 <div v-else class="config-empty-state-centered">
@@ -869,9 +896,10 @@
                     <line x1="12" y1="8" x2="12" y2="12"></line>
                     <line x1="12" y1="16" x2="12.01" y2="16"></line>
                   </svg>
-                  <p>No {{ activeConfigTab }} settings found.</p>
+                  <p>No settings match your search.</p>
                 </div>
-              </div>
+              </template>
+            </div>
             </div>
 
             <div v-else class="config-settings-pane config-pane-centered">
@@ -1489,7 +1517,7 @@
                   <div class="dl-download-sub" v-else-if="dl.status === 'complete' && dl.skipped">Already installed
                   </div>
                   <div class="dl-download-sub" v-else-if="dl.status === 'complete'">Completed</div>
-                  <div class="dl-download-sub" v-else-if="dl.status === 'queued'">Queued...</div>
+                  <div class="dl-download-sub" v-else-if="dl.status === 'queued'">Queued</div>
                   <div class="dl-download-sub" v-else-if="dl.status === 'retrying'">Retrying ({{ dl.retryCount }}/3)...
                   </div>
                   <div class="dl-download-sub dl-error-text" v-else-if="dl.status === 'failed'">{{ dl.error }}</div>
