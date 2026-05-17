@@ -85,6 +85,7 @@ const vueAppOptions = {
     modSettingsMetadata: {},
     activeDropdownSettingKey: null,
     configDirty: false,
+    configSearchQuery: '',
     showUnsavedModal: false,
     pendingTabAction: null,
     portalAuth: { authenticated: false, username: null },
@@ -152,14 +153,64 @@ const vueAppOptions = {
   },
   computed: {
     sortedCategorizedSettings() {
+      const query = this.configSearchQuery.toLowerCase().trim();
       const keys = Object.keys(this.categorizedSettings).sort((a, b) => {
         if (a === 'Uncategorized') return 1;
         if (b === 'Uncategorized') return -1;
         return a.localeCompare(b);
       });
       const sorted = {};
-      keys.forEach(k => { sorted[k] = this.categorizedSettings[k]; });
+      keys.forEach(k => {
+        const settings = this.categorizedSettings[k];
+        if (!query) {
+          sorted[k] = settings;
+          return;
+        }
+        if (k.toLowerCase().includes(query)) {
+          sorted[k] = settings;
+          return;
+        }
+        let hasMatch = false;
+        for (const tab in settings) {
+          if (Array.isArray(settings[tab])) {
+            for (const s of settings[tab]) {
+              if (s.key.toLowerCase().includes(query)) {
+                hasMatch = true;
+                break;
+              }
+              const meta = this.modSettingsMetadata[s.key];
+              if (meta && meta.title && meta.title.toLowerCase().includes(query)) {
+                hasMatch = true;
+                break;
+              }
+            }
+          }
+          if (hasMatch) break;
+        }
+        if (hasMatch) {
+          sorted[k] = settings;
+        }
+      });
       return sorted;
+    },
+    filteredConfigSettings() {
+      if (!this.selectedConfigMod || !this.categorizedSettings[this.selectedConfigMod]) {
+        return [];
+      }
+      const settings = this.categorizedSettings[this.selectedConfigMod][this.activeConfigTab] || [];
+      const query = this.configSearchQuery.toLowerCase().trim();
+      if (!query) {
+        return settings;
+      }
+      if (this.selectedConfigMod.toLowerCase().includes(query)) {
+        return settings;
+      }
+      return settings.filter(s => {
+        if (s.key.toLowerCase().includes(query)) return true;
+        const meta = this.modSettingsMetadata[s.key];
+        if (meta && meta.title && meta.title.toLowerCase().includes(query)) return true;
+        return false;
+      });
     },
     filteredMods() {
       const query = this.searchQueryManager.toLowerCase().trim();
@@ -1798,7 +1849,7 @@ const vueAppOptions = {
         target.removeAttribute('title');
       }
 
-      tooltipEl.textContent = text;
+      tooltipEl.textContent = text.replace(/\\n/g, '\n');
 
       // 1. Reset classes and transitions to measure size accurately
       tooltipEl.className = '';

@@ -2115,7 +2115,7 @@ input:checked+.slider {
   padding: 0.45rem 0.65rem;
   border-radius: 4px;
   font-size: 0.76rem;
-  white-space: normal;
+  white-space: pre-wrap;
   word-wrap: break-word;
   word-break: break-word;
   pointer-events: none;
@@ -4424,3 +4424,88 @@ input:checked+.slider {
   align-items: center;
   justify-content: center;
 }
+
+/* Custom Config Loading and Search Bar */
+.config-loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  gap: 1rem;
+  color: #ffffff;
+  padding: 4rem 2rem;
+  box-sizing: border-box;
+}
+
+.config-loading-title {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #f4d35e;
+  letter-spacing: 0.5px;
+}
+
+.config-loading-bar-track {
+  width: 300px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.config-loading-bar-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -30%;
+  width: 30%;
+  background: #f4d35e;
+  border-radius: 9999px;
+  animation: configLoadingBarAnim 1.5s infinite linear;
+}
+
+.config-loading-subtitle {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+@keyframes configLoadingBarAnim {
+  0% {
+    left: -30%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* Config Search Bar Styles & Orientation Tuning */
+.config-search-wrapper {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding-left: 1.5rem;
+}
+
+.config-search-input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 0.4rem 2rem 0.4rem 0.75rem;
+  color: #ffffff;
+  font-size: 0.82rem;
+  outline: none;
+  transition: all 0.2s;
+
+  &:focus {
+    border-color: #f4d35e !important;
+    background: rgba(0, 0, 0, 0.6) !important;
+    box-shadow: 0 0 8px rgba(244, 211, 94, 0.15);
+  }
+}
+

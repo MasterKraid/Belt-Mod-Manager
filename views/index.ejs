@@ -363,7 +363,7 @@
                     <circle cx="11" cy="11" r="8"></circle>
                     <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                   </svg>
-                  <input type="text" v-model="searchQueryManager" placeholder="Search mods..."
+                  <input type="text" v-model="searchQueryManager" placeholder="Search mods"
                     class="custom-search-input" />
                   <button v-if="searchQueryManager" class="search-clear-btn"
                     @click="searchQueryManager = ''; playSound('click')">
@@ -679,8 +679,12 @@
 
         <!-- Config Tab -->
         <div v-show="currentTab==='config'" class="tab-content-wrapper">
-          <div v-if="settingsLoading" class="dl-empty-state">
-            <p>Loading Config...</p>
+          <div v-if="settingsLoading" class="config-loading-container">
+            <div class="config-loading-title">Loading Configs</div>
+            <div class="config-loading-bar-track">
+              <div class="config-loading-bar-fill"></div>
+            </div>
+            <div class="config-loading-subtitle">Scanning mod configurations and localizations...</div>
           </div>
           <div v-else-if="!modSettingsData" class="dl-empty-state">
             <p>Could not load mod-settings.dat. Ensure it exists in your selected mod directory.</p>
@@ -693,9 +697,23 @@
             <div class="config-mod-sidebar">
               <h3 class="config-sidebar-header">
                 Mods
-                <span class="config-total-badge">{{ Object.keys(categorizedSettings).length }} total</span>
+                <span class="config-total-badge">
+                  {{ configSearchQuery ? Object.keys(sortedCategorizedSettings).length + ' found' : Object.keys(categorizedSettings).length + ' total' }}
+                </span>
               </h3>
+              <!-- Search bar -->
+              <div class="config-search-wrapper">
+                <input type="text" v-model="configSearchQuery" placeholder="Search mods or settings" 
+                  class="config-search-input" />
+                <span v-if="configSearchQuery" @click="configSearchQuery = ''" 
+                  style="position: absolute; right: 1.5rem; cursor: pointer; color: rgba(255,255,255,0.4); font-size: 0.85rem; font-weight: bold;"
+                  @click="playSound('click')">x</span>
+              </div>
               <div class="config-mod-list-scroll">
+                <div v-if="Object.keys(sortedCategorizedSettings).length === 0" 
+                  style="padding: 2rem 1rem; text-align: center; color: rgba(255, 255, 255, 0.4); font-size: 0.85rem;">
+                  No matching mods or settings.
+                </div>
                 <div v-for="(settings, modName) in sortedCategorizedSettings" :key="modName">
                   <button :class="['config-mod-item', { active: selectedConfigMod === modName }]"
                     @click="switchConfigMod(modName)" @mouseenter="updateTooltipOnOverflow($event, modName)">
@@ -720,9 +738,9 @@
 
               <div class="config-settings-scroll">
                 <template
-                  v-if="categorizedSettings[selectedConfigMod][activeConfigTab] && categorizedSettings[selectedConfigMod][activeConfigTab].length > 0">
+                  v-if="filteredConfigSettings && filteredConfigSettings.length > 0">
                   <div class="config-setting-card"
-                    v-for="setting in categorizedSettings[selectedConfigMod][activeConfigTab]" :key="setting.key">
+                    v-for="setting in filteredConfigSettings" :key="setting.key">
                     <div class="setting-header-row" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
                       <label class="setting-key" style="margin-bottom: 0;">
                         {{ modSettingsMetadata[setting.key] && modSettingsMetadata[setting.key].title ? modSettingsMetadata[setting.key].title : setting.key.replace(selectedConfigMod + '-', '') }}
